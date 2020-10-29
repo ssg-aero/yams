@@ -186,37 +186,35 @@ TEST(tests_datastorage, Grid_Diff)
     }
 }
 
-// TEST(tests_datastorage, Grid_)
-// {
-//     size_t ni = 21000;
-//     size_t nj = 1300;
-//     Grid_<double,21000,1300> g{};
-//     auto r1 =  1.;
-//     auto r2 =  2.;
-//     auto r3 =  3.;
-//     auto z3 =  3.;
-//     auto t1 = -PI/2.;
-//     auto t2 =  PI/2.;
-//     for (auto i = 0; i < ni; i++)
-//     {
-//         auto th = t1 + (t2 - t1) * i / (ni - 1.);
-//         for (auto j = 0; j < nj; j++)
-//         {
-//             auto r = r1 + (r2 - r1) * j / (nj - 1.);
-//             g(i, j).y = r3 - r * sin(th);
-//             g(i, j).x = z3 - r * cos(th);
-//         }
-//     }
-// }
-
-
-TEST(tests_datastorage, GridX)
+TEST(tests_datastorage, GridStd_perfo)
 {
-    size_t ni = 2100;
-    size_t nj = 1300;
+    size_t ni = 21000;
+    size_t nj = 13000;
     
-    // xt::xarray<double>::shape_type shape = {ni, nj};
-    // xt::xarray<quiss::GridPoint<double>> g(shape);
+    Array2d<quiss::GridPoint<double>> g{ni,nj};
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto r3 =  3.;
+    auto z3 =  3.;
+    auto t1 = -PI/2.;
+    auto t2 =  PI/2.;
+    for (auto i = 0; i < ni; i++)
+    {
+        auto th = t1 + (t2 - t1) * i / (ni - 1.);
+        for (auto j = 0; j < nj; j++)
+        {
+            auto r = r1 + (r2 - r1) * j / (nj - 1.);
+            g(i, j).y = r3 - r * sin(th);
+            g(i, j).x = z3 - r * cos(th);
+        }
+    }
+}
+
+TEST(tests_datastorage, GridX_perfo)
+{
+    size_t ni = 21000;
+    size_t nj = 13000;
+    
     ArrayX2d<quiss::GridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
