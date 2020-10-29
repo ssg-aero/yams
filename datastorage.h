@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <xtensor/xarray.hpp>
+#include <execution>
 namespace quiss
 {
     template <typename Container,typename T>
@@ -44,6 +45,14 @@ namespace quiss
         {
             return container_.end();
         }
+        auto begin() const
+        {
+            return container_.begin();
+        }
+        auto end() const
+        {
+            return container_.end();
+        }
         size_t nRows() const noexcept
         {
             return container_.size() / nj_;
@@ -54,51 +63,13 @@ namespace quiss
         }
     };
 
-    // template <typename T,size_t ni,size_t nj>
-    // class Array2dStdArrayBased
-    // {
-    //     std::array<T,ni*nj> container_;
-
-    // public:
-    //     const T & operator() (size_t i, size_t j) const noexcept
-    //     {
-    //         return container_[j + nj * i];
-    //     }
-    //     T& operator() (size_t i, size_t j) noexcept
-    //     {
-    //         return container_[j + nj * i];
-    //     }
-    //     auto begin(size_t i)
-    //     {
-    //         return std::next(container_.begin(), nj * i);
-    //     }
-    //     auto end(size_t i)
-    //     {
-    //         return std::next(container_.begin(), nj - 1 + nj * i);
-    //     }
-    //     auto begin()
-    //     {
-    //         return container_.begin();
-    //     }
-    //     auto end()
-    //     {
-    //         return container_.end();
-    //     }
-    //     size_t nRows() const noexcept
-    //     {
-    //         return ni;
-    //     }
-    //     size_t nCols() const noexcept
-    //     {
-    //         return nj;
-    //     }
-    // };
-
+// xtensor specialization
     template <typename T>
     class _Array2d<xt::xarray<T>, T>
     {
         xt::xarray<T> container_;
         size_t nj_;
+        size_t ni_;
         public:
         _Array2d(size_t ni, size_t nj);
         _Array2d(size_t ni, size_t nj, T v);
@@ -106,10 +77,10 @@ namespace quiss
         T &operator()(size_t i, size_t j) noexcept {return container_(i,j);}
         auto begin(size_t i);
         auto end(size_t i);
-        auto begin();
-        auto end();
-        size_t nRows() const noexcept;
-        size_t nCols() const noexcept;
+        auto cbegin() const {return container_.cbegin();}
+        auto cend() const {return container_.cend();}
+        size_t nRows() const noexcept { return ni_;}
+        size_t nCols() const noexcept { return nj_;}
     };
 
     template <typename T>
@@ -118,6 +89,7 @@ namespace quiss
         xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape);
         nj_ = nj;
+        ni_ = ni;
     }
     template <typename T>
     _Array2d<xt::xarray<T>, T>::_Array2d(size_t ni, size_t nj, T v)
@@ -125,8 +97,9 @@ namespace quiss
         xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape, v);
         nj_ = nj;
+        ni_ = ni;
     }
-
+// Aliases
     template <typename T>
     using Array2d = _Array2d<std::vector<T>,T>;
     template <typename T>
@@ -150,7 +123,19 @@ namespace quiss
 
     template <typename T>
     using Grid = Array2d<GridPoint<T>>;
-    // template <typename T,size_t ni,size_t nj>
-    // using Grid_ = Array2dStdArrayBased<GridPoint<T>,ni,nj>;
-
+    template <typename T>
+    using GridX = ArrayX2d<GridPoint<T>>;
+    
+    // template <typename Container1,typename T1,typename Container2,typename T2>
+    // auto convert(_Array2d<Container1,T1> a) -> _Array2d<Container2,T2>
+    // {
+    //     _Array2d<Container2,T2> converted (a.nRows(),a.nCols());
+    //     std::transform(
+    //         std::execution::par,
+    //         a.begin(),
+    //         a.end(),
+    //         converted.begin(),
+    //         [](const auto &v_){return v_}
+    //     )
+    // }
 } // namespace quiss
