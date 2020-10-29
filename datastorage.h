@@ -3,20 +3,20 @@
 namespace quiss
 {
     template <typename T>
-    class Array2dStdVectorBased
+    class _Array2d
     {
         std::vector<T> container_;
         size_t nj_ = 0;
 
     public:
-        Array2dStdVectorBased(size_t ni, size_t nj,bool shrink=true)
+        _Array2d(size_t ni, size_t nj,bool shrink=true)
         {
             container_ = std::vector<T>(ni * nj);
             if (shrink)
                 container_.shrink_to_fit();
             nj_ = nj;
         }
-        Array2dStdVectorBased(size_t ni, size_t nj, T v,bool shrink=true)
+        _Array2d(size_t ni, size_t nj, T v,bool shrink=true)
         {
             container_ = std::vector<T>(ni * nj, v);
             if (shrink)
@@ -98,7 +98,7 @@ namespace quiss
     };
 
     template <typename T>
-    using Array2d = Array2dStdVectorBased<T>;
+    using Array2d = _Array2d<T>;
     // template <typename T,size_t ni,size_t nj>
     // using Array2d = Array2dStdArrayBased<T,ni,nj>;
 
