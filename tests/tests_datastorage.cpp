@@ -209,15 +209,15 @@ TEST(tests_datastorage, Grid_Diff)
 //     }
 // }
 
-#include <xtensor/xarray.hpp>
 
 TEST(tests_datastorage, GridX)
 {
     size_t ni = 2100;
     size_t nj = 1300;
     
-    xt::xarray<double>::shape_type shape = {ni, nj};
-    xt::xarray<quiss::GridPoint<double>> g(shape);
+    // xt::xarray<double>::shape_type shape = {ni, nj};
+    // xt::xarray<quiss::GridPoint<double>> g(shape);
+    ArrayX2d<quiss::GridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
     auto r3 =  3.;
