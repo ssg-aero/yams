@@ -2,25 +2,21 @@
 #include <vector>
 namespace quiss
 {
-    template <typename T>
+    template <typename Container,typename T>
     class _Array2d
     {
-        std::vector<T> container_;
+        Container container_;
         size_t nj_ = 0;
 
     public:
-        _Array2d(size_t ni, size_t nj,bool shrink=true)
+        _Array2d(size_t ni, size_t nj)
         {
-            container_ = std::vector<T>(ni * nj);
-            if (shrink)
-                container_.shrink_to_fit();
+            container_ = Container(ni * nj);
             nj_ = nj;
         }
-        _Array2d(size_t ni, size_t nj, T v,bool shrink=true)
+        _Array2d(size_t ni, size_t nj, T v)
         {
-            container_ = std::vector<T>(ni * nj, v);
-            if (shrink)
-                container_.shrink_to_fit();
+            container_ = Container(ni * nj, v);
             nj_ = nj;
         }
         const auto &operator()(size_t i, size_t j) const noexcept
@@ -98,7 +94,7 @@ namespace quiss
     };
 
     template <typename T>
-    using Array2d = _Array2d<T>;
+    using Array2d = _Array2d<std::vector<T>,T>;
     // template <typename T,size_t ni,size_t nj>
     // using Array2d = Array2dStdArrayBased<T,ni,nj>;
 
