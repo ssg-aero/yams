@@ -9,9 +9,11 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 #
 # xtensors
 #
-# set(XTENSOR_USE_XSIMD BOOL:ON)
+set(XTENSOR_USE_XSIMD BOOL:ON)
 find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
+find_package(xsimd REQUIRED)
+add_definitions(-DXTENSOR_USE_XSIMD)
 
 file(GLOB SRC_LIST "tests_*")
 message(${SRC_LIST})
@@ -29,6 +31,6 @@ target_link_libraries(${PROJECT_NAME}
                             optimized gtest_dll
                             debug gtest_dlld
                             xtensor 
-                            # xtensor::optimize 
-                            # xtensor::use_xsimd
+                            xtensor::optimize 
+                            xtensor::use_xsimd
                     )
