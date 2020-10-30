@@ -112,23 +112,25 @@ namespace quiss
     // using Array2d = Array2dStdArrayBased<T,ni,nj>;
 
     template <typename T>
-    struct GridPoint
+    struct MeridionalGridPoint
     {
         T x   = 0.;
         T y   = 0.;
         T l   = 0.;
-        T m   = 0.;
-        T phi = 0.;
-        T gam = 0.;
-        T bet = 0.;
-        T cur = 0.;
+        T m   = 0.; 
+        T phi = 0.; // phi   = dz / dr
+        T gam = 0.; // gamma = dr / dz 
+        T bet = 0.; // atan2( Vu , Vm)
+        T cur = 0.; // streamline curvature
+        T cgp = 1.; // Cos( gamma + phi )
+        T sgp = 0.; // Sin( gamma + phi )
     };
 
 
     template <typename T>
-    using Grid = Array2d<GridPoint<T>>;
+    using MeridionalGrid = Array2d<MeridionalGridPoint<T>>;
     template <typename T>
-    using GridX = ArrayX2d<GridPoint<T>>;
+    using MeridionalGridX = ArrayX2d<MeridionalGridPoint<T>>;
 
     template<typename T1,typename T2,template<typename> class S>
     auto copy(const S<T1> &a, S<T2> &b,size_t n) -> void

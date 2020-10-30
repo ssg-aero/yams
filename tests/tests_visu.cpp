@@ -24,7 +24,7 @@ TEST(tests_visu, render_curvature)
 {
     size_t ni = 50;
     size_t nj = 15;
-    Grid<double> g(ni,nj);
+    MeridionalGrid<double> g(ni,nj);
     auto r1 =  1.;
     auto r2 =  2.;
     auto t1 = PI;

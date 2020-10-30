@@ -58,20 +58,20 @@ TEST(tests_datastorage, ArrayX2d)
 
 
 template <typename T>
-auto m = [](GridPoint<T> &gp){return gp.m;};
+auto m = [](MeridionalGridPoint<T> &gp){return gp.m;};
 template <typename T>
-auto l = [](GridPoint<T> &gp){return gp.l;};
+auto l = [](MeridionalGridPoint<T> &gp){return gp.l;};
 template <typename T>
-auto z = [](GridPoint<T> &gp){return gp.x;};
+auto z = [](MeridionalGridPoint<T> &gp){return gp.x;};
 template <typename T>
-auto r = [](GridPoint<T> &gp){return gp.y;};
+auto r = [](MeridionalGridPoint<T> &gp){return gp.y;};
 template <typename T>
-auto phi = [](GridPoint<T> &gp){return gp.phi;};
+auto phi = [](MeridionalGridPoint<T> &gp){return gp.phi;};
 TEST(tests_datastorage, Grid)
 {
     size_t ni = 210;
     size_t nj = 130;
-    Grid<double> g(ni,nj);
+    MeridionalGrid<double> g(ni,nj);
     auto r1 =  2.;
     auto r2 =  1.;
     auto r3 =  3.;
@@ -114,7 +114,7 @@ TEST(tests_datastorage, Grid)
     ASSERT_DOUBLE_EQ(g(ni-1,0).x,2*z3);
     ASSERT_DOUBLE_EQ(g(ni-1,0).y,r3);
     std::cerr << g(ni/2,0).y << ' ' << g(ni/2,0).x << std::endl;
-    GridPoint<double> O;
+    MeridionalGridPoint<double> O;
     O.x = z3;
     O.y = r3;
     for (auto i = 0; i < ni; i++)
@@ -133,7 +133,7 @@ TEST(tests_datastorage, Grid_Diff)
 {
     size_t ni = 100;
     size_t nj = 30;
-    Grid<double> g(ni,nj);
+    MeridionalGrid<double> g(ni,nj);
     auto r1 =  1.;
     auto r2 =  2.;
     
@@ -210,10 +210,10 @@ TEST(tests_datastorage, Grid_Diff)
 
 TEST(tests_datastorage, GridStd_perfo)
 {
-    size_t ni = 21000;
-    size_t nj = 13000;
+    size_t ni = 2100;
+    size_t nj = 1300;
     
-    Array2d<quiss::GridPoint<double>> g{ni,nj};
+    Array2d<quiss::MeridionalGridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
     auto r3 =  3.;
@@ -234,10 +234,10 @@ TEST(tests_datastorage, GridStd_perfo)
 
 TEST(tests_datastorage, GridX_perfo)
 {
-    size_t ni = 21000;
-    size_t nj = 13000;
+    size_t ni = 2100;
+    size_t nj = 1300;
     
-    ArrayX2d<quiss::GridPoint<double>> g{ni,nj};
+    ArrayX2d<quiss::MeridionalGridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
     auto r3 =  3.;
@@ -258,8 +258,8 @@ TEST(tests_datastorage, GridX_perfo)
 
 TEST(tests_datastorage, convertion)
 {
-    GridPoint<double> gpd;
-    GridPoint<float> gpf;
+    MeridionalGridPoint<double> gpd;
+    MeridionalGridPoint<float> gpf;
     gpf.x=1.2;
     gpf.y=3.1;
 
@@ -271,7 +271,7 @@ TEST(tests_datastorage, convertion)
     size_t ni = 21;
     size_t nj = 13;
     
-    ArrayX2d<quiss::GridPoint<double>> g{ni,nj};
+    ArrayX2d<quiss::MeridionalGridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
     auto r3 =  3.;
@@ -289,7 +289,7 @@ TEST(tests_datastorage, convertion)
         }
     }
 
-    Array2d<quiss::GridPoint<float>> g1{ni,nj};
+    Array2d<quiss::MeridionalGridPoint<float>> g1{ni,nj};
 
     quiss::copy(g,g1);
 
@@ -312,7 +312,7 @@ TEST(tests_datastorage, convertion)
 #include "xsimd/stl/algorithms.hpp"
 
 const size_t size_v = 1000000;
-const size_t n_it = 10000;
+const size_t n_it = 1000;
 
 TEST(tests_datastorage, xsimd_perfo)
 {

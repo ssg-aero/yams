@@ -3,13 +3,13 @@
 namespace quiss
 {
     template <typename T>
-    inline auto distance(const GridPoint<T> &gp1, const GridPoint<T> &gp2) -> T
+    inline auto distance(const MeridionalGridPoint<T> &gp1, const MeridionalGridPoint<T> &gp2) -> T
     {
         return sqrt((gp1.y - gp2.y) * (gp1.y - gp2.y) + (gp1.x - gp2.x) * (gp1.x - gp2.x));
     }
 
     template <typename T>
-    inline auto compute_abscissas(Grid<T> &g)
+    inline auto compute_abscissas(MeridionalGrid<T> &g)
     {
         size_t ni = g.nRows();
         size_t nj = g.nCols();
@@ -24,16 +24,16 @@ namespace quiss
     }
 
     template <typename T>
-    auto fz = [](GridPoint<T> &gp) { return gp.x; };
+    auto fz = [](MeridionalGridPoint<T> &gp) { return gp.x; };
     template <typename T>
-    auto fr = [](GridPoint<T> &gp) { return gp.y; };
+    auto fr = [](MeridionalGridPoint<T> &gp) { return gp.y; };
     template <typename T>
-    auto fm = [](GridPoint<T> &gp) { return gp.m; };
+    auto fm = [](MeridionalGridPoint<T> &gp) { return gp.m; };
     template <typename T>
-    auto fl = [](GridPoint<T> &gp) { return gp.l; };
+    auto fl = [](MeridionalGridPoint<T> &gp) { return gp.l; };
 
     template <typename T>
-    inline auto compute_angles(Grid<T> &g)
+    inline auto compute_angles(MeridionalGrid<T> &g)
     {
         size_t ni = g.nRows();
         size_t nj = g.nCols();
