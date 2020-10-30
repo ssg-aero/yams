@@ -63,7 +63,7 @@ namespace quiss
         }
         size_t size() const noexcept
         {
-            return container_.size;
+            return container_.size();
         }
     };
 
