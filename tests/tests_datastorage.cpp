@@ -2,6 +2,7 @@
 #include <datastorage.h>
 #include <diffop.h>
 #include <gridsbuilders.h>
+#include <gridmetrics.h>
 #include <execution>
 #include <algorithm>
 #include <chrono>
@@ -55,26 +56,6 @@ TEST(tests_datastorage, ArrayX2d)
     );
 }
 
-template <typename T>
-inline auto distance(const GridPoint<T> &gp1,const GridPoint<T> &gp2) -> T
-{
-    return sqrt((gp1.y - gp2.y) * (gp1.y - gp2.y) + (gp1.x - gp2.x) * (gp1.x - gp2.x));
-}
-
-template <typename T>
-inline auto compute_abscissas(Grid<T> &g)
-{
-    size_t ni = g.nRows();
-    size_t nj = g.nCols();
-    for (auto i = 0; i < ni; i++)
-    {
-        for (auto j = 0; j < nj; j++)
-        {
-            g(i, j).m = i == 0 ? 0. : g(i - 1, j).m + distance(g(i, j), g(i - 1, j));
-            g(i, j).l = j == 0 ? 0. : g(i, j - 1).l + distance(g(i, j), g(i, j - 1));
-        }
-    }
-}
 
 template <typename T>
 auto m = [](GridPoint<T> &gp){return gp.m;};
@@ -84,6 +65,8 @@ template <typename T>
 auto z = [](GridPoint<T> &gp){return gp.x;};
 template <typename T>
 auto r = [](GridPoint<T> &gp){return gp.y;};
+template <typename T>
+auto phi = [](GridPoint<T> &gp){return gp.phi;};
 TEST(tests_datastorage, Grid)
 {
     size_t ni = 210;
@@ -192,20 +175,22 @@ TEST(tests_datastorage, Grid_Diff)
     auto t1 = PI;
     auto t2 = PI * 2.;
     make_circular_grid(r1,r2,t1,t2,{0.,3.},g);
-    double drqdm, dzqdm, phi,drqdl,dzqdl,gam;
+    compute_abscissas(g);
+    for (auto j = 0; j < nj; j++)
+    {
+        // ASSERT_DOUBLE_EQ(g(ni - 1, j).m, 2.);
+    }
+        for (auto i = 0; i < ni; i++)
+    {
+        // ASSERT_DOUBLE_EQ(g(i, nj - 1).l, 1.);
+    }
+    compute_angles(g);
     for (auto i = 0; i < ni; i++)
     {
-        auto phi_ = -PI /2  + PI * i / (ni - 1.);
         for (auto j = 0; j < nj; j++)
         {
-            auto gam_ =  t1  + (t2-t1) * j / (nj - 1.);
-            drqdm = D1_O2_i(g,i,j,r<double>,m<double>);
-            dzqdm = D1_O2_i(g,i,j,z<double>,m<double>);
-            phi = atan2( drqdm,dzqdm ); // Stream line angle
-            ASSERT_NEAR(phi,phi_,1e-5);
-            drqdl = D1_O2_j(g,i,j,r<double>,l<double>);
-            dzqdl = D1_O2_j(g,i,j,z<double>,l<double>);
-            gam = atan2( dzqdl,drqdl ); // Span line angle
+            ASSERT_LE(fmod(-PI /2  + PI * i / (ni - 1.)-g(i,j).phi,2*PI),1e-5);
+            // gam = atan2( dzqdl,drqdl ); // Span line angle
             // std::cerr << gam << ' ' << dzqdl << ' ' << drqdl << std::endl;
             // ASSERT_NEAR(gam,gam_,1e-5);
         }
