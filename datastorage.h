@@ -69,7 +69,6 @@ namespace quiss
     {
         xt::xarray<T> container_;
         size_t nj_;
-        size_t ni_;
         public:
         _Array2d(size_t ni, size_t nj);
         _Array2d(size_t ni, size_t nj, T v);
@@ -79,8 +78,8 @@ namespace quiss
         auto end(size_t i);
         auto cbegin() const {return container_.cbegin();}
         auto cend() const {return container_.cend();}
-        size_t nRows() const noexcept { return ni_;}
-        size_t nCols() const noexcept { return nj_;}
+        size_t nRows() const noexcept { return container_.shape(0);}
+        size_t nCols() const noexcept { return container_.shape(1);}
     };
 
     template <typename T>
@@ -89,7 +88,6 @@ namespace quiss
         xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape);
         nj_ = nj;
-        ni_ = ni;
     }
     template <typename T>
     _Array2d<xt::xarray<T>, T>::_Array2d(size_t ni, size_t nj, T v)
@@ -97,7 +95,6 @@ namespace quiss
         xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape, v);
         nj_ = nj;
-        ni_ = ni;
     }
 // Aliases
     template <typename T>
