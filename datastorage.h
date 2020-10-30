@@ -74,10 +74,12 @@ namespace quiss
         _Array2d(size_t ni, size_t nj, T v);
         const T &operator()(size_t i, size_t j) const noexcept {return container_(i,j);}
         T &operator()(size_t i, size_t j) noexcept {return container_(i,j);}
-        auto begin(size_t i);
-        auto end(size_t i);
-        auto cbegin() const {return container_.cbegin();}
-        auto cend() const {return container_.cend();}
+        auto begin(size_t i) {return container_.begin() + (nj_ * i);}
+        auto end(size_t i) {return container_.begin() + (nj_ - 1 + nj_ * i);}
+        auto begin() const {return container_.cbegin();}
+        auto end() const {return container_.cend();}
+        auto begin() {return container_.begin();}
+        auto end() {return container_.end();}
         size_t nRows() const noexcept { return container_.shape(0);}
         size_t nCols() const noexcept { return container_.shape(1);}
     };

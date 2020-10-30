@@ -29,6 +29,32 @@ TEST(tests_datastorage, Array2d)
     );
 }
 
+TEST(tests_datastorage, ArrayX2d)
+{
+    ArrayX2d<double> a(3,5);
+    ASSERT_NEAR(a(0,0),0.,1e-30);
+    std::for_each(
+        a.begin(0),
+        a.end(0),
+        [](const auto &v_){ ASSERT_NEAR(v_,0.,1e-30); }
+    );
+    
+    ArrayX2d<double> b(3,5,1.);
+    ASSERT_DOUBLE_EQ(b(0,0),1.);
+    std::for_each(
+        b.begin(1),
+        b.end(1),
+        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+    );
+
+    std::for_each(
+        std::execution::par,
+        b.begin(),
+        b.end(),
+        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+    );
+}
+
 template <typename T>
 inline auto distance(const GridPoint<T> &gp1,const GridPoint<T> &gp2) -> T
 {
