@@ -233,3 +233,33 @@ TEST(tests_datastorage, GridX_perfo)
         }
     }
 }
+#include <cstddef>
+#include <vector>
+#include "xsimd/xsimd.hpp"
+#include "xsimd/stl/algorithms.hpp"
+
+namespace xs = xsimd;
+    using vector_type = std::vector<double, xsimd::aligned_allocator<double, XSIMD_DEFAULT_ALIGNMENT>>;
+
+inline  void mean(const vector_type &a, const vector_type &b, vector_type &res)
+    {
+        xsimd::transform(a.begin(), a.end(), b.begin(), res.begin(),
+                         [](const auto &x, const auto &y) { return (x + y) / 2.; });
+    };
+
+TEST(tests_datastorage, xsimd_perfo)
+{
+    vector_type a(1000000);
+    vector_type b(1000000);
+    vector_type c(1000000);
+    mean(a,b,c);
+}
+
+TEST(tests_datastorage, xsimd_perfo_Vs)
+{
+    std::vector<double> a(1000000);
+    std::vector<double> b(1000000);
+    std::vector<double> c(1000000);
+    std::transform(a.begin(), a.end(), b.begin(), c.begin(),
+                         [](const auto &x, const auto &y) { return (x + y) / 2.; });
+}
