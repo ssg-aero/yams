@@ -195,6 +195,17 @@ TEST(tests_datastorage, Grid_Diff)
             // ASSERT_NEAR(gam,gam_,1e-5);
         }
     }
+
+    double DphiDm;
+    for (auto i = 0; i < ni; i++)
+    {
+        for (auto j = 0; j < nj; j++)
+        {
+            DphiDm = D1_O2_i(g, i, j, phi<double>, m<double>);
+            ASSERT_NEAR( 1 / DphiDm , r1 + (r2 - r1) * j / (nj - 1.) , 1e-3 );
+            g(i, j).cur = DphiDm; // TODO check why Aungier put -DphiDm
+        }
+    }
 }
 
 TEST(tests_datastorage, GridStd_perfo)
