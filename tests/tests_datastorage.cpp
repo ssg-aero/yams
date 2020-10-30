@@ -31,7 +31,7 @@ TEST(tests_datastorage, Array2d)
 
 TEST(tests_datastorage, ArrayX2d)
 {
-    ArrayX2d<double> a(3,5);
+    ArrayX2d<double> a(3,5);// on contrary of std::vector, values are not initialized to 0.
     ASSERT_NEAR(a(0,0),0.,1e-30);
     std::for_each(
         a.begin(0),
@@ -258,4 +258,54 @@ TEST(tests_datastorage, GridX_perfo)
             g(i, j).x = z3 - r * cos(th);
         }
     }
+}
+
+TEST(tests_datastorage, convertion)
+{
+    GridPoint<double> gpd;
+    GridPoint<float> gpf;
+    gpf.x=1.2;
+    gpf.y=3.1;
+
+    size_t n =  sizeof(gpf) / sizeof(float);
+    quiss::copy(gpf,gpd,n);
+    ASSERT_NEAR(gpd.x, gpd.x, 1e-30);
+    ASSERT_NEAR(gpd.y, gpd.y, 1e-30);
+
+    size_t ni = 21;
+    size_t nj = 13;
+    
+    ArrayX2d<quiss::GridPoint<double>> g{ni,nj};
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto r3 =  3.;
+    auto z3 =  3.;
+    auto t1 = -PI/2.;
+    auto t2 =  PI/2.;
+    for (auto i = 0; i < ni; i++)
+    {
+        auto th = t1 + (t2 - t1) * i / (ni - 1.);
+        for (auto j = 0; j < nj; j++)
+        {
+            auto r = r1 + (r2 - r1) * j / (nj - 1.);
+            g(i, j).y = r3 - r * sin(th);
+            g(i, j).x = z3 - r * cos(th);
+        }
+    }
+
+    Array2d<quiss::GridPoint<float>> g1{ni,nj};
+
+    quiss::copy(g,g1);
+
+    for (auto i = 0; i < ni; i++)
+    {
+        auto th = t1 + (t2 - t1) * i / (ni - 1.);
+        for (auto j = 0; j < nj; j++)
+        {
+            auto r = r1 + (r2 - r1) * j / (nj - 1.);
+            ASSERT_NEAR(g1(i, j).y , r3 - r * sin(th), 1e-6);
+            ASSERT_NEAR(g1(i, j).x , z3 - r * cos(th), 1e-6);
+        }
+    }
+
 }

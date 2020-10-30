@@ -61,6 +61,10 @@ namespace quiss
         {
             return nj_;
         }
+        size_t size() const noexcept
+        {
+            return container_.size;
+        }
     };
 
 // xtensor specialization
@@ -82,6 +86,7 @@ namespace quiss
         auto end() {return container_.end();}
         size_t nRows() const noexcept { return container_.shape(0);}
         size_t nCols() const noexcept { return container_.shape(1);}
+        size_t size() const noexcept  { return container_.size();  }
     };
 
     template <typename T>
@@ -124,17 +129,42 @@ namespace quiss
     using Grid = Array2d<GridPoint<T>>;
     template <typename T>
     using GridX = ArrayX2d<GridPoint<T>>;
-    
-    // template <typename Container1,typename T1,typename Container2,typename T2>
-    // auto convert(_Array2d<Container1,T1> a) -> _Array2d<Container2,T2>
+
+    template<typename T1,typename T2,template<typename> class S>
+    auto copy(const S<T1> &a, S<T2> &b,size_t n) -> void
+    {
+        T1 *arrayT1 = (T1 *)&a;
+        T2 *arrayT2 = (T2 *)&b;
+        for (auto i = 0; i < n; i++)
+        {
+            arrayT2[i] = arrayT1[i];
+        }
+    }
+
+    // template <typename T1,typename T2,template<typename> class S>
+    // auto make_copy(const S<T1> &a,size_t n) -> S<T2>
     // {
-    //     _Array2d<Container2,T2> converted (a.nRows(),a.nCols());
-    //     std::transform(
-    //         std::execution::par,
-    //         a.begin(),
-    //         a.end(),
-    //         converted.begin(),
-    //         [](const auto &v_){return v_}
-    //     )
+    //     S<T2> b;
+    //     copy(a,b,n);
+    //     return b;
     // }
+
+    template <typename Container1,typename T1,typename Container2,typename T2,template<typename> class S>
+    auto copy(const _Array2d<Container1,S<T1>> &a, _Array2d<Container2,S<T2>> &b) -> void
+    {
+        if(a.size()==0) return;
+
+        const size_t n =  sizeof(a(0,0)) / sizeof(T1);
+        static_assert(sizeof(a(0,0)) == n*sizeof(T1));
+        static_assert(sizeof(b(0,0)) == n*sizeof(T2));
+
+        std::transform(
+            std::execution::par,
+            a.begin(),
+            a.end(),
+            b.begin(),
+            b.begin(),
+            [n](const auto &a_,const auto &b_){S<T2> bcp_ ;copy(a_,bcp_,n);return bcp_;}
+        );
+    }
 } // namespace quiss
