@@ -14,7 +14,21 @@ find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
 find_package(xsimd REQUIRED)
 add_definitions(-DXTENSOR_USE_XSIMD)
-
+#
+# VTK
+#
+set(VTK_DIR  ${LIBRARY_LIB}/cmake/vtk-9.0)
+include_directories(${LIBRARY_INC}/vtk-9.0)
+find_package(VTK COMPONENTS
+            CommonCore
+            CommonColor
+            CommonDataModel
+            FiltersSources
+            InteractionStyle
+            RenderingCore
+            RenderingFreeType
+            RenderingOpenGL2)
+#
 file(GLOB SRC_LIST "tests_*")
 message(${SRC_LIST})
 add_executable(${PROJECT_NAME} ${SRC_LIST})
@@ -33,4 +47,10 @@ target_link_libraries(${PROJECT_NAME}
                             xtensor 
                             xtensor::optimize 
                             xtensor::use_xsimd
+                            ${VTK_LIBRARIES}
                     )
+
+vtk_module_autoinit(
+    TARGETS ${PROJECT_NAME}
+    MODULES ${VTK_LIBRARIES}
+)
