@@ -21,6 +21,7 @@ add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 if(MSVC) # xt
     set(CMAKE_EXE_LINKER_FLAGS /MANIFEST:NO)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
 endif()
 
 if ( MSVC )

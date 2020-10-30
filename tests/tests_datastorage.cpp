@@ -309,3 +309,60 @@ TEST(tests_datastorage, convertion)
     }
 
 }
+
+#include <cstddef>
+#include <vector>
+#include "xsimd/xsimd.hpp"
+#include "xsimd/stl/algorithms.hpp"
+
+const size_t size_v = 1000000;
+const size_t n_it = 10000;
+
+TEST(tests_datastorage, xsimd_perfo)
+{
+    {
+        const auto t1 = std::chrono::high_resolution_clock::now();
+        using vector_type = std::vector<double, xsimd::aligned_allocator<double, XSIMD_DEFAULT_ALIGNMENT>>;
+        vector_type a(size_v);
+        vector_type b(size_v);
+        vector_type c(size_v);
+        for (auto i = 0; i < n_it; i++)
+            xsimd::transform(
+                // std::execution::par, // not working
+                a.begin(), a.end(), b.begin(), c.begin(),
+                [](const auto &x, const auto &y) { return (x + y) / 2.; });
+        const auto t2 = std::chrono::high_resolution_clock::now();
+        const std::chrono::duration<double, std::milli> ms = t2 - t1;
+        std::cerr << std::fixed << "xtensor container "
+                  << " took " << ms.count() << " ms\n";
+    }
+    {
+        const auto t1 = std::chrono::high_resolution_clock::now();
+        std::vector<double> a(size_v);
+        std::vector<double> b(size_v);
+        std::vector<double> c(size_v);
+        for (auto i = 0; i < n_it; i++)
+            std::transform(
+                a.begin(), a.end(), b.begin(), c.begin(),
+                [](const auto &x, const auto &y) { return (x + y) / 2.; });
+        const auto t2 = std::chrono::high_resolution_clock::now();
+        const std::chrono::duration<double, std::milli> ms = t2 - t1;
+        std::cerr << std::fixed << "stl container "
+                  << " took " << ms.count() << " ms\n";
+    }
+        {
+        const auto t1 = std::chrono::high_resolution_clock::now();
+        std::vector<double> a(size_v);
+        std::vector<double> b(size_v);
+        std::vector<double> c(size_v);
+        for (auto i = 0; i < n_it; i++)
+            std::transform(
+                std::execution::par,
+                a.begin(), a.end(), b.begin(), c.begin(),
+                [](const auto &x, const auto &y) { return (x + y) / 2.; });
+        const auto t2 = std::chrono::high_resolution_clock::now();
+        const std::chrono::duration<double, std::milli> ms = t2 - t1;
+        std::cerr << std::fixed << "stl container  execution::par"
+                  << " took " << ms.count() << " ms\n";
+    }
+}
