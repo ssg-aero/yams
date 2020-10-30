@@ -29,6 +29,32 @@ TEST(tests_datastorage, Array2d)
     );
 }
 
+TEST(tests_datastorage, ArrayX2d)
+{
+    ArrayX2d<double> a(3,5);// on contrary of std::vector, values are not initialized to 0.
+    ASSERT_NEAR(a(0,0),0.,1e-30);
+    std::for_each(
+        a.begin(0),
+        a.end(0),
+        [](const auto &v_){ ASSERT_NEAR(v_,0.,1e-30); }
+    );
+    
+    ArrayX2d<double> b(3,5,1.);
+    ASSERT_DOUBLE_EQ(b(0,0),1.);
+    std::for_each(
+        b.begin(1),
+        b.end(1),
+        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+    );
+
+    std::for_each(
+        std::execution::par,
+        b.begin(),
+        b.end(),
+        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+    );
+}
+
 template <typename T>
 inline auto distance(const GridPoint<T> &gp1,const GridPoint<T> &gp2) -> T
 {
@@ -233,33 +259,53 @@ TEST(tests_datastorage, GridX_perfo)
         }
     }
 }
-#include <cstddef>
-#include <vector>
-#include "xsimd/xsimd.hpp"
-#include "xsimd/stl/algorithms.hpp"
 
-namespace xs = xsimd;
-    using vector_type = std::vector<double, xsimd::aligned_allocator<double, XSIMD_DEFAULT_ALIGNMENT>>;
+TEST(tests_datastorage, convertion)
+{
+    GridPoint<double> gpd;
+    GridPoint<float> gpf;
+    gpf.x=1.2;
+    gpf.y=3.1;
 
-inline  void mean(const vector_type &a, const vector_type &b, vector_type &res)
+    size_t n =  sizeof(gpf) / sizeof(float);
+    quiss::copy(gpf,gpd,n);
+    ASSERT_NEAR(gpd.x, gpd.x, 1e-30);
+    ASSERT_NEAR(gpd.y, gpd.y, 1e-30);
+
+    size_t ni = 21;
+    size_t nj = 13;
+    
+    ArrayX2d<quiss::GridPoint<double>> g{ni,nj};
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto r3 =  3.;
+    auto z3 =  3.;
+    auto t1 = -PI/2.;
+    auto t2 =  PI/2.;
+    for (auto i = 0; i < ni; i++)
     {
-        xsimd::transform(a.begin(), a.end(), b.begin(), res.begin(),
-                         [](const auto &x, const auto &y) { return (x + y) / 2.; });
-    };
+        auto th = t1 + (t2 - t1) * i / (ni - 1.);
+        for (auto j = 0; j < nj; j++)
+        {
+            auto r = r1 + (r2 - r1) * j / (nj - 1.);
+            g(i, j).y = r3 - r * sin(th);
+            g(i, j).x = z3 - r * cos(th);
+        }
+    }
 
-TEST(tests_datastorage, xsimd_perfo)
-{
-    vector_type a(1000000);
-    vector_type b(1000000);
-    vector_type c(1000000);
-    mean(a,b,c);
-}
+    Array2d<quiss::GridPoint<float>> g1{ni,nj};
 
-TEST(tests_datastorage, xsimd_perfo_Vs)
-{
-    std::vector<double> a(1000000);
-    std::vector<double> b(1000000);
-    std::vector<double> c(1000000);
-    std::transform(a.begin(), a.end(), b.begin(), c.begin(),
-                         [](const auto &x, const auto &y) { return (x + y) / 2.; });
+    quiss::copy(g,g1);
+
+    for (auto i = 0; i < ni; i++)
+    {
+        auto th = t1 + (t2 - t1) * i / (ni - 1.);
+        for (auto j = 0; j < nj; j++)
+        {
+            auto r = r1 + (r2 - r1) * j / (nj - 1.);
+            ASSERT_NEAR(g1(i, j).y , r3 - r * sin(th), 1e-6);
+            ASSERT_NEAR(g1(i, j).x , z3 - r * cos(th), 1e-6);
+        }
+    }
+
 }

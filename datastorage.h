@@ -61,6 +61,10 @@ namespace quiss
         {
             return nj_;
         }
+        size_t size() const noexcept
+        {
+            return container_.size;
+        }
     };
 
 // xtensor specialization
@@ -69,18 +73,20 @@ namespace quiss
     {
         xt::xarray<T> container_;
         size_t nj_;
-        size_t ni_;
         public:
         _Array2d(size_t ni, size_t nj);
         _Array2d(size_t ni, size_t nj, T v);
         const T &operator()(size_t i, size_t j) const noexcept {return container_(i,j);}
         T &operator()(size_t i, size_t j) noexcept {return container_(i,j);}
-        auto begin(size_t i);
-        auto end(size_t i);
-        auto cbegin() const {return container_.cbegin();}
-        auto cend() const {return container_.cend();}
-        size_t nRows() const noexcept { return ni_;}
-        size_t nCols() const noexcept { return nj_;}
+        auto begin(size_t i) {return container_.begin() + (nj_ * i);}
+        auto end(size_t i) {return container_.begin() + (nj_ - 1 + nj_ * i);}
+        auto begin() const {return container_.cbegin();}
+        auto end() const {return container_.cend();}
+        auto begin() {return container_.begin();}
+        auto end() {return container_.end();}
+        size_t nRows() const noexcept { return container_.shape(0);}
+        size_t nCols() const noexcept { return container_.shape(1);}
+        size_t size() const noexcept  { return container_.size();  }
     };
 
     template <typename T>
@@ -89,7 +95,6 @@ namespace quiss
         xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape);
         nj_ = nj;
-        ni_ = ni;
     }
     template <typename T>
     _Array2d<xt::xarray<T>, T>::_Array2d(size_t ni, size_t nj, T v)
@@ -97,7 +102,6 @@ namespace quiss
         xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape, v);
         nj_ = nj;
-        ni_ = ni;
     }
 // Aliases
     template <typename T>
@@ -125,17 +129,42 @@ namespace quiss
     using Grid = Array2d<GridPoint<T>>;
     template <typename T>
     using GridX = ArrayX2d<GridPoint<T>>;
-    
-    // template <typename Container1,typename T1,typename Container2,typename T2>
-    // auto convert(_Array2d<Container1,T1> a) -> _Array2d<Container2,T2>
+
+    template<typename T1,typename T2,template<typename> class S>
+    auto copy(const S<T1> &a, S<T2> &b,size_t n) -> void
+    {
+        T1 *arrayT1 = (T1 *)&a;
+        T2 *arrayT2 = (T2 *)&b;
+        for (auto i = 0; i < n; i++)
+        {
+            arrayT2[i] = arrayT1[i];
+        }
+    }
+
+    // template <typename T1,typename T2,template<typename> class S>
+    // auto make_copy(const S<T1> &a,size_t n) -> S<T2>
     // {
-    //     _Array2d<Container2,T2> converted (a.nRows(),a.nCols());
-    //     std::transform(
-    //         std::execution::par,
-    //         a.begin(),
-    //         a.end(),
-    //         converted.begin(),
-    //         [](const auto &v_){return v_}
-    //     )
+    //     S<T2> b;
+    //     copy(a,b,n);
+    //     return b;
     // }
+
+    template <typename Container1,typename T1,typename Container2,typename T2,template<typename> class S>
+    auto copy(const _Array2d<Container1,S<T1>> &a, _Array2d<Container2,S<T2>> &b) -> void
+    {
+        if(a.size()==0) return;
+
+        const size_t n =  sizeof(a(0,0)) / sizeof(T1);
+        static_assert(sizeof(a(0,0)) == n*sizeof(T1));
+        static_assert(sizeof(b(0,0)) == n*sizeof(T2));
+
+        std::transform(
+            std::execution::par,
+            a.begin(),
+            a.end(),
+            b.begin(),
+            b.begin(),
+            [n](const auto &a_,const auto &b_){S<T2> bcp_ ;copy(a_,bcp_,n);return bcp_;}
+        );
+    }
 } // namespace quiss
