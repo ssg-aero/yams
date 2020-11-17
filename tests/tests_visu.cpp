@@ -32,6 +32,7 @@ TEST(tests_visu, render_curvature)
     make_circular_grid(r1,r2,t1,t2,{0.,3.},g);
     compute_abscissas(g);
     compute_angles(g);
+    compute_curvature(g);
 
     // Create a grid
     vtkSmartPointer<vtkStructuredGrid> structuredGrid =
@@ -45,6 +46,9 @@ TEST(tests_visu, render_curvature)
     vtkSmartPointer<vtkDoubleArray> gam =
         vtkSmartPointer<vtkDoubleArray>::New();
     gam->SetName("Gamma");
+    vtkSmartPointer<vtkDoubleArray> cur =
+        vtkSmartPointer<vtkDoubleArray>::New();
+    cur->SetName("Curvature");
 
     std::for_each(
         // std::execution::par,
@@ -55,6 +59,7 @@ TEST(tests_visu, render_curvature)
             points->InsertNextPoint(gp.x, gp.y, 0);
             gam->InsertNextValue(fmod(2*acos(-1)+gp.gam,2*acos(-1)));
             phi->InsertNextValue(gp.phi);
+            cur->InsertNextValue(gp.cur);
             }
     );
 
@@ -63,7 +68,8 @@ TEST(tests_visu, render_curvature)
     structuredGrid->SetPoints(points);
     structuredGrid->GetPointData()->AddArray(phi);
     structuredGrid->GetPointData()->AddArray(gam);
-    structuredGrid->GetPointData()->SetActiveScalars("Phi");
+    structuredGrid->GetPointData()->AddArray(cur);
+    structuredGrid->GetPointData()->SetActiveScalars("Curvature");
 
 
     // Create a mapper and actor

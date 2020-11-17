@@ -31,6 +31,8 @@ namespace quiss
     auto fm = [](MeridionalGridPoint<T> &gp) { return gp.m; };
     template <typename T>
     auto fl = [](MeridionalGridPoint<T> &gp) { return gp.l; };
+    template <typename T>
+    auto fphi = [](MeridionalGridPoint<T> &gp) { return gp.phi; };
 
     template <typename T>
     inline auto compute_angles(MeridionalGrid<T> &g)
@@ -43,7 +45,7 @@ namespace quiss
         {
             for (auto j = 0; j < nj; j++)
             {
-                auto gam_ = -PI / 2 + PI * j / (nj - 1.);
+                // auto gam_ = -PI / 2 + PI * j / (nj - 1.);
                 drqdm = D1_O2_i(g, i, j, fr<T>, fm<T>);
                 dzqdm = D1_O2_i(g, i, j, fz<T>, fm<T>);
                 g(i,j).phi = atan2(drqdm, dzqdm); // Stream line angle
@@ -53,5 +55,19 @@ namespace quiss
             }
         }
     }
+    
+    template <typename T>
+    inline auto compute_curvature(MeridionalGrid<T> &g)
+    {
+        size_t ni = g.nRows();
+        size_t nj = g.nCols();
 
+        for (auto i = 0; i < ni; i++)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i,j).cur = D1_O2_i(g, i, j, fphi<T>, fm<T>);
+            }
+        }
+    }
 } // namespace quiss
