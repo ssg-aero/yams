@@ -59,15 +59,28 @@ namespace quiss
     template <typename T>
     inline auto compute_curvature(MeridionalGrid<T> &g)
     {
-        size_t ni = g.nRows();
+        size_t ni = g.nRows()-1;
         size_t nj = g.nCols();
 
-        for (auto i = 0; i < ni; i++)
+        for (auto i = 1; i < ni; i++)
         {
             for (auto j = 0; j < nj; j++)
             {
-                g(i,j).cur = D1_O2_i(g, i, j, fphi<T>, fm<T>);
+                g(i,j).cur = D1_O2_i(g, i, j, fphi<T>, fm<T>);// TODO check why Aungier put -DphiDm
             }
         }
+        for (auto j = 0; j < nj; j++)
+        {
+            g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
+            g(ni, j).cur = 2. * g(ni - 1, j).cur - g(ni - 2, j).cur;
+        }
+    }
+
+    template <typename T>
+    inline auto compute_metrics(MeridionalGrid<T> &g)
+    {
+        compute_abscissas(g);
+        compute_angles(g);
+        compute_curvature(g);
     }
 } // namespace quiss
