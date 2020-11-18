@@ -30,31 +30,31 @@ TEST(tests_datastorage, Array2d)
     );
 }
 
-TEST(tests_datastorage, ArrayX2d)
-{
-    ArrayX2d<double> a(3,5);// on contrary of std::vector, values are not initialized to 0.
-    ASSERT_NEAR(a(0,0),0.,1e-30);
-    std::for_each(
-        a.begin(0),
-        a.end(0),
-        [](const auto &v_){ ASSERT_NEAR(v_,0.,1e-30); }
-    );
+// TEST(tests_datastorage, ArrayX2d)
+// {
+//     ArrayX2d<double> a(3,5);// on contrary of std::vector, values are not initialized to 0.
+//     ASSERT_NEAR(a(0,0),0.,1e-30);
+//     std::for_each(
+//         a.begin(0),
+//         a.end(0),
+//         [](const auto &v_){ ASSERT_NEAR(v_,0.,1e-30); }
+//     );
     
-    ArrayX2d<double> b(3,5,1.);
-    ASSERT_DOUBLE_EQ(b(0,0),1.);
-    std::for_each(
-        b.begin(1),
-        b.end(1),
-        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
-    );
+//     ArrayX2d<double> b(3,5,1.);
+//     ASSERT_DOUBLE_EQ(b(0,0),1.);
+//     std::for_each(
+//         b.begin(1),
+//         b.end(1),
+//         [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+//     );
 
-    std::for_each(
-        std::execution::par,
-        b.begin(),
-        b.end(),
-        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
-    );
-}
+//     std::for_each(
+//         std::execution::par,
+//         b.begin(),
+//         b.end(),
+//         [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+//     );
+// }
 
 
 template <typename T>
@@ -195,15 +195,15 @@ TEST(tests_datastorage, Grid_Diff)
             // ASSERT_NEAR(gam,gam_,1e-5);
         }
     }
-
+    compute_curvature(g);
     double DphiDm;
     for (auto i = 0; i < ni; i++)
     {
         for (auto j = 0; j < nj; j++)
         {
-            DphiDm = D1_O2_i(g, i, j, phi<double>, m<double>);
-            ASSERT_NEAR( 1 / DphiDm , r1 + (r2 - r1) * j / (nj - 1.) , 1e-3 );
-            g(i, j).cur = DphiDm; // TODO check why Aungier put -DphiDm
+            // DphiDm = D1_O2_i(g, i, j, phi<double>, m<double>);
+            DphiDm = g(i,j).cur;
+            ASSERT_NEAR( 1. / DphiDm , r1 + (r2 - r1) * j / (nj - 1.) , 1e-3 );
         }
     }
 }
