@@ -35,7 +35,7 @@ namespace quiss
         }
         auto end(size_t i)
         {
-            return std::next(container_.begin(), nj_ - 1 + nj_ * i);
+            return std::next(container_.begin(), nj_  + nj_ * i);
         }
         auto begin()
         {
@@ -124,6 +124,17 @@ namespace quiss
         T cur = 0.; // streamline curvature
         T cgp = 1.; // Cos( gamma + phi )
         T sgp = 0.; // Sin( gamma + phi )
+
+        T Vm  = 0.;
+        T Vu  = 0.;
+        T rho = 1.225;
+        T Pt  = 1.e5;
+        T Tt  = 300;
+        T Ps  = 1.e5;
+        T Ts  = 300.;
+        T Cp  = 1004.;
+        T ga  = 1.4;
+        T q   = 0.;
     };
 
 
