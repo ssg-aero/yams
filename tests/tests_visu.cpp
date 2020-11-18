@@ -3,18 +3,7 @@
 #include <diffop.h>
 #include <gridsbuilders.h>
 #include <gridmetrics.h>
-
-#include <vtkSmartPointer.h>
-#include <vtkStructuredGrid.h>
-#include <vtkXMLStructuredGridWriter.h>
-#include <vtkDataSetMapper.h>
-#include <vtkActor.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderer.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkProperty.h>
-#include <vtkDoubleArray.h>
-#include <vtkPointData.h>
+#include <gridrender.h>
 
 const double PI = acos(-1.);
 
@@ -34,70 +23,9 @@ TEST(tests_visu, render_curvature)
     compute_angles(g);
     compute_curvature(g);
 
-    // Create a grid
-    vtkSmartPointer<vtkStructuredGrid> structuredGrid =
-        vtkSmartPointer<vtkStructuredGrid>::New();
-
-    vtkSmartPointer<vtkPoints> points =
-        vtkSmartPointer<vtkPoints>::New();
-    vtkSmartPointer<vtkDoubleArray> phi =
-        vtkSmartPointer<vtkDoubleArray>::New();
-    phi->SetName("Phi");
-    vtkSmartPointer<vtkDoubleArray> gam =
-        vtkSmartPointer<vtkDoubleArray>::New();
-    gam->SetName("Gamma");
-    vtkSmartPointer<vtkDoubleArray> cur =
-        vtkSmartPointer<vtkDoubleArray>::New();
-    cur->SetName("Curvature");
-
-    std::for_each(
-        // std::execution::par,
-        g.begin(),
-        g.end(),
-        [&](const auto &gp){
-            std::execution::par,
-            points->InsertNextPoint(gp.x, gp.y, 0);
-            gam->InsertNextValue(fmod(2*acos(-1)+gp.gam,2*acos(-1)));
-            phi->InsertNextValue(gp.phi);
-            cur->InsertNextValue(gp.cur);
-            }
-    );
-
-    // Specify the dimensions of the grid
-    structuredGrid->SetDimensions(nj, ni, 1); // i j inverted Grid inner loop is i
-    structuredGrid->SetPoints(points);
-    structuredGrid->GetPointData()->AddArray(phi);
-    structuredGrid->GetPointData()->AddArray(gam);
-    structuredGrid->GetPointData()->AddArray(cur);
+    auto structuredGrid = make_vtkStructuredGrid(g);
+    add_value(g,structuredGrid,"Curvature",[](const auto &gp){return gp.cur;});
     structuredGrid->GetPointData()->SetActiveScalars("Curvature");
+    plot_vtkStructuredGrid(structuredGrid);
 
-
-    // Create a mapper and actor
-    vtkSmartPointer<vtkDataSetMapper> mapper =
-        vtkSmartPointer<vtkDataSetMapper>::New();
-    mapper->SetInputData(structuredGrid);
-     mapper->SetScalarRange(structuredGrid->GetScalarRange());
-
-    vtkSmartPointer<vtkActor> actor =
-        vtkSmartPointer<vtkActor>::New();
-    actor->SetMapper(mapper);
-    actor->GetProperty()->EdgeVisibilityOn();
- 
-    // Create a renderer, render window, and interactor
-    vtkSmartPointer<vtkRenderer> renderer =
-        vtkSmartPointer<vtkRenderer>::New();
-    vtkSmartPointer<vtkRenderWindow> renderWindow =
-        vtkSmartPointer<vtkRenderWindow>::New();
-    renderWindow->AddRenderer(renderer);
-    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
-        vtkSmartPointer<vtkRenderWindowInteractor>::New();
-    renderWindowInteractor->SetRenderWindow(renderWindow);
-
-    // Add the actor to the scene
-    renderer->AddActor(actor);
-    renderer->SetBackground(.3, .6, .3); // Background color green
-
-    // Render and interact
-    renderWindow->Render();
-    renderWindowInteractor->Start();
 }

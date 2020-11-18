@@ -3,6 +3,7 @@
 #include <diffop.h>
 #include <gridsbuilders.h>
 #include <gridmetrics.h>
+#include <gridrender.h>
 
 const double PI = acos(-1.);
 
@@ -274,15 +275,23 @@ TEST(tests_eq, forced_vector_flow)
     auto vmi = 10.;
     for (auto i = 0; i < ni; i++)
     {
-        integrate_RK2_vm_sheet(vmi, i, g,eq_vu);
+        integrate_RK2_vm_sheet(vmi, i, g, eq_vu);
         std::for_each(
             g.begin(i),
             g.end(i),
             [&](const auto &gp) {
                 auto vm_exact = sqrt(2 * K_ * K_ * (r1 - gp.y * gp.y) + vmi * vmi);
-                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 5e-5); //less than 0.00005 %
+                ASSERT_LT((gp.Vm - vm_exact) / vm_exact * 100, 5e-5); //less than 0.00005 %
                 //  std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
+        compute_massflow(g.begin(i), g.end(i));
+        if (i > 0)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                ASSERT_LT(fabs(g(i,j).q-g(i-1,j).q),1e-5);
+            }
+        }
     }
 }
 
@@ -314,5 +323,19 @@ TEST(tests_eq, constant_flow_angle)
                 ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 5e-5); //less than 0.00005 %
                 // std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
+        compute_massflow(g.begin(i), g.end(i));
+        if (i > 0)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                ASSERT_LT(fabs(g(i,j).q-g(i-1,j).q),1e-5);
+            }
+        }
     }
+
+    
+    // auto structuredGrid = make_vtkStructuredGrid(g);
+    // add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
+    // structuredGrid->GetPointData()->SetActiveScalars("Vm");
+    // plot_vtkStructuredGrid(structuredGrid);
 }

@@ -118,6 +118,7 @@ namespace quiss
         T y   = 0.;
         T l   = 0.;
         T m   = 0.; 
+        int iB = -1;
         T phi = 0.; // phi   = dz / dr
         T gam = 0.; // gamma = dr / dz 
         T bet = 0.; // atan2( Vu , Vm)
