@@ -26,6 +26,7 @@ find_package(VTK COMPONENTS
             FiltersSources
             InteractionStyle
             RenderingCore
+            RenderingAnnotation
             RenderingFreeType
             RenderingOpenGL2)
 #
@@ -49,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}
                             xtensor::optimize 
                             xtensor::use_xsimd
                             ${VTK_LIBRARIES}
+                            nlopt
                     )
 
 vtk_module_autoinit(

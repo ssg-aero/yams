@@ -47,4 +47,10 @@ include_directories(${LIBRARY_INC})
 link_directories(${LIBRARY_BIN})
 link_directories(${LIBRARY_LIB})
 
+# gbs
+include_directories(C:/Users/sebastien/workspace/gbslib)
+# Eigen
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+include_directories(${EIGEN3_INCLUDE_DIR})
+
 add_subdirectory(tests)

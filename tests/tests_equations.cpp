@@ -4,6 +4,8 @@
 #include <gridsbuilders.h>
 #include <gridmetrics.h>
 #include <gridrender.h>
+#include <gbs/bscinterp.h>
+#include <gbs/extrema.h>
 
 const double PI = acos(-1.);
 
@@ -12,7 +14,7 @@ using namespace quiss;
 auto f_sqVmq2 = [](const auto &gp) { return 0.5 * gp.Vm * gp.Vm; };
 
 auto f_mf = [](const auto &gp) {
-    return gp.Vm * gp.rho * cos(gp.phi - gp.gam) * 2 * PI * gp.y; //Schobeiri p. 273
+    return - gp.Vm * gp.rho * cos(gp.phi + gp.gam) * 2 * PI * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
 };
 
 auto f_rVu = [](const auto &gp) { return gp.y * gp.Vu; };
@@ -54,11 +56,11 @@ auto K = [](const auto &g, size_t i, size_t j) {
         m_part = sin(gp.gam + gp.phi) / cos(beta);
         if(i>1)
         {
-            m_part *=  D1_O2_i_bw(g, i, j, f_sqVmq2, f_m);
+            m_part *=  D1_O2_i_bw(g, i, j, f_sqVmq2, f_m) / cos(beta);
         }
         else
         {
-            m_part *=  D1_O1_i_bw(g, i, j, f_sqVmq2, f_m);
+            m_part *=  D1_O1_i_bw(g, i, j, f_sqVmq2, f_m) / cos(beta);
         }
     } 
     return tg_part + m_part;
@@ -108,11 +110,11 @@ auto F = [](const auto &g, size_t i, size_t j) {
         result = (cos(gp.bet) * sin(gp.gam + gp.phi));
         if (i > 1)
         {
-            result *= D1_O2_i_bw(g, i, j, f_sqVmq2, f_m);
+            result *= D1_O2_i_bw(g, i, j, f_sqVmq2, f_m) / cos(gp.bet);
         }
         else
         {
-            result *= D1_O1_i_bw(g, i, j, f_sqVmq2, f_m);
+            result *= D1_O1_i_bw(g, i, j, f_sqVmq2, f_m) / cos(gp.bet);
         }
     }
     return result;
@@ -157,7 +159,7 @@ inline void compute_static_values(Iterator begin, Iterator end)
 }
 
 template <typename Iterator>
-inline void compute_massflow(Iterator begin, Iterator end)
+inline void compute_massflow_distribution(Iterator begin, Iterator end)
 {
     std::transform(
         begin,
@@ -168,6 +170,73 @@ inline void compute_massflow(Iterator begin, Iterator end)
             gp.q = (f_mf(gp_prev) + f_mf(gp)) * (gp.l - gp_prev.l) * 0.5 + gp_prev.q;
             return gp;
         });
+}
+
+template <typename T>
+inline auto compute_massflow(const MeridionalGrid<T> &g, int i)
+{
+    auto nj = g.nCols();
+    auto mf = 0.;
+    for(auto j = 1 ; j < nj ; j++)
+    {
+        mf+=(f_mf(g(i,j)) + f_mf(g(i,j-1))) * (g(i,j).l - g(i,j-1).l) * 0.5;
+    }
+    return mf;
+}
+
+template <typename T, typename _Func>
+inline auto eq_massflow(T vmi,MeridionalGrid<T> &g, int i,_Func F)
+{
+    auto nj = g.nCols();
+    if (i > 0)
+    {
+        for (auto j = 0; j < nj; j++)
+        {
+            g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+        }
+    }
+    integrate_RK2_vm_sheet(vmi, i, g, F);
+    if (i > 0)
+    {
+        for (auto j = 0; j < nj; j++)
+        {
+            g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm);
+        }
+    }
+    return compute_massflow(g,i);
+}
+
+template <typename T>
+inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
+{
+    auto nj = g.nCols();
+    std::vector<gbs::constrType<T, 1, 1>> Q(nj);
+    std::vector<gbs::constrType<T, 2, 1>> X(nj);
+    std::vector<T> u(nj);
+    auto l_tot = g(i, nj - 1).l;
+    for (auto j = 0; j < nj; j++)
+    {
+        Q[j][0][0] = g(i, j).q;
+        X[j][0][0] = g(i, j).x;
+        X[j][0][1] = g(i, j).y;
+        u[j] = g(i, j).l / l_tot;
+    }
+    auto f_Q = gbs::interpolate(Q, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
+    auto f_X = gbs::interpolate(X, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
+    auto delta_pos = 0.;
+    auto RF = 0.02;
+    for (auto j = 1; j < nj - 1; j++)
+    {
+        auto PC = gbs::extrema_PC(f_Q, {g(0, j).q}, u[j], 1e-4);
+        auto l = PC.u;
+        auto X = f_X.value(l);
+        auto dx = g(i, j).x - X[0];
+        auto dy = g(i, j).y - X[1];
+        delta_pos = fmax(fmax(fabs(dx), fabs(dy)), delta_pos);
+        g(i, j).x = g(i, j).x + RF * (X[0] - g(i, j).x);
+        g(i, j).y = g(i, j).y + RF * (X[1] - g(i, j).y);
+    }
+    return delta_pos;
 }
 
 TEST(tests_eq, mass_flow)
@@ -185,7 +254,7 @@ TEST(tests_eq, mass_flow)
     compute_curvature(g);
     // init values
     std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=10.;gp.rho=1.225; });
-    compute_massflow(g.begin(0), g.end(0));
+    compute_massflow_distribution(g.begin(0), g.end(0));
     auto S = 2 * PI * 3.;
     auto MF = S * 10. * 1.225;
     ASSERT_NEAR(MF, (*(g.end(0) - 1)).q, 1e-6);
@@ -284,7 +353,7 @@ TEST(tests_eq, forced_vector_flow)
                 ASSERT_LT((gp.Vm - vm_exact) / vm_exact * 100, 5e-5); //less than 0.00005 %
                 //  std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
-        compute_massflow(g.begin(i), g.end(i));
+        compute_massflow_distribution(g.begin(i), g.end(i));
         if (i > 0)
         {
             for (auto j = 0; j < nj; j++)
@@ -323,7 +392,7 @@ TEST(tests_eq, constant_flow_angle)
                 ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 5e-5); //less than 0.00005 %
                 // std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
-        compute_massflow(g.begin(i), g.end(i));
+        compute_massflow_distribution(g.begin(i), g.end(i));
         if (i > 0)
         {
             for (auto j = 0; j < nj; j++)
@@ -338,4 +407,161 @@ TEST(tests_eq, constant_flow_angle)
     // add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
     // structuredGrid->GetPointData()->SetActiveScalars("Vm");
     // plot_vtkStructuredGrid(structuredGrid);
+}
+
+TEST(tests_eq, constant_flow_angle_clustered_grid)
+{
+    size_t ni = 10;
+    size_t nj = 10;
+    MeridionalGrid<double> g(ni, nj);
+    auto r1 = 1.;
+    auto r2 = 2.;
+
+    make_uniform_clustered_grid(2,r2-r1,g,0.,0.,r1);
+    compute_abscissas(g);
+    compute_angles(g);
+    compute_curvature(g);
+    // init values
+    auto a_ = PI / 6.;
+    std::for_each(g.begin(), g.end(), [&a_](auto &gp) {gp.Vm=10.;gp.bet=PI / 6.; });
+
+    auto vmi = 10.;
+    for (auto i = 0; i < ni; i++)
+    {
+        integrate_RK2_vm_sheet(vmi, i, g,eq_bet);
+        std::for_each(
+            g.begin(i),
+            g.end(i),
+            [&](const auto &gp) {
+                auto vm_exact = vmi * pow(r1/gp.y,sin(PI/6.)*sin(PI/6.));
+                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 1e-1); //less than 0.1 % on coarse grid
+                // std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
+            });
+        compute_massflow_distribution(g.begin(i), g.end(i));
+        if (i > 0)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                ASSERT_LT(fabs(g(i,j).q-g(i-1,j).q),1e-5);
+            }
+        }
+    }
+
+    
+    // auto structuredGrid = make_vtkStructuredGrid(g);
+    // add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
+    // structuredGrid->GetPointData()->SetActiveScalars("Vm");
+    // plot_vtkStructuredGrid(structuredGrid,true);
+}
+
+TEST(tests_eq, constant_flow_angle_circular)
+{
+    size_t ni = 50;
+    size_t nj = 15;
+    MeridionalGrid<double> g(ni,nj);
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto t1 = PI;
+    auto t2 = PI * 2.;
+    make_circular_grid(r1,r2,t1,t2,{0.,3.},g);
+    compute_abscissas(g);
+    compute_angles(g);
+    compute_curvature(g);
+    // init values
+    std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=10.;gp.Vu=3; });
+
+    auto vmi = 10.;
+    for (auto i = 0; i < ni; i++)
+    {
+
+        if (i > 0)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i,j).Vu = g(i-1,j).y * g(i-1,j).Vu / g(i,j).y;
+            }
+        }
+        integrate_RK2_vm_sheet(vmi, i, g, eq_vu);
+        if (i > 0)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i,j).bet = atan2(g(i,j).Vu,g(i,j).Vm);
+            }
+        }
+
+        // compute_massflow_distribution(g.begin(i), g.end(i));
+        std::cerr << compute_massflow(g,i) << std::endl;
+
+    }
+
+    
+    auto structuredGrid = make_vtkStructuredGrid(g);
+    add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
+    structuredGrid->GetPointData()->SetActiveScalars("Vm");
+    plot_vtkStructuredGrid(structuredGrid,true);
+}
+
+TEST(tests_eq, constant_flow_angle_circular_mass_flow_balance)
+{
+    size_t ni = 60;
+    size_t nj = 15;
+    MeridionalGrid<double> g(ni,nj);
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto t1 = PI;
+    auto t2 = PI * 2.;
+    make_circular_grid(r1,r2,t1,t2,{0.,3.},g);
+    compute_metrics(g);
+    // init values
+    std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=30; });
+
+    auto vmi = g(0,0).Vm;
+    auto eps = 0.001;
+    auto mf = compute_massflow(g, 0);
+    auto tol_rel_mf = 0.01;
+    int count_geom = 0;
+    auto delta_pos_max = 0.;
+    auto delta_pos=0.;
+    auto delta_pos_moy =0.;
+    do
+    {
+        delta_pos_max = 0.;
+        delta_pos_moy = 0.;
+        for (auto i = 0; i < ni; i++)
+        {
+            auto err_mf = tol_rel_mf * 10.;
+            auto mf_ = 0., mf_pre = 0.; // mf shall allways be positive
+            int count = 0;
+            while (err_mf > tol_rel_mf && count < 100)
+            {
+                mf_pre = eq_massflow(vmi - eps, g, i, eq_vu);
+                mf_    = eq_massflow(vmi, g, i, eq_vu);
+                vmi    = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
+                err_mf = fabs(mf_ - mf) / mf;
+                count++;
+            }
+            ASSERT_LT(fabs(compute_massflow(g,i)-mf)/mf,tol_rel_mf);
+        }
+        for (auto i = 0; i < ni; i++)
+        {
+            compute_massflow_distribution(g.begin(i), g.end(i));
+            if (i > 0)
+            {
+                delta_pos = balance_massflow(g, i, tol_rel_mf * mf);
+                delta_pos_moy += delta_pos / (ni-2.);
+                delta_pos_max = fmax(delta_pos_max, delta_pos);
+            }
+        }
+        compute_metrics(g);
+        std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
+        count_geom++;
+    }while (delta_pos_moy > 0.01 * g(0,nj-1).l && count_geom < 100);
+
+    ASSERT_LT(count_geom , 100);
+    
+    auto structuredGrid = make_vtkStructuredGrid(g);
+    add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
+    structuredGrid->GetPointData()->SetActiveScalars("Vm");
+    plot_vtkStructuredGrid(structuredGrid,true);
 }
