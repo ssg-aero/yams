@@ -135,6 +135,7 @@ namespace quiss
         T Cp  = 1004.;
         T ga  = 1.4;
         T q   = 0.;
+        T omg = 0.;
     };
 
 

@@ -15,6 +15,7 @@ auto f_mf = [](const auto &gp) {
 };
 
 auto f_rVu = [](const auto &gp) { return gp.y * gp.Vu; };
+auto f_rTanBeta = [](const auto &gp) { return gp.y * tan(gp.bet); };
 auto f_l = [](const auto &gp) { return gp.l; };
 auto f_m = [](const auto &gp) { return gp.m; };
 
@@ -37,7 +38,7 @@ auto K = [](const auto &g, size_t i, size_t j) {
         {
             tg_part *= D1_O2_j_bw(g, i, j, f_rVu, f_l);
         }
-        else if(j==0) // warning, using value from previous iteration
+        else if(j==0) // warning, using value from previous iteration or imposed by solver
         {
             tg_part *= D1_O1_j_fw(g, i, j, f_rVu, f_l);
         }
@@ -45,7 +46,6 @@ auto K = [](const auto &g, size_t i, size_t j) {
         {
             tg_part *= D1_O1_j_bw(g, i, j, f_rVu, f_l);
         }
-        
     }
     auto m_part = 0.;
     if(i>0)
@@ -63,10 +63,64 @@ auto K = [](const auto &g, size_t i, size_t j) {
     return tg_part + m_part;
 };
 
-auto F_vu = [](const auto &g, size_t i, size_t j) {
+auto eq_vu = [](const auto &g, size_t i, size_t j) {
     const auto gp = g(i, j);
     const auto Vm = gp.Vm;
     return G(gp) * Vm * Vm + J(gp) * Vm + K(g, i, j);
+};
+
+auto D = [](const auto &g, size_t i, size_t j) {
+    const auto gp = g(i, j);
+    auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
+    auto result = cos(gp.phi + gp.gam) * gp.cur;
+    auto tg_part = 0.;
+    if (gp.y > 0.)
+    {
+        tg_part = -tan(gp.bet) / gp.y;
+        if (j > 1)
+        {
+            tg_part *= D1_O2_j_bw(g, i, j, f_rTanBeta, f_l);
+        }
+        else if (j == 0) // warning, using value from previous iteration or imposed by solver
+        {
+            tg_part *= D1_O1_j_fw(g, i, j, f_rTanBeta, f_l);
+        }
+        else // j == 1
+        {
+            tg_part *= D1_O1_j_bw(g, i, j, f_rTanBeta, f_l);
+        }
+    }
+    result += tg_part;
+    return cb * cb * result;
+};
+
+auto E = [](const auto &gp) {
+    auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
+    return 2. * gp.omg * cb * cb * (-cos(gp.gam) * tan(gp.bet));
+};
+
+auto F = [](const auto &g, size_t i, size_t j) {
+    const auto gp = g(i, j);
+    auto result = 0.;
+    if (i > 0)
+    {
+        result = (cos(gp.bet) * sin(gp.gam + gp.phi));
+        if (i > 1)
+        {
+            result *= D1_O2_i_bw(g, i, j, f_sqVmq2, f_m);
+        }
+        else
+        {
+            result *= D1_O1_i_bw(g, i, j, f_sqVmq2, f_m);
+        }
+    }
+    return result;
+};
+
+auto eq_bet = [](const auto &g, size_t i, size_t j) {
+    const auto gp = g(i, j);
+    const auto Vm = gp.Vm;
+    return D(g, i, j) * Vm * Vm + E(gp) * Vm + F(g, i, j);
 };
 
 template <typename T, typename _Func>
@@ -194,7 +248,7 @@ TEST(tests_eq, eq_Vu)
                 });
         }
 
-        integrate_RK2_vm_sheet(100., i, g,F_vu);
+        integrate_RK2_vm_sheet(100., i, g,eq_vu);
 
         // p,t and rho a sufferer from a delay
         compute_static_values(g.begin(i), g.end(i));
@@ -220,47 +274,45 @@ TEST(tests_eq, forced_vector_flow)
     auto vmi = 10.;
     for (auto i = 0; i < ni; i++)
     {
-        integrate_RK2_vm_sheet(vmi, i, g,F_vu);
+        integrate_RK2_vm_sheet(vmi, i, g,eq_vu);
         std::for_each(
             g.begin(i),
             g.end(i),
             [&](const auto &gp) {
                 auto vm_exact = sqrt(2 * K_ * K_ * (r1 - gp.y * gp.y) + vmi * vmi);
-                // ASSERT_NEAR(vm_exact, gp.Vm, 1e-2);
                 ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 5e-5); //less than 0.00005 %
-                // std::cerr << gp.Vm << " "<< gp.Vu << " " << vm_exact << std::endl;
                 //  std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
     }
 }
 
-// TEST(tests_eq, constant_flow_angle)
-// {
-//     size_t ni = 100;
-//     size_t nj = 50;
-//     MeridionalGrid<double> g(ni, nj);
-//     auto r1 = 1.;
-//     auto r2 = 2.;
+TEST(tests_eq, constant_flow_angle)
+{
+    size_t ni = 10;
+    size_t nj = 500;
+    MeridionalGrid<double> g(ni, nj);
+    auto r1 = 1.;
+    auto r2 = 2.;
 
-//     make_uniform_grid(2., r2 - r1, g, 0, 0, r1);
-//     compute_abscissas(g);
-//     compute_angles(g);
-//     compute_curvature(g);
-//     // init values
-//     auto a_ = PI / 6.;
-//     std::for_each(g.begin(), g.end(), [&a_](auto &gp) {gp.Vm=10.;gp.Vu=K_ * gp.y; });
+    make_uniform_grid(2., r2 - r1, g, 0, 0, r1);
+    compute_abscissas(g);
+    compute_angles(g);
+    compute_curvature(g);
+    // init values
+    auto a_ = PI / 6.;
+    std::for_each(g.begin(), g.end(), [&a_](auto &gp) {gp.Vm=10.;gp.bet=PI / 6.; });
 
-//     auto vmi = 10.;
-//     for (auto i = 0; i < ni; i++)
-//     {
-//         compute_vm_sheet(vmi, i, g);
-//         std::for_each(
-//             g.begin(i),
-//             g.end(i),
-//             [&](const auto &gp) {
-//                 auto vm_exact = sqrt(2 * K_ * K_ * (r1 - gp.y * gp.y) + vmi * vmi);
-//                 ASSERT_NEAR(vm_exact, gp.Vm, 1e-6);
-//                 // std::cerr << gp.Vm << " "<< gp.Vu << " " << vm_exact << std::endl;
-//             });
-//     }
-// }
+    auto vmi = 10.;
+    for (auto i = 0; i < ni; i++)
+    {
+        integrate_RK2_vm_sheet(vmi, i, g,eq_bet);
+        std::for_each(
+            g.begin(i),
+            g.end(i),
+            [&](const auto &gp) {
+                auto vm_exact = vmi * pow(r1/gp.y,sin(PI/6.)*sin(PI/6.));
+                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 5e-5); //less than 0.00005 %
+                // std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
+            });
+    }
+}
