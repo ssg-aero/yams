@@ -31,47 +31,45 @@ auto K = [](const auto &g, size_t i, size_t j) {
     auto beta = atan2(gp.Vu, gp.Vm);
     auto tg_part = 0.;
     // For now although D1_O2 passes the test theire use here lead to incorrect solution
-    if (gp.y > 0.)
+    if (gp.y > 0. && j > 0)
     {
-        // tg_part = -gp.Vu / gp.y * D1_O1_j_bw(g, i, j, f_rVu, f_l);
         tg_part = -gp.Vu / gp.y;
-        // if(j>1)
-        // {
-        //     tg_part *= D1_O2_j_bw(g, i, j, f_rVu, f_l);
-        // }
-        // else
-        // {
+        if(j>1)
+        {
+            tg_part *= D1_O2_j_bw(g, i, j, f_rVu, f_l);
+        }
+        else
+        {
             tg_part *= D1_O1_j_bw(g, i, j, f_rVu, f_l);
-        // }
+        }
         
     }
     auto m_part = 0.;
     if(i>0)
     {
         m_part = sin(gp.gam + gp.phi) / cos(beta);
-        // if(i>1)
-        // {
-        //     m_part *=  D1_O2_i_bw(g, i, j, f_sqVmq2, f_m);
-        // }
-        // else
-        // {
+        if(i>1)
+        {
+            m_part *=  D1_O2_i_bw(g, i, j, f_sqVmq2, f_m);
+        }
+        else
+        {
             m_part *=  D1_O1_i_bw(g, i, j, f_sqVmq2, f_m);
-        // }
+        }
     } 
     return tg_part + m_part;
 };
 
-auto F = [](const auto &g, size_t i, size_t j) {
+auto F_vu = [](const auto &g, size_t i, size_t j) {
     const auto gp = g(i, j);
     const auto Vm = gp.Vm;
     return G(gp) * Vm * Vm + J(gp) * Vm + K(g, i, j);
 };
 
-template <typename T>
-inline void compute_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g)
+template <typename T, typename _Func>
+inline void compute_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g, _Func F)
 {
     g(i, 0).Vm = vmi;
-    // size_t ni = g.nRows();
     size_t nj = g.nCols();
 
     for (auto j = 1; j < nj; j++)
@@ -80,8 +78,10 @@ inline void compute_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g)
         const auto gp_prev = g(i, j - 1);
         auto sqVmq2 = f_sqVmq2(gp_prev);
         auto dl = gp.l - gp_prev.l;
-        sqVmq2 += F(g, i, j) * dl;
-        g(i, j).Vm = sqrt(2. * sqVmq2);
+        auto sqVmq2_1 = sqVmq2 + F(g, i, j - 1) * dl;
+        g(i, j).Vm = sqrt(2. * sqVmq2_1);
+        auto sqVmq2_2 = sqVmq2 + F(g, i, j) * dl;
+        g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
     }
 }
 
@@ -191,7 +191,7 @@ TEST(tests_eq, eq_Vu)
                 });
         }
 
-        compute_vm_sheet(100., i, g);
+        compute_vm_sheet(100., i, g,F_vu);
 
         // p,t and rho a sufferer from a delay
         compute_static_values(g.begin(i), g.end(i));
@@ -201,7 +201,7 @@ TEST(tests_eq, eq_Vu)
 TEST(tests_eq, forced_vector_flow)
 {
     size_t ni = 10;
-    size_t nj = 5;
+    size_t nj = 500;
     MeridionalGrid<double> g(ni, nj);
     auto r1 = 1.;
     auto r2 = 2.;
@@ -217,14 +217,47 @@ TEST(tests_eq, forced_vector_flow)
     auto vmi = 10.;
     for (auto i = 0; i < ni; i++)
     {
-        compute_vm_sheet(vmi, i, g);
+        compute_vm_sheet(vmi, i, g,F_vu);
         std::for_each(
             g.begin(i),
             g.end(i),
             [&](const auto &gp) {
                 auto vm_exact = sqrt(2 * K_ * K_ * (r1 - gp.y * gp.y) + vmi * vmi);
-                ASSERT_NEAR(vm_exact, gp.Vm, 1e-6);
+                // ASSERT_NEAR(vm_exact, gp.Vm, 1e-2);
+                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 0.05); //less than 0.05 %
                 // std::cerr << gp.Vm << " "<< gp.Vu << " " << vm_exact << std::endl;
+                //  std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
     }
 }
+
+// TEST(tests_eq, constant_flow_angle)
+// {
+//     size_t ni = 100;
+//     size_t nj = 50;
+//     MeridionalGrid<double> g(ni, nj);
+//     auto r1 = 1.;
+//     auto r2 = 2.;
+
+//     make_uniform_grid(2., r2 - r1, g, 0, 0, r1);
+//     compute_abscissas(g);
+//     compute_angles(g);
+//     compute_curvature(g);
+//     // init values
+//     auto a_ = PI / 6.;
+//     std::for_each(g.begin(), g.end(), [&a_](auto &gp) {gp.Vm=10.;gp.Vu=K_ * gp.y; });
+
+//     auto vmi = 10.;
+//     for (auto i = 0; i < ni; i++)
+//     {
+//         compute_vm_sheet(vmi, i, g);
+//         std::for_each(
+//             g.begin(i),
+//             g.end(i),
+//             [&](const auto &gp) {
+//                 auto vm_exact = sqrt(2 * K_ * K_ * (r1 - gp.y * gp.y) + vmi * vmi);
+//                 ASSERT_NEAR(vm_exact, gp.Vm, 1e-6);
+//                 // std::cerr << gp.Vm << " "<< gp.Vu << " " << vm_exact << std::endl;
+//             });
+//     }
+// }
