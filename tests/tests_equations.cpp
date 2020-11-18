@@ -30,15 +30,18 @@ auto K = [](const auto &g, size_t i, size_t j) {
     const auto gp = g(i, j);
     auto beta = atan2(gp.Vu, gp.Vm);
     auto tg_part = 0.;
-    // For now although D1_O2 passes the test theire use here lead to incorrect solution
-    if (gp.y > 0. && j > 0)
+    if (gp.y > 0.)
     {
         tg_part = -gp.Vu / gp.y;
         if(j>1)
         {
             tg_part *= D1_O2_j_bw(g, i, j, f_rVu, f_l);
         }
-        else
+        else if(j==0) // warning, using value from previous iteration
+        {
+            tg_part *= D1_O1_j_fw(g, i, j, f_rVu, f_l);
+        }
+        else // j == 1
         {
             tg_part *= D1_O1_j_bw(g, i, j, f_rVu, f_l);
         }
@@ -224,7 +227,7 @@ TEST(tests_eq, forced_vector_flow)
             [&](const auto &gp) {
                 auto vm_exact = sqrt(2 * K_ * K_ * (r1 - gp.y * gp.y) + vmi * vmi);
                 // ASSERT_NEAR(vm_exact, gp.Vm, 1e-2);
-                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 0.05); //less than 0.05 %
+                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 5e-5); //less than 0.00005 %
                 // std::cerr << gp.Vm << " "<< gp.Vu << " " << vm_exact << std::endl;
                 //  std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
