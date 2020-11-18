@@ -9,6 +9,9 @@
 #include <vtkProperty.h>
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
+#include <vtkScalarBarActor.h>
+#include <vtkLookupTable.h>
+
 namespace quiss
 {
     template <typename T>
@@ -62,6 +65,13 @@ namespace quiss
         mapper->SetInputData(structuredGrid);
         mapper->SetScalarRange(structuredGrid->GetScalarRange());
 
+        vtkSmartPointer<vtkLookupTable> rainbowBlueRedLut =
+            vtkSmartPointer<vtkLookupTable>::New();
+        rainbowBlueRedLut->SetNumberOfColors(256);
+        rainbowBlueRedLut->SetHueRange(0.667, 0.0);
+        rainbowBlueRedLut->Build();
+        mapper->SetLookupTable(rainbowBlueRedLut);
+
         vtkSmartPointer<vtkActor> actor =
             vtkSmartPointer<vtkActor>::New();
         actor->SetMapper(mapper);
@@ -78,8 +88,15 @@ namespace quiss
             vtkSmartPointer<vtkRenderWindowInteractor>::New();
         renderWindowInteractor->SetRenderWindow(renderWindow);
 
+
         // Add the actor to the scene
         renderer->AddActor(actor);
+        vtkSmartPointer<vtkScalarBarActor> scalarBar =
+            vtkSmartPointer<vtkScalarBarActor>::New();
+        scalarBar->SetLookupTable(mapper->GetLookupTable());
+        scalarBar->SetTitle(structuredGrid->GetPointData()->GetArrayName(0));
+        scalarBar->SetNumberOfLabels(4);
+        renderer->AddActor(scalarBar);
         renderer->SetBackground(.3, .6, .3); // Background color green
 
         // Render and interact
