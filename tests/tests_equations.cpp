@@ -70,7 +70,7 @@ auto F_vu = [](const auto &g, size_t i, size_t j) {
 };
 
 template <typename T, typename _Func>
-inline void compute_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g, _Func F)
+inline void integrate_RK2_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g, _Func F)
 {
     g(i, 0).Vm = vmi;
     size_t nj = g.nCols();
@@ -194,7 +194,7 @@ TEST(tests_eq, eq_Vu)
                 });
         }
 
-        compute_vm_sheet(100., i, g,F_vu);
+        integrate_RK2_vm_sheet(100., i, g,F_vu);
 
         // p,t and rho a sufferer from a delay
         compute_static_values(g.begin(i), g.end(i));
@@ -220,7 +220,7 @@ TEST(tests_eq, forced_vector_flow)
     auto vmi = 10.;
     for (auto i = 0; i < ni; i++)
     {
-        compute_vm_sheet(vmi, i, g,F_vu);
+        integrate_RK2_vm_sheet(vmi, i, g,F_vu);
         std::for_each(
             g.begin(i),
             g.end(i),
