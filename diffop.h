@@ -3,6 +3,30 @@
 namespace quiss
 {
     template <typename T,typename fX,typename fY>
+    auto D1_O1_i_bw( T &g,size_t i, size_t j,fY Y,fX X)
+    {
+        return  ( Y(g(i,j)) - Y(g(i-1,j)) ) / ( X(g(i,j)) - X(g(i-1,j)) );
+    }
+
+    template <typename T,typename fX,typename fY>
+    auto D1_O1_j_bw( T &g,size_t i, size_t j,fY Y,fX X)
+    {
+        return  ( Y(g(i,j)) - Y(g(i,j-1)) ) / ( X(g(i,j)) - X(g(i,j-1)) );
+    }
+
+    template <typename T,typename fX,typename fY>
+    auto D1_O1_i_fw( T &g,size_t i, size_t j,fY Y,fX X)
+    {
+        return  ( Y(g(i,j)) - Y(g(i+1,j)) ) / ( X(g(i,j)) - X(g(i+1,j)) );
+    }
+
+    template <typename T,typename fX,typename fY>
+    auto D1_O1_j_fw( T &g,size_t i, size_t j,fY Y,fX X)
+    {
+        return  ( Y(g(i,j)) - Y(g(i,j+1)) ) / ( X(g(i,j)) - X(g(i,j+1)) );
+    }
+
+    template <typename T,typename fX,typename fY>
     auto D1_O2_i_fw( T &g,size_t i, size_t j,fY Y,fX X)
     {
         return 1 / ( X(g(i+2,j)) - X(g(i+1,j)) ) * (
