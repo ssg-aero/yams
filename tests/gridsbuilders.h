@@ -20,7 +20,7 @@ auto make_uniform_grid(double l,double h, T &g,double a=0, double b=0,double ri=
 }
 
 template <typename T>
-auto make_uniform_clustered_grid(double l,double h, T &g,double a=0, double b=0) -> void
+auto make_uniform_clustered_grid(double l,double h, T &g,double a=0, double b=0,double ri=0.) -> void
 {
     size_t ni = g.nRows();
     size_t nj = g.nCols();
@@ -32,7 +32,7 @@ auto make_uniform_clustered_grid(double l,double h, T &g,double a=0, double b=0)
         {
             auto h_ = h * sin( j / (nj - 1.) * PI_2 );
             g(i, j).x = l_;
-            g(i, j).y = h_;
+            g(i, j).y = h_ + ri;
             if(i>0) g(i, j).y += tan(a) * (g(i, j).x - g(i-1, j).x);
             if(j>0) g(i, j).x += tan(a) * (g(i, j).y - g(i, j-1).y);
         }
