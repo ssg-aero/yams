@@ -37,6 +37,14 @@ namespace quiss
         {
             return std::next(container_.begin(), nj_  + nj_ * i);
         }
+        auto begin(size_t i) const
+        {
+            return std::next(container_.begin(), nj_ * i);
+        }
+        auto end(size_t i) const
+        {
+            return std::next(container_.begin(), nj_  + nj_ * i);
+        }
         auto begin()
         {
             return container_.begin();
