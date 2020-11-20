@@ -9,7 +9,8 @@
 
 const double PI = acos(-1.);
 
-const bool TESTS_USE_PLOT = true;
+const bool TESTS_USE_PLOT = false;
+const double c_r = 287.04;
 
 using namespace quiss;
 using gbs::operator*;
@@ -26,6 +27,8 @@ auto f_rVu = [](const auto &gp) { return gp.y * gp.Vu; };
 auto f_rTanBeta = [](const auto &gp) { return gp.y * tan(gp.bet); };
 auto f_l = [](const auto &gp) { return gp.l; };
 auto f_m = [](const auto &gp) { return gp.m; };
+auto f_Mm = [](const auto &gp) { return gp.Vm / sqrt(gp.ga * c_r * gp.Ts); };
+auto f_Vm = [](const auto &gp) { return gp.Vm; };
 
 auto G = [](const auto &gp) {
     return cos(gp.phi + gp.gam) * gp.cur;
@@ -173,7 +176,7 @@ inline void compute_static_values(Iterator begin, Iterator end)
         [](auto &gp) {
             gp.Ts = gp.Tt - f_sqVmq2(gp) / gp.Cp;
             gp.Ps = gp.Pt * pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1.));
-            gp.rho = gp.Ps / (287.04 * gp.Ts);
+            gp.rho = gp.Ps / (c_r * gp.Ts);
         });
 }
 
@@ -255,6 +258,71 @@ auto newton_solve = [](const auto &crv,auto p, T u0, T tol_f = 1.e-3, T tol_u = 
     return u;
 };
 
+template <typename T, typename _Func>
+inline auto streamsheet_value_vector(const MeridionalGrid<T> &g, size_t i, size_t stride, _Func f)
+{
+    std::vector<T> vec(g.nCols());
+    std::transform(
+        std::execution::par,
+        g.begin(i),
+        g.end(i),
+        g.begin(i + stride),
+        vec.begin(),
+        [&f](const auto &gp2,const auto &gp1) { return f(gp2)-f(gp1); });
+        return vec;
+}
+
+template <typename T, typename _Func>
+inline auto streamsheet_value_vector(const MeridionalGrid<T> &g, size_t i, _Func f)
+{
+    std::vector<T> vec(g.nCols());
+    std::transform(
+        std::execution::par,
+        g.begin(i),
+        g.end(i),
+        vec.begin(),
+        [&f](const auto &gp) { return f(gp); });
+        return vec;
+}
+
+template <typename T, typename _Func>
+inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, _Func f)
+{
+    auto vec = streamsheet_value_vector(g,i,f);
+    return *std::max_element(
+        std::execution::par,
+        vec.begin(),
+        vec.end());
+}
+
+template <typename T, typename _Func>
+inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, size_t stride, _Func f)
+{
+    auto vec = streamsheet_value_vector(g,i,stride,f);
+    return *std::max_element(
+        std::execution::par,
+        vec.begin(),
+        vec.end());
+}
+
+template <typename T>
+inline auto eval_RF(const MeridionalGrid<T> &g, int i, T B_)
+{
+
+    T dm_max = 0.;
+    if (i > 0)
+    {
+        dm_max = find_streamsheet_max(g, i, -1, f_m);
+    }
+    if (i < g.nRows() - 1)
+    {
+        dm_max = fmax(dm_max, find_streamsheet_max(g, i + 1, -1, f_m));
+    }
+    auto Mm = fmax(0.95, find_streamsheet_max(g, i, f_Mm));
+    auto l = (*(std::next(g.end(i), -1))).l;
+    return 1. / (1. + (1 - Mm * Mm) * l * l / (B_ * dm_max * dm_max) );
+}
+
 template <typename T>
 inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
 {
@@ -272,22 +340,20 @@ inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
     }
     auto f_Q = gbs::interpolate(Q, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
     auto f_X = gbs::interpolate(X, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
-    //degree == 1 -> Polyline, seems to speed up gbs::extrema_PC (newton_solve needs c2 curves)
-    // auto f_Q = gbs::interpolate(Q, u, 1, gbs::KnotsCalcMode::CHORD_LENGTH);
-    // auto f_X = gbs::interpolate(X, u, 1, gbs::KnotsCalcMode::CHORD_LENGTH);
     auto delta_pos = 0.;
-    auto RF = 0.01; // TODO compute RF
+    // auto RF = 0.01;
+    T B_ = fmin(8., 0.5 * 60. / g.nRows());
+    auto RF = eval_RF(g,i,B_);
+    
     for (auto j = 1; j < nj - 1; j++)
     {
-        // auto PC = gbs::extrema_PC(f_Q, {g(0, j).q}, u[j], 1e-4);
-        // auto l = PC.u;
         auto l = newton_solve<T>(f_Q, gbs::point<T,1>{g(0, j).q}, u[j]);
         auto X = f_X.value(l);
         auto dx = g(i, j).x - X[0];
         auto dy = g(i, j).y - X[1];
         delta_pos = fmax(fmax(fabs(dx), fabs(dy)), delta_pos);
-        g(i, j).x = g(i, j).x + RF * (X[0] - g(i, j).x);
-        g(i, j).y = g(i, j).y + RF * (X[1] - g(i, j).y);
+        g(i, j).x += RF * (X[0] - g(i, j).x);
+        g(i, j).y += RF * (X[1] - g(i, j).y);
     }
     return delta_pos;
 }
@@ -721,8 +787,10 @@ TEST(tests_eq, solve_circular_grid)
 
 TEST(tests_eq, solve_igv)
 {
-    size_t ni = 60;
-    size_t nj = 15;
+    // size_t ni = 60;
+    // size_t nj = 15;
+    size_t ni = 21;
+    size_t nj = 7;
     MeridionalGrid<double> g(ni,nj);
     auto r1 =  1.;
     auto r2 =  2.;
@@ -735,6 +803,8 @@ TEST(tests_eq, solve_igv)
 
     ASSERT_TRUE(solve_grid(g));
 
+    ASSERT_TRUE(g(ni-1,0).Vm>g(ni-1,nj-1).Vm);
+
     if (TESTS_USE_PLOT)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
@@ -742,4 +812,36 @@ TEST(tests_eq, solve_igv)
         structuredGrid->GetPointData()->SetActiveScalars("Vm");
         plot_vtkStructuredGrid(structuredGrid, true);
     }
+}
+
+TEST(tests_eq, streamsheet_value)
+{
+    size_t ni = 60;
+    size_t nj = 15;
+    MeridionalGrid<double> g(ni,nj);
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto l  =  3.;
+    auto b1 = PI/4;
+    auto b2 = PI/3;
+    make_straight_igv(r1,r2,l,b1,b2,g);
+    // init values
+    std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
+    auto Vm0 = streamsheet_value_vector(g,0,f_Vm);
+    std::for_each(Vm0.begin(),Vm0.end(),[](const auto &v){ASSERT_LT(fabs(v-100.),1e-6);});
+    auto dVm1 = streamsheet_value_vector(g,1,-1,f_Vm);
+    std::for_each(dVm1.begin(),dVm1.end(),[](const auto &v){ASSERT_LT(fabs(v),1e-6);});
+    for (auto j = 0; j < nj; j++)
+    {
+        g(0, j).Vm = 100. * j / (nj - 1.);
+    }
+    Vm0 = streamsheet_value_vector(g,0,f_Vm);
+    for (auto j = 0; j < nj; j++)
+    {
+        ASSERT_LT(fabs(Vm0[j]-100.* j / (nj - 1.)),1e-6);
+    }
+    auto Vm_max = find_streamsheet_max(g,0,f_Vm);
+    ASSERT_LT(fabs(Vm_max-100.),1e-6);
+    auto dVm_max = find_streamsheet_max(g,1,-1,f_Vm);
+    ASSERT_LT(fabs(dVm_max-100.),1e-6);
 }
