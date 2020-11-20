@@ -12,6 +12,9 @@ const double PI = acos(-1.);
 const bool TESTS_USE_PLOT = true;
 
 using namespace quiss;
+using gbs::operator*;
+using gbs::operator+;
+using gbs::operator-;
 
 auto f_sqVmq2 = [](const auto &gp) { return 0.5 * gp.Vm * gp.Vm; };
 
@@ -235,6 +238,24 @@ inline auto eq_massflow(T vmi, MeridionalGrid<T> &g, int i, _Func F)
 }
 
 template <typename T>
+auto newton_solve = [](const auto &crv,auto p, T u0, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max=100)
+{
+    auto delta = tol_u * 10., d0 = tol_f * 10.;
+    auto u = u0;
+    auto count =0;
+    while (delta>tol_u && d0 > tol_f && count < it_max)
+    {
+        auto d0 = crv.value(u)-p;
+        auto d1 = crv.value(u,1);
+        auto d2 = crv.value(u,2);
+        delta = d1*d0 / (d2*d0+d1*d1);
+        u -= delta;
+        count++;
+    }
+    return u;
+};
+
+template <typename T>
 inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
 {
     auto nj = g.nCols();
@@ -251,12 +272,16 @@ inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
     }
     auto f_Q = gbs::interpolate(Q, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
     auto f_X = gbs::interpolate(X, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
+    //degree == 1 -> Polyline, seems to speed up gbs::extrema_PC (newton_solve needs c2 curves)
+    // auto f_Q = gbs::interpolate(Q, u, 1, gbs::KnotsCalcMode::CHORD_LENGTH);
+    // auto f_X = gbs::interpolate(X, u, 1, gbs::KnotsCalcMode::CHORD_LENGTH);
     auto delta_pos = 0.;
     auto RF = 0.01; // TODO compute RF
     for (auto j = 1; j < nj - 1; j++)
     {
-        auto PC = gbs::extrema_PC(f_Q, {g(0, j).q}, u[j], 1e-4);
-        auto l = PC.u;
+        // auto PC = gbs::extrema_PC(f_Q, {g(0, j).q}, u[j], 1e-4);
+        // auto l = PC.u;
+        auto l = newton_solve<T>(f_Q, gbs::point<T,1>{g(0, j).q}, u[j]);
         auto X = f_X.value(l);
         auto dx = g(i, j).x - X[0];
         auto dy = g(i, j).y - X[1];
