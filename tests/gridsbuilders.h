@@ -55,3 +55,27 @@ auto make_circular_grid(double r1,double r2,double t1,double t2,std::array<doubl
         }
     }
 }
+
+template <typename T, typename G>
+auto make_straight_igv(T r1, T r2, T l, T b1, T b2, G &g) -> void
+{
+    size_t ni = g.nRows();
+    size_t nj = g.nCols();
+    for (auto i = 0; i < ni; i++)
+    {
+        auto z = l * i / (ni - 1.);
+        auto z1 = l / 3.;
+        auto z2 = 2. * l / 3.;
+        for (auto j = 0; j < nj; j++)
+        {
+            auto r = r1 + (r2 - r1) * j / (nj - 1.);
+            g(i, j).x = z;
+            g(i, j).y = r;
+            if (z >= z1 && z <= z2)
+            {
+                g(i, j).bet = (z - z1) / (z2 - z1) * (b1 + (b2 - b1) * j / (nj - 1.));
+                g(i, j).iB=0;
+            }
+        }
+    }
+}

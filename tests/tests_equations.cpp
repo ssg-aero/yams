@@ -9,6 +9,8 @@
 
 const double PI = acos(-1.);
 
+const bool TESTS_USE_PLOT = true;
+
 using namespace quiss;
 
 auto f_sqVmq2 = [](const auto &gp) { return 0.5 * gp.Vm * gp.Vm; };
@@ -126,11 +128,23 @@ auto eq_bet = [](const auto &g, size_t i, size_t j) {
     return D(g, i, j) * Vm * Vm + E(gp) * Vm + F(g, i, j);
 };
 
+auto eval_H_s = [](const auto &g, size_t i, size_t j) {
+    if(i>0)
+    {
+        auto g1 = g(i - 1, j);
+        auto g2 = g(i, j);
+        g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it works if g1 is not a blade
+        g2.s = g1.s; // TODO modify entropy
+    }
+};
+
 template <typename T, typename _Func>
 inline void integrate_RK2_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g, _Func F)
 {
     g(i, 0).Vm = vmi;
     size_t nj = g.nCols();
+
+    eval_H_s(g,i,0);
 
     for (auto j = 1; j < nj; j++)
     {
@@ -139,9 +153,11 @@ inline void integrate_RK2_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g, _Func 
         auto sqVmq2 = f_sqVmq2(gp_prev);
         auto dl = gp.l - gp_prev.l;
         auto sqVmq2_1 = sqVmq2 + F(g, i, j - 1) * dl;
-        g(i, j).Vm = sqrt(2. * sqVmq2_1);
-        auto sqVmq2_2 = sqVmq2 + F(g, i, j) * dl;
+        g(i, j).Vm = sqrt(2. * sqVmq2_1);// TODO add H and s to eq
+        eval_H_s(g,i,j); // equations are using H and s (enthalpy and entropy)
+        auto sqVmq2_2 = sqVmq2 + F(g, i, j) * dl; 
         g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
+        eval_H_s(g,i,j);
     }
 }
 
@@ -185,25 +201,37 @@ inline auto compute_massflow(const MeridionalGrid<T> &g, int i)
 }
 
 template <typename T, typename _Func>
-inline auto eq_massflow(T vmi,MeridionalGrid<T> &g, int i,_Func F)
+inline auto eq_massflow(T vmi, MeridionalGrid<T> &g, int i, _Func F)
 {
     auto nj = g.nCols();
     if (i > 0)
     {
-        for (auto j = 0; j < nj; j++)
+        if (g(i, 0).iB == -1)
         {
-            g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+                g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm);
+            }
         }
+        else
+        {
+            // TODO ecart flux-profile
+        }
+            
     }
     integrate_RK2_vm_sheet(vmi, i, g, F);
     if (i > 0)
     {
-        for (auto j = 0; j < nj; j++)
+        if (g(i, 0).iB != -1)
         {
-            g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm);
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).Vm * tan( g(i, j).bet );
+            }
         }
     }
-    return compute_massflow(g,i);
+    return compute_massflow(g, i);
 }
 
 template <typename T>
@@ -224,7 +252,7 @@ inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
     auto f_Q = gbs::interpolate(Q, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
     auto f_X = gbs::interpolate(X, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
     auto delta_pos = 0.;
-    auto RF = 0.02;
+    auto RF = 0.01; // TODO compute RF
     for (auto j = 1; j < nj - 1; j++)
     {
         auto PC = gbs::extrema_PC(f_Q, {g(0, j).q}, u[j], 1e-4);
@@ -239,6 +267,72 @@ inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
     return delta_pos;
 }
 
+template <typename T, typename _Func>
+inline auto compute_vm_distribution(T mf,T &vmi,size_t i,MeridionalGrid<T> &g,_Func F,T tol_rel_mf,T eps)
+{
+    auto err_mf = tol_rel_mf * 10.;
+    auto mf_ = 0., mf_pre = 0.; // mf shall allways be positive
+    int count = 0;
+    while (err_mf > tol_rel_mf && count < 100)
+    {
+        mf_pre = eq_massflow(vmi - eps, g, i, F);
+        mf_ = eq_massflow(vmi, g, i, F);
+        vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
+        err_mf = fabs(mf_ - mf) / mf;
+        count++;
+    }
+}
+
+template <typename T>
+inline auto solve_grid(MeridionalGrid<T> &g)
+{
+    compute_metrics(g);// TODO run in //
+    size_t ni = g.nRows();
+    size_t nj = g.nCols();
+    auto vmi = g(0, 0).Vm;
+    auto eps = 0.001;
+    auto mf = compute_massflow(g, 0);
+    auto tol_rel_mf = 0.01;
+    auto tol_pos = 0.01 * g(0, nj - 1).l;
+    int count_geom = 0;
+    auto delta_pos_max = 0.;
+    auto delta_pos = 0.;
+    auto delta_pos_moy = 0.;
+    auto converged = false;
+    auto max_geom = 100;
+    while (!converged)
+    {
+        for (auto i = 0; i < ni; i++)
+        {
+            if(g(i,0).iB==-1)
+            {
+                compute_vm_distribution(mf, vmi, i, g, eq_vu, tol_rel_mf, eps);
+            }
+            else
+            {
+                compute_vm_distribution(mf, vmi, i, g, eq_bet, tol_rel_mf, eps);
+            }
+            
+        }
+        delta_pos_max = 0.;
+        delta_pos_moy = 0.;
+        for (auto i = 0; i < ni; i++) // TODO run in //
+        {
+            compute_massflow_distribution(g.begin(i), g.end(i));
+            if (i > 0)
+            {
+                delta_pos = balance_massflow(g, i, tol_rel_mf * mf);
+                delta_pos_moy += delta_pos / (ni - 2.);
+                delta_pos_max = fmax(delta_pos_max, delta_pos);
+            }
+        }
+        compute_metrics(g);// TODO run in //
+        count_geom++;
+        converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
+        // std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
+    }
+    return converged;
+}
 TEST(tests_eq, mass_flow)
 {
     size_t ni = 50;
@@ -402,11 +496,13 @@ TEST(tests_eq, constant_flow_angle)
         }
     }
 
-    
-    // auto structuredGrid = make_vtkStructuredGrid(g);
-    // add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
-    // structuredGrid->GetPointData()->SetActiveScalars("Vm");
-    // plot_vtkStructuredGrid(structuredGrid);
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        plot_vtkStructuredGrid(structuredGrid, true);
+    }
 }
 
 TEST(tests_eq, constant_flow_angle_clustered_grid)
@@ -446,12 +542,14 @@ TEST(tests_eq, constant_flow_angle_clustered_grid)
             }
         }
     }
-
     
-    // auto structuredGrid = make_vtkStructuredGrid(g);
-    // add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
-    // structuredGrid->GetPointData()->SetActiveScalars("Vm");
-    // plot_vtkStructuredGrid(structuredGrid,true);
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        plot_vtkStructuredGrid(structuredGrid, true);
+    }
 }
 
 TEST(tests_eq, constant_flow_vortex_circular)
@@ -489,20 +587,19 @@ TEST(tests_eq, constant_flow_vortex_circular)
                 g(i,j).bet = atan2(g(i,j).Vu,g(i,j).Vm);
             }
         }
-
-        // compute_massflow_distribution(g.begin(i), g.end(i));
-        std::cerr << compute_massflow(g,i) << std::endl;
-
+        // std::cerr << compute_massflow(g,i) << std::endl;
     }
 
-    
-    auto structuredGrid = make_vtkStructuredGrid(g);
-    add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
-    structuredGrid->GetPointData()->SetActiveScalars("Vm");
-    plot_vtkStructuredGrid(structuredGrid,true);
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        plot_vtkStructuredGrid(structuredGrid, true);
+    }
 }
 
-TEST(tests_eq, constant_flow_angle_circular_mass_flow_balance)
+TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
 {
     size_t ni = 60;
     size_t nj = 15;
@@ -514,7 +611,7 @@ TEST(tests_eq, constant_flow_angle_circular_mass_flow_balance)
     make_circular_grid(ri,re,t1,t2,{0.,3.},g);
     compute_metrics(g);
     // init values
-    std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=30; });
+    std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=30;gp.H=gp.Cp*gp.Tt; });
 
     auto vmi = g(0,0).Vm;
     auto eps = 0.001;
@@ -543,7 +640,7 @@ TEST(tests_eq, constant_flow_angle_circular_mass_flow_balance)
             }
             ASSERT_LT(fabs(compute_massflow(g,i)-mf)/mf,tol_rel_mf);
         }
-        for (auto i = 0; i < ni; i++)
+        for (auto i = 0; i < ni; i++) // TODO run in //
         {
             compute_massflow_distribution(g.begin(i), g.end(i));
             if (i > 0)
@@ -556,12 +653,64 @@ TEST(tests_eq, constant_flow_angle_circular_mass_flow_balance)
         compute_metrics(g);
         std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
         count_geom++;
-    }while (delta_pos_moy > 0.01 * g(0,nj-1).l && count_geom < 100);
+    }while (delta_pos_moy > 0.01 * g(0,nj-1).l && count_geom < 200);
 
-    ASSERT_LT(count_geom , 100);
-    
-    auto structuredGrid = make_vtkStructuredGrid(g);
-    add_value(g,structuredGrid,"Vm",[](const auto &gp){return gp.Vm;});
-    structuredGrid->GetPointData()->SetActiveScalars("Vm");
-    plot_vtkStructuredGrid(structuredGrid,true);
+    ASSERT_LT(count_geom , 200);
+
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        plot_vtkStructuredGrid(structuredGrid, true);
+    }
+}
+
+TEST(tests_eq, solve_circular_grid)
+{
+    size_t ni = 60;
+    size_t nj = 15;
+    MeridionalGrid<double> g(ni,nj);
+    auto re =  1.;
+    auto ri =  2.;
+    auto t1 = PI;
+    auto t2 = PI * 2.;
+    make_circular_grid(ri,re,t1,t2,{0.,3.},g);
+    // init values
+    std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=30;gp.H=gp.Cp*gp.Tt; });
+
+    ASSERT_TRUE(solve_grid(g));
+
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        plot_vtkStructuredGrid(structuredGrid, true);
+    }
+}
+
+TEST(tests_eq, solve_igv)
+{
+    size_t ni = 60;
+    size_t nj = 15;
+    MeridionalGrid<double> g(ni,nj);
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto l  =  3.;
+    auto b1 = PI/4;
+    auto b2 = PI/3;
+    make_straight_igv(r1,r2,l,b1,b2,g);
+    // init values
+    std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
+
+    ASSERT_TRUE(solve_grid(g));
+
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        plot_vtkStructuredGrid(structuredGrid, true);
+    }
 }

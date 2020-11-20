@@ -137,6 +137,8 @@ namespace quiss
         T ga  = 1.4;
         T q   = 0.;
         T omg = 0.;
+        T H   = 300. * 1004.;
+        T s   = 0.;
     };
 
 
