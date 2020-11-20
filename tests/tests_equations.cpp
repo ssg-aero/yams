@@ -14,7 +14,7 @@ using namespace quiss;
 auto f_sqVmq2 = [](const auto &gp) { return 0.5 * gp.Vm * gp.Vm; };
 
 auto f_mf = [](const auto &gp) {
-    return - gp.Vm * gp.rho * cos(gp.phi + gp.gam) * 2 * PI * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
+    return gp.Vm * gp.rho * cos(gp.phi + gp.gam) * 2 * PI * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
 };
 
 auto f_rVu = [](const auto &gp) { return gp.y * gp.Vu; };
@@ -244,11 +244,11 @@ TEST(tests_eq, mass_flow)
     size_t ni = 50;
     size_t nj = 11;
     MeridionalGrid<double> g(ni, nj);
-    auto r1 = 1.;
-    auto r2 = 2.;
+    auto re = 1.;
+    auto ri = 2.;
     auto t1 = PI;
     auto t2 = PI * 2.;
-    make_circular_grid(r1, r2, t1, t2, {0., 3.}, g);
+    make_circular_grid(ri, re, t1, t2, {0., 3.}, g);
     compute_abscissas(g);
     compute_angles(g);
     compute_curvature(g);
@@ -265,11 +265,11 @@ TEST(tests_eq, functions)
     size_t ni = 50;
     size_t nj = 11;
     MeridionalGrid<double> g(ni, nj);
-    auto r1 = 1.;
-    auto r2 = 2.;
+    auto re = 1.;
+    auto ri = 2.;
     auto t1 = PI;
     auto t2 = PI * 2.;
-    make_circular_grid(r1, r2, t1, t2, {0., 3.}, g);
+    make_circular_grid(ri, re, t1, t2, {0., 3.}, g);
     compute_abscissas(g);
     compute_angles(g);
     compute_curvature(g);
@@ -283,11 +283,11 @@ TEST(tests_eq, eq_Vu)
     size_t ni = 50;
     size_t nj = 15;
     MeridionalGrid<double> g(ni, nj);
-    auto r1 = 1.;
-    auto r2 = 2.;
+    auto re = 1.;
+    auto ri = 2.;
     auto t1 = PI;
     auto t2 = PI * 2.;
-    make_circular_grid(r1, r2, t1, t2, {0., 3.}, g);
+    make_circular_grid(ri, re, t1, t2, {0., 3.}, g);
     compute_abscissas(g);
     compute_angles(g);
     compute_curvature(g);
@@ -454,16 +454,16 @@ TEST(tests_eq, constant_flow_angle_clustered_grid)
     // plot_vtkStructuredGrid(structuredGrid,true);
 }
 
-TEST(tests_eq, constant_flow_angle_circular)
+TEST(tests_eq, constant_flow_vortex_circular)
 {
     size_t ni = 50;
     size_t nj = 15;
     MeridionalGrid<double> g(ni,nj);
-    auto r1 =  1.;
-    auto r2 =  2.;
+    auto re =  1.;
+    auto ri =  2.;
     auto t1 = PI;
     auto t2 = PI * 2.;
-    make_circular_grid(r1,r2,t1,t2,{0.,3.},g);
+    make_circular_grid(ri,re,t1,t2,{0.,3.},g);
     compute_abscissas(g);
     compute_angles(g);
     compute_curvature(g);
@@ -507,11 +507,11 @@ TEST(tests_eq, constant_flow_angle_circular_mass_flow_balance)
     size_t ni = 60;
     size_t nj = 15;
     MeridionalGrid<double> g(ni,nj);
-    auto r1 =  1.;
-    auto r2 =  2.;
+    auto ri =  2.;
+    auto re =  1.;
     auto t1 = PI;
     auto t2 = PI * 2.;
-    make_circular_grid(r1,r2,t1,t2,{0.,3.},g);
+    make_circular_grid(ri,re,t1,t2,{0.,3.},g);
     compute_metrics(g);
     // init values
     std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=30; });
