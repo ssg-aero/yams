@@ -289,6 +289,10 @@ inline auto solve_grid(MeridionalGrid<T> &g)
     compute_metrics(g);// TODO run in //
     size_t ni = g.nRows();
     size_t nj = g.nCols();
+    if(ni<3 && nj <3)
+    {
+        throw std::length_error("Grid must have dimensions >= 3");
+    }
     auto vmi = g(0, 0).Vm;
     auto eps = 0.001;
     auto mf = compute_massflow(g, 0);
