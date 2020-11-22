@@ -375,7 +375,7 @@ inline auto compute_vm_distribution(T mf,T &vmi,size_t i,MeridionalGrid<T> &g,_F
 }
 
 template <typename T>
-inline auto solve_grid(MeridionalGrid<T> &g)
+inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 100)
 {
     compute_metrics(g);// TODO run in //
     size_t ni = g.nRows();
@@ -394,7 +394,6 @@ inline auto solve_grid(MeridionalGrid<T> &g)
     auto delta_pos = 0.;
     auto delta_pos_moy = 0.;
     auto converged = false;
-    auto max_geom = 100;
     while (!converged)
     {
         for (auto i = 0; i < ni; i++)
