@@ -79,3 +79,41 @@ auto make_straight_igv(T r1, T r2, T l, T b1, T b2, G &g) -> void
         }
     }
 }
+
+template <typename T, typename G>
+auto make_straight_cmp(T r1, T r2, T l, T omg, T Vm, T dH, G &g) -> void
+{
+    size_t ni = g.nRows();
+    size_t nj = g.nCols();
+    auto H0 = g(0,0).H;
+    auto H  = g(0,0).H;
+    for (auto i = 0; i < ni; i++)
+    {
+        auto z = l * i / (ni - 1.);
+        auto z1 = l / 3.;
+        auto z2 = 2. * l / 3.;
+        bool on_blade = false;
+        if (z >= z1 && z <= z2)
+        {
+            H = H0 + (z - z1) / (z2 - z1) * dH;
+            on_blade = true;
+        }
+        for (auto j = 0; j < nj; j++)
+        {
+            auto r = r1 + (r2 - r1) * j / (nj - 1.);
+            g(i, j).x = z;
+            g(i, j).y = r;
+            if (on_blade)
+            {
+                auto U = r * omg;
+                auto Vu = (H - H0) / U; // Vu0 == 0
+                auto Wu = Vu - U;
+                g(i, j).bet = atan2(Wu, Vm);
+                g(i, j).iB = 0;
+                g(i, j).omg = omg;
+            }
+        std::cerr << g(i, j).bet << " ";
+        }
+        std::cerr << std::endl;
+    }
+}
