@@ -845,3 +845,41 @@ TEST(tests_eq, streamsheet_value)
     auto dVm_max = find_streamsheet_max(g,1,-1,f_Vm);
     ASSERT_LT(fabs(dVm_max-100.),1e-6);
 }
+
+TEST(tests_eq, solve_straight_cmp)
+{
+    // size_t ni = 60;
+    // size_t nj = 15;
+    size_t ni = 21;
+    size_t nj = 7;
+    MeridionalGrid<double> g(ni,nj);
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto l  =  3.;
+    auto omg= 200. / r2;
+    auto Vm = 100.;
+    auto dH = 1004. * 10.;
+    make_straight_cmp(r1,r2,l,omg,Vm,dH,g);
+    // init values
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
+
+    ASSERT_TRUE(solve_grid(g,1));
+    // for (auto i = 0; i < ni; i++)
+    // {
+    //     for (auto j = 0; j < nj; j++)
+    //     {
+    //         std::cerr << g(i, j).bet << " ";
+    //     }
+    //     std::cerr << std::endl;
+    // }
+
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        // add_value(g, structuredGrid, "beta_metal_deg", [](const auto &gp) { return gp.bet * 180 / PI; });
+        // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
+        plot_vtkStructuredGrid(structuredGrid, true);
+    }
+}
