@@ -218,6 +218,7 @@ inline auto eq_massflow(T vmi, MeridionalGrid<T> &g, int i, _Func F)
             {
                 g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
                 g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm);
+                g(i, j).H = g(i-1, j).H;
             }
         }
         else
