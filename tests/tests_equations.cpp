@@ -5,11 +5,15 @@
 #include <gridmetrics.h>
 #include <gridrender.h>
 #include <gbs/bscinterp.h>
+#include <gbs/bscapprox.h>
 #include <gbs/extrema.h>
 
+#include <numbers>
+
+#include <vtkXMLStructuredGridWriter.h>
 const double PI = acos(-1.);
 
-const bool TESTS_USE_PLOT = false;
+const bool TESTS_USE_PLOT = true;
 const double c_r = 287.04;
 
 using namespace quiss;
@@ -32,6 +36,8 @@ auto f_Vm = [](const auto &gp) { return gp.Vm; };
 
 auto G = [](const auto &gp) {
     return cos(gp.phi + gp.gam) * gp.cur;
+    // return gp.cgp * gp.cur;
+        // return 0.;
 };
 
 auto J = [](const auto &gp) {
@@ -41,6 +47,7 @@ auto J = [](const auto &gp) {
 auto K = [](const auto &g, size_t i, size_t j) {
     const auto gp = g(i, j);
     auto beta = atan2(gp.Vu, gp.Vm);
+    assert(abs(beta)<std::numbers::pi/2.);
     auto tg_part = 0.;
     if (gp.y > 0.)
     {
@@ -58,6 +65,7 @@ auto K = [](const auto &g, size_t i, size_t j) {
             tg_part *= D1_O1_j_bw(g, i, j, f_rVu, f_l);
         }
     }
+    assert(tg_part == tg_part);
     auto m_part = 0.;
     if(i>0)
     {
@@ -71,6 +79,7 @@ auto K = [](const auto &g, size_t i, size_t j) {
             m_part *=  D1_O1_i_bw(g, i, j, f_sqVmq2, f_m) / cos(beta);
         }
     } 
+    assert(m_part == m_part);
     return tg_part + m_part;
 };
 
@@ -101,6 +110,7 @@ auto D = [](const auto &g, size_t i, size_t j) {
             tg_part *= D1_O1_j_bw(g, i, j, f_rTanBeta, f_l);
         }
     }
+    assert(tg_part == tg_part);
     result += tg_part;
     return cb * cb * result;
 };
@@ -158,10 +168,16 @@ inline void integrate_RK2_vm_sheet(T vmi, size_t i, MeridionalGrid<T> &g, _Func 
         const auto gp_prev = g(i, j - 1);
         auto sqVmq2 = f_sqVmq2(gp_prev);
         auto dl = gp.l - gp_prev.l;
-        auto sqVmq2_1 = sqVmq2 + F(g, i, j - 1) * dl;
+        auto Fjm= F(g, i, j - 1);
+        assert(Fjm==Fjm);
+        auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
+        // g(i, j).Vm = std::fmin(sqrt(2. * sqVmq2_1),320.);// TODO add H and s to eq
         g(i, j).Vm = sqrt(2. * sqVmq2_1);// TODO add H and s to eq
         eval_H_s(g,i,j); // equations are using H and s (enthalpy and entropy)
-        auto sqVmq2_2 = sqVmq2 + F(g, i, j) * dl; 
+        auto Fj = F(g, i, j);
+        assert(Fj==Fj);
+        auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
+        // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
         g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
         eval_H_s(g,i,j);
     }
@@ -241,22 +257,41 @@ inline auto eq_massflow(T vmi, MeridionalGrid<T> &g, int i, _Func F)
     return compute_massflow(g, i);
 }
 
+// template <typename T>
+// auto newton_solve = [](const auto &crv,auto p, T u0, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max=100)
+// {
+//     auto delta = tol_u * 10., d0 = tol_f * 10.;
+//     auto u = u0;
+//     auto count =0;
+//     while (fabs(delta)>tol_u && fabs(d0) && count < it_max)
+//     {
+//         auto d0 = crv.value(u)-p;
+//         auto d1 = crv.value(u,1);
+//         auto d2 = crv.value(u,2);
+//         delta = d1*d0 / (d2*d0+d1*d1);
+//         u -= delta;
+//         count++;
+//     }
+//     return u;
+// };
+
 template <typename T>
-auto newton_solve = [](const auto &crv,auto p, T u0, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max=100)
+auto newton_solve = [](const auto &crv,auto p, T u0,T u1,T u2, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max=100, T factor = 1.0)
 {
     auto delta = tol_u * 10., d0 = tol_f * 10.;
     auto u = u0;
     auto count =0;
-    while (delta>tol_u && d0 > tol_f && count < it_max)
+    while (fabs(delta)>tol_u && fabs(d0) > tol_f && count < it_max)
     {
-        auto d0 = crv.value(u)-p;
-        auto d1 = crv.value(u,1);
-        auto d2 = crv.value(u,2);
+        auto d0 = crv(u)-p;
+        auto d1 = crv(u,1);
+        auto d2 = crv(u,2);
         delta = d1*d0 / (d2*d0+d1*d1);
-        u -= delta;
+        u -= delta * factor;
+        u = fmax(u1,fmin(u2,u));
         count++;
     }
-    return u;
+    return std::make_tuple(u,delta,count);
 };
 
 template <typename T, typename _Func>
@@ -324,34 +359,82 @@ inline auto eval_RF(const MeridionalGrid<T> &g, int i, T B_)
     return 1. / (1. + (1 - Mm * Mm) * l * l / (B_ * dm_max * dm_max) );
 }
 
+// template <typename T>
+// inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
+// {
+//     auto nj = g.nCols();
+//     std::vector<gbs::constrType<T, 1, 1>> Q(nj);
+//     std::vector<gbs::constrType<T, 2, 1>> X(nj);
+//     std::vector<T> u(nj);
+//     auto l_tot = g(i, nj - 1).l;
+//     for (auto j = 0; j < nj; j++)
+//     {
+//         Q[j][0][0] = g(i, j).q;
+//         X[j][0][0] = g(i, j).x;
+//         X[j][0][1] = g(i, j).y;
+//         u[j] = g(i, j).l / l_tot;
+//     }
+//     auto f_Q = gbs::interpolate(Q, u, fmax(fmin(3, nj), 1));
+//     auto f_X = gbs::interpolate(X, u, fmax(fmin(3, nj), 1));
+//     auto delta_pos = 0.;
+//     auto RF = 0.01;
+//     // T B_ = fmin(8., 0.5 * 60. / g.nRows());
+//     // auto RF = eval_RF(g,i,B_);
+    
+//     for (auto j = 1; j < nj - 1; j++)
+//     {
+//         auto l = newton_solve<T>(f_Q, gbs::point<T,1>{g(0, j).q}, u[j]);
+//         auto X = f_X.value(l);
+//         auto dx = g(i, j).x - X[0];
+//         auto dy = g(i, j).y - X[1];
+//         delta_pos = fmax(fmax(fabs(dx), fabs(dy)), delta_pos);
+//         g(i, j).x += RF * (X[0] - g(i, j).x);
+//         g(i, j).y += RF * (X[1] - g(i, j).y);
+//     }
+//     return delta_pos;
+// }
+
 template <typename T>
 inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
 {
     auto nj = g.nCols();
-    std::vector<gbs::constrType<T, 1, 1>> Q(nj);
-    std::vector<gbs::constrType<T, 2, 1>> X(nj);
-    std::vector<T> u(nj);
+    std::vector<T> u(nj),q(nj);
+    // std::vector<T> u(nj);
+    // gbs::points_vector<T,1> q(nj);
+    gbs::points_vector<T,2> X(nj);
     auto l_tot = g(i, nj - 1).l;
     for (auto j = 0; j < nj; j++)
     {
-        Q[j][0][0] = g(i, j).q;
-        X[j][0][0] = g(i, j).x;
-        X[j][0][1] = g(i, j).y;
+        // q[j][0] = g(i, j).q * g(0, nj-1).q/ g(i, nj-1).q; // To perfectly match and then solve better
+        q[j] = g(i, j).q * g(0, nj-1).q/ g(i, nj-1).q; // To perfectly match and then solve better
+        X[j][0] = g(i, j).x;
+        X[j][1] = g(i, j).y;
         u[j] = g(i, j).l / l_tot;
     }
-    auto f_Q = gbs::interpolate(Q, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
-    auto f_X = gbs::interpolate(X, u, fmax(fmin(3, nj), 1), gbs::KnotsCalcMode::CHORD_LENGTH);
+    size_t p = fmax(fmin(3, nj), 1);
+    auto f_Q = gbs::interpolate(q, u, p);
+    auto f_X = gbs::interpolate(X, u, p);
+    // auto f_Q = gbs::BSCfunction( gbs::approx(q,2,fmax(nj / 3,3), u,true) );
+    // auto f_X =  gbs::approx(X,2,fmax(nj / 3,3), u,true);
     auto delta_pos = 0.;
-    // auto RF = 0.01;
-    T B_ = fmin(8., 0.5 * 60. / g.nRows());
-    auto RF = eval_RF(g,i,B_);
+    auto RF = 0.001;
+    auto tol_f = 1e-5;
+    auto tol_u = 1e-6;
+
+    // T B_ = fmin(8., 0.5 * 60. / g.nRows());
+    // auto RF = eval_RF(g,i,B_);
     
     for (auto j = 1; j < nj - 1; j++)
     {
-        auto l = newton_solve<T>(f_Q, gbs::point<T,1>{g(0, j).q}, u[j]);
+        // auto l = newton_solve<T>(f_Q, gbs::point<T,1>{g(0, j).q}, u[j]);
+        auto [ u1, u2] = f_Q.bounds();
+        auto [l,delta,count] = newton_solve<T>(f_Q, g(0, j).q, u[j],u1,u2,tol_f,tol_u);
+        assert(l <= f_Q.bounds()[1] && l >= f_Q.bounds()[0]);
+        assert(l <= f_X.bounds()[1] && l >= f_X.bounds()[0]);
         auto X = f_X.value(l);
         auto dx = g(i, j).x - X[0];
         auto dy = g(i, j).y - X[1];
+        // std::cout << delta << " " << dx << " " << dy  << std::endl;
         delta_pos = fmax(fmax(fabs(dx), fabs(dy)), delta_pos);
         g(i, j).x += RF * (X[0] - g(i, j).x);
         g(i, j).y += RF * (X[1] - g(i, j).y);
@@ -370,13 +453,14 @@ inline auto compute_vm_distribution(T mf,T &vmi,size_t i,MeridionalGrid<T> &g,_F
         mf_pre = eq_massflow(vmi - eps, g, i, F);
         mf_ = eq_massflow(vmi, g, i, F);
         vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
+        assert(vmi>=0.);
         err_mf = fabs(mf_ - mf) / mf;
         count++;
     }
 }
 
 template <typename T>
-inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 100)
+inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 500)
 {
     compute_metrics(g);// TODO run in //
     size_t ni = g.nRows();
@@ -386,7 +470,7 @@ inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 100)
         throw std::length_error("Grid must have dimensions >= 3");
     }
     auto vmi = g(0, 0).Vm;
-    auto eps = 0.001;
+    auto eps = 1e-5;
     auto mf = compute_massflow(g, 0);
     auto tol_rel_mf = 0.01;
     auto tol_pos = 0.01 * g(0, nj - 1).l;
@@ -409,12 +493,13 @@ inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 100)
             }
             
         }
+        count_geom++;
         delta_pos_max = 0.;
         delta_pos_moy = 0.;
         for (auto i = 0; i < ni; i++) // TODO run in //
         {
             compute_massflow_distribution(g.begin(i), g.end(i));
-            if (i > 0)
+            if (i > 0 && count_geom < max_geom)
             {
                 delta_pos = balance_massflow(g, i, tol_rel_mf * mf);
                 delta_pos_moy += delta_pos / (ni - 2.);
@@ -422,9 +507,8 @@ inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 100)
             }
         }
         compute_metrics(g);// TODO run in //
-        count_geom++;
         converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
-        // std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
+        std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
     }
     return converged;
 }
@@ -748,7 +832,7 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
         compute_metrics(g);
         std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
         count_geom++;
-    }while (delta_pos_moy > 0.01 * g(0,nj-1).l && count_geom < 200);
+    }while (delta_pos_moy > 0.001 * g(0,nj-1).l && count_geom < 200);
 
     ASSERT_LT(count_geom , 200);
 
@@ -882,4 +966,67 @@ TEST(tests_eq, solve_straight_cmp)
         // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
         plot_vtkStructuredGrid(structuredGrid, true);
     }
+}
+
+#include <gtest/gtest.h>
+#include <gridreader.h>
+TEST(tests_gridreader, vtk_no_blades)
+{
+    using T = double;
+    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/alpx001.vts");
+    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_001.vts");
+    auto Vm = 30.;
+    auto dH = 1004. * 10.;
+    // init values
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
+    // compute_metrics(g);
+    ASSERT_TRUE(solve_grid(g));
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        // add_value(g, structuredGrid, "beta_metal_deg", [](const auto &gp) { return gp.bet * 180 / PI; });
+        // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
+        plot_vtkStructuredGrid(structuredGrid, true);
+
+        vtkNew<vtkXMLStructuredGridWriter> writer;
+        writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm.vts");
+        writer->SetInputData(structuredGrid);
+        writer->Write();
+    }
+}
+
+TEST(tests_gridreader, derivates)
+{
+    using T = double;
+    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/alpx001.vts");
+
+    std::transform(
+        g.begin(),g.end(),g.begin(),
+        [](const auto &gp){
+            quiss::MeridionalGridPoint gp_ = gp;
+            gp_.bet = 2. * gp.y * gp.x * gp.x + 3. * std::sin(gp.y) * gp.x ;
+            return gp_;
+        }
+    );
+
+    auto dFdx = [](const auto &g, size_t i, size_t j){auto gp = g(i,j); return 4. * gp.y * gp.x + 3. * std::sin(gp.y);};
+    auto dFdy = [](const auto &g, size_t i, size_t j){auto gp = g(i,j); return 2. * gp.x * gp.x + 3. * gp.x * std::cos(gp.y);};
+
+    auto nim = g.nRows() - 1;
+    auto njm = g.nCols() - 1;
+    auto f_x = [](const auto &gp) { return gp.x; };
+    auto f_y = [](const auto &gp) { return gp.y; };
+    auto f_F = [](const auto &gp) { return gp.bet; };
+    for(size_t j {1}; j < njm ;j++)
+    {
+        for(size_t i {1}; i < nim ;i++)
+        {
+            auto res_x = quiss::D1_O2_i_ct(g,i,j,f_F,f_x);
+            // auto res_y = quiss::D1_O2_i_ct(g,i,j,f_F,f_y);
+            std::cout << "i " << i << " j " << j << " " << res_x << " " << dFdx(g,i,j) << std::endl;
+        }
+    }
+    
 }

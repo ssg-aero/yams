@@ -100,14 +100,14 @@ namespace quiss
     template <typename T>
     _Array2d<xt::xarray<T>, T>::_Array2d(size_t ni, size_t nj)
     {
-        xt::xarray<T>::shape_type shape = {ni, nj};
+        typename xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape);
         nj_ = nj;
     }
     template <typename T>
     _Array2d<xt::xarray<T>, T>::_Array2d(size_t ni, size_t nj, T v)
     {
-        xt::xarray<T>::shape_type shape = {ni, nj};
+        typename xt::xarray<T>::shape_type shape = {ni, nj};
         container_ = xt::xarray<T>(shape, v);
         nj_ = nj;
     }

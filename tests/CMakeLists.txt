@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.17.0)
 
 project(quiss_tests LANGUAGES CXX)
+add_compile_options(/bigobj)
 #
 # quiss
 #
@@ -28,7 +29,9 @@ find_package(VTK COMPONENTS
             RenderingCore
             RenderingAnnotation
             RenderingFreeType
-            RenderingOpenGL2)
+            RenderingOpenGL2
+            IOXML
+            )
 #
 file(GLOB SRC_LIST "tests_*")
 message(${SRC_LIST})

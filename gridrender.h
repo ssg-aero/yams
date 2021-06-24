@@ -6,6 +6,7 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
 #include <vtkRenderWindowInteractor.h>
+#include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkProperty.h>
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
@@ -87,6 +88,8 @@ namespace quiss
         vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
             vtkSmartPointer<vtkRenderWindowInteractor>::New();
         renderWindowInteractor->SetRenderWindow(renderWindow);
+                vtkSmartPointer<vtkInteractorStyleTrackballCamera> style =
+            vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New(); //like paraview
 
 
         // Add the actor to the scene
@@ -98,6 +101,8 @@ namespace quiss
         scalarBar->SetNumberOfLabels(4);
         renderer->AddActor(scalarBar);
         renderer->SetBackground(.3, .6, .3); // Background color green
+
+        renderWindowInteractor->SetInteractorStyle(style);
 
         // Render and interact
         renderWindow->Render();
