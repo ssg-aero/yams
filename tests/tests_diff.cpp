@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <diffop.h>
 #include <gridsbuilders.h>
+#include <gridreader.h>
 
 using namespace quiss;
 
@@ -303,4 +304,84 @@ TEST(tests_diff, D1_O1)
     //         //     1e-3);
     //     }
     // }
+}
+
+TEST(tests_diff, D1_O2_test_001)
+{
+    struct gp
+    {
+        double x;
+        double y;
+        double v;
+    };
+
+    struct  gp_metrics
+    {
+        double x_ksi;
+        double x_eth;
+        double y_ksi;
+        double y_eth;
+        double J;
+    };
+    
+
+    Array2d<gp>   g;
+    quiss::read_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_001_250x21.vts");
+
+    auto f     = [](auto & gp){gp.v = gp.x * gp.y + gp.y * sin(gp.x);};
+    auto dfqdx = [](auto & gp){return gp.y + gp.y * cos(gp.x);};
+    auto dfqdy = [](auto & gp){return gp.x + sin(gp.x);};
+
+    std::for_each(
+        g.begin(),
+        g.end(),
+        f
+    );
+
+    size_t ni = g.nRows();
+    size_t nj = g.nCols();
+    Array2d<gp_metrics>   gp_metrics(ni,nj);
+    double ksi = 1. / (ni-1.);
+    double eth = 1. / (nj-1.);
+    double err_max_x = 0.;
+    double err_max_y = 0.;
+    auto fx = [&g](const auto &gp) { return gp.x; };
+    auto fy = [&g](const auto &gp) { return gp.y; };
+    auto fv = [&g](const auto &gp) { return gp.v; };
+    quiss::compute_metrics(g,fx,fy,gp_metrics);
+
+    auto f_dv_dx = [&g, &gp_metrics, ksi, eth](size_t i, size_t j,const auto &fv_)
+    {
+        auto v_ksi = quiss::D1_O2_ksi(g, i, j, fv_, ksi);
+        auto v_eth = quiss::D1_O2_eth(g, i, j, fv_, eth);
+        auto gp_m = gp_metrics(i, j);
+        return gp_m.J * gp_m.y_eth * v_ksi - gp_m.J * gp_m.y_ksi * v_eth;
+    };
+    auto f_dv_dy = [&g, &gp_metrics, ksi, eth](size_t i, size_t j,const auto &fv_)
+    {
+        auto v_ksi = quiss::D1_O2_ksi(g, i, j, fv_, ksi);
+        auto v_eth = quiss::D1_O2_eth(g, i, j, fv_, eth);
+        auto gp_m = gp_metrics(i, j);
+        return gp_m.J * gp_m.x_eth * v_ksi + gp_m.J * gp_m.x_ksi * v_eth;
+    };
+    for (auto j = 0; j < nj; j++)
+    {
+        for (auto i = 0; i < ni; i++)
+        {
+            auto v_x = f_dv_dx(i, j, fv);
+            auto v_y = f_dv_dy(i, j, fv);
+            err_max_x = fmax(v_x - dfqdx(g(i, j)), err_max_x);
+            err_max_y = fmax(v_y - dfqdy(g(i, j)), err_max_y);
+            ASSERT_NEAR(
+                v_x,
+                dfqdx(g(i, j)),
+                2e-3);
+            ASSERT_NEAR(
+                v_x,
+                dfqdx(g(i, j)),
+                2e-3);
+        }
+    }
+
+    std::cout << "err_max: " << err_max_x << " " << err_max_y << std::endl;
 }

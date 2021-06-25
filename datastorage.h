@@ -7,20 +7,13 @@ namespace quiss
     template <typename Container,typename T>
     class _Array2d
     {
-        size_t nj_ = 0;
+        size_t nj_;
         Container container_;
 
     public:
-        _Array2d(size_t ni, size_t nj)
-        {
-            container_ = Container(ni * nj);
-            nj_ = nj;
-        }
-        _Array2d(size_t ni, size_t nj, T v)
-        {
-            container_ = Container(ni * nj, v);
-            nj_ = nj;
-        }
+        _Array2d() = default;
+        _Array2d(size_t ni, size_t nj) : container_(ni*nj), nj_{nj} { }
+        _Array2d(size_t ni, size_t nj,const T& v) : container_(ni*nj,v), nj_{nj} { }
         const auto &operator()(size_t i, size_t j) const noexcept
         {
             return container_[j + nj_ * i];
@@ -72,6 +65,11 @@ namespace quiss
         size_t size() const noexcept
         {
             return container_.size();
+        }
+        void resize(size_t ni, size_t nj)
+        {
+            container_.resize(ni * nj);
+            nj_ = nj;            
         }
     };
 
