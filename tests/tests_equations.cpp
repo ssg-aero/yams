@@ -21,6 +21,8 @@ using gbs::operator*;
 using gbs::operator+;
 using gbs::operator-;
 
+
+
 auto f_sqVmq2 = [](const auto &gp) { return 0.5 * gp.Vm * gp.Vm; };
 
 auto f_mf = [](const auto &gp) {
@@ -417,7 +419,7 @@ inline auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
     // auto f_Q = gbs::BSCfunction( gbs::approx(q,2,fmax(nj / 3,3), u,true) );
     // auto f_X =  gbs::approx(X,2,fmax(nj / 3,3), u,true);
     auto delta_pos = 0.;
-    auto RF = 0.001;
+    auto RF = 0.01;
     auto tol_f = 1e-5;
     auto tol_u = 1e-6;
 
@@ -454,6 +456,7 @@ inline auto compute_vm_distribution(T mf,T &vmi,size_t i,MeridionalGrid<T> &g,_F
         mf_ = eq_massflow(vmi, g, i, F);
         vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
         assert(vmi>=0.);
+        // vmi = fmin(fmax(0.1,vmi),360.);
         err_mf = fabs(mf_ - mf) / mf;
         count++;
     }
@@ -465,6 +468,7 @@ inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 500)
     compute_metrics(g);// TODO run in //
     size_t ni = g.nRows();
     size_t nj = g.nCols();
+
     if(ni<3 && nj <3)
     {
         throw std::length_error("Grid must have dimensions >= 3");
@@ -975,6 +979,7 @@ TEST(tests_gridreader, vtk_no_blades)
     using T = double;
     // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/alpx001.vts");
     auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_001.vts");
+    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     // init values
@@ -992,6 +997,120 @@ TEST(tests_gridreader, vtk_no_blades)
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
         writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm.vts");
+        // writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_002_Vm.vts");
+        writer->SetInputData(structuredGrid);
+        writer->Write();
+    }
+}
+TEST(tests_gridreader, vtk_no_blades_2)
+{
+    using T = double;
+    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/alpx001.vts");
+    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_001.vts");
+    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
+    auto Vm = 30.;
+    auto dH = 1004. * 10.;
+    size_t max_geom=500;
+    // init values
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
+    size_t ni = g.nRows();
+    size_t nj = g.nCols();
+    double ksi = 1. / (ni-1.);
+    double eth = 1. / (nj-1.);
+
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
+
+    auto K_ = [&](size_t i, size_t j)
+    {
+        const auto gp = g(i, j);
+        auto beta = atan2(gp.Vu, gp.Vm);
+        assert(abs(beta) < std::numbers::pi / 2.);
+        auto tg_part = 0.;
+        if (gp.y > 0.)
+        {
+            tg_part = -gp.Vu / gp.y;
+            tg_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu);
+
+        }
+        assert(tg_part == tg_part);
+        auto m_part = 0.;
+        if (i > 0)
+        {
+            m_part = sin(gp.gam + gp.phi) / cos(beta);
+                        T v_ksi, v_eth;
+            m_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu) / cos(beta);
+
+        }
+        assert(m_part == m_part);
+        return tg_part + m_part;
+    };
+
+    auto eq_vu_ = [&](const auto &g, size_t i, size_t j)
+    {
+        const auto gp = g(i, j);
+        const auto Vm = gp.Vm;
+        return G(gp) * Vm * Vm + J(gp) * Vm + K_(i, j);
+    };
+
+    if(ni<3 && nj <3)
+    {
+        throw std::length_error("Grid must have dimensions >= 3");
+    }
+    auto vmi = g(0, 0).Vm;
+    auto eps = 1e-5;
+    auto mf = compute_massflow(g, 0);
+    auto tol_rel_mf = 0.01;
+    auto tol_pos = 0.01 * g(0, nj - 1).l;
+    int count_geom = 0;
+    auto delta_pos_max = 0.;
+    auto delta_pos = 0.;
+    auto delta_pos_moy = 0.;
+    auto converged = false;
+    while (!converged)
+    {
+        for (auto i = 0; i < ni; i++)
+        {
+            if(g(i,0).iB==-1)
+            {
+                compute_vm_distribution(mf, vmi, i, g, eq_vu_, tol_rel_mf, eps);
+            }
+            else
+            {
+                compute_vm_distribution(mf, vmi, i, g, eq_bet, tol_rel_mf, eps);
+            }
+            
+        }
+        count_geom++;
+        delta_pos_max = 0.;
+        delta_pos_moy = 0.;
+        for (auto i = 0; i < ni; i++) // TODO run in //
+        {
+            compute_massflow_distribution(g.begin(i), g.end(i));
+            if (i > 0 && count_geom < max_geom)
+            {
+                delta_pos = balance_massflow(g, i, tol_rel_mf * mf);
+                delta_pos_moy += delta_pos / (ni - 2.);
+                delta_pos_max = fmax(delta_pos_max, delta_pos);
+            }
+        }
+        compute_metrics(g);// TODO run in //
+        converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
+        std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
+    }
+
+    if (TESTS_USE_PLOT)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
+        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        // add_value(g, structuredGrid, "beta_metal_deg", [](const auto &gp) { return gp.bet * 180 / PI; });
+        // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
+        plot_vtkStructuredGrid(structuredGrid, true);
+
+        vtkNew<vtkXMLStructuredGridWriter> writer;
+        writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm.vts");
+        // writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_002_Vm.vts");
         writer->SetInputData(structuredGrid);
         writer->Write();
     }

@@ -147,6 +147,16 @@ namespace quiss
         T s   = 0.;
     };
 
+    template <typename T>
+    struct  Grid2dMetricsPoint
+    {
+        T x1_ksi;
+        T x1_eth;
+        T x2_ksi;
+        T x2_eth;
+        T J;
+    };
+    
 
     template <typename T>
     using MeridionalGrid = Array2d<MeridionalGridPoint<T>>;
