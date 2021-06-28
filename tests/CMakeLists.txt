@@ -31,6 +31,18 @@ find_package(VTK COMPONENTS
             RenderingFreeType
             RenderingOpenGL2
             IOXML
+            ChartsCore
+            CommonColor
+            CommonCore
+            CommonDataModel
+            InteractionStyle
+            RenderingContext2D
+            RenderingContextOpenGL2
+            RenderingCore
+            RenderingFreeType
+            RenderingGL2PSOpenGL2
+            RenderingOpenGL2
+            ViewsContext2D
             )
 #
 file(GLOB SRC_LIST "tests_*")
