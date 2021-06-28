@@ -108,6 +108,8 @@ namespace quiss
                 drqdl = D1_O2_dx2(g,g_metrics, i, j, d_ksi, d_eth, fr<T>);
                 dzqdl = D1_O2_dx2(g,g_metrics, i, j, d_ksi, d_eth, fz<T>);
                 g(i,j).gam = atan2(dzqdl, drqdl); // Span line angle
+                g(i,j).cgp = std::cos(g(i,j).gam+g(i,j).phi);
+                g(i,j).sgp = std::sin(g(i,j).gam+g(i,j).phi);
             }
         }
     }
