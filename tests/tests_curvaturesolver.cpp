@@ -60,7 +60,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
     }
 
     {
-        // init values
+        
         gi.rho_cst = false;
         auto start = high_resolution_clock::now();
         quiss::curvature_solver(gi);
@@ -84,4 +84,58 @@ TEST(tests_curvature_solver, vtk_no_blades)
         }
     }
 
+
+    {
+        gi.rho_cst = true;
+        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
+        auto start = high_resolution_clock::now();
+        quiss::curvature_solver(gi);
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>(stop - start);
+        cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << endl;
+
+        if (TESTS_USE_PLOT)
+        {
+            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
+            add_value(g, structuredGrid, "Vm", [](const auto &gp)
+                      { return gp.Vm; });
+            add_value(g, structuredGrid, "Vu", [](const auto &gp)
+                      { return gp.Vu; });
+            structuredGrid->GetPointData()->SetActiveScalars("Vu");
+            quiss::plot_vtkStructuredGrid(structuredGrid, true);
+
+            vtkNew<vtkXMLStructuredGridWriter> writer;
+            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_cst.vts");
+            writer->SetInputData(structuredGrid);
+            writer->Write();
+        }
+    }
+
+    {
+        gi.rho_cst = false;
+        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
+        auto start = high_resolution_clock::now();
+        quiss::curvature_solver(gi);
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>(stop - start);
+        cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << endl;
+
+        if (TESTS_USE_PLOT)
+        {
+            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
+            add_value(g, structuredGrid, "Vm", [](const auto &gp)
+                      { return gp.Vm; });
+            add_value(g, structuredGrid, "Vu", [](const auto &gp)
+                      { return gp.Vu; });
+            structuredGrid->GetPointData()->SetActiveScalars("Vu");
+            quiss::plot_vtkStructuredGrid(structuredGrid, true);
+
+            vtkNew<vtkXMLStructuredGridWriter> writer;
+            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_var.vts");
+            writer->SetInputData(structuredGrid);
+            writer->Write();
+        }
+    }
 }
