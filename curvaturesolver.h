@@ -192,7 +192,7 @@ namespace quiss
                 {
                     g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
                     g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm);
-                    g(i, j).H = g(i-1, j).H;
+                    // g(i, j).H = g(i-1, j).H;
                 }
             }
             else
@@ -336,7 +336,7 @@ namespace quiss
                     delta_pos_max = fmax(delta_pos_max, delta_pos);
                 }
             }
-            
+
             compute_grid_metrics(gi.g,gi.g_metrics,f_m,f_l);// TODO run in // 
 
             converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
