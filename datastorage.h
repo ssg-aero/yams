@@ -141,10 +141,11 @@ namespace quiss
         T Tt  = 300;
         T Ps  = 1.e5;
         T Ts  = 300.;
-        T Cp  = 1004.;
+        T Cp  = 1006.43;
         T ga  = 1.4;
         T q   = 0.;
         T omg = 0.;
+        T omg_= 0.; // loss
         T H   = 300. * 1004.;
         T s   = 0.;
     };

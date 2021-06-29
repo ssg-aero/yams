@@ -11,6 +11,28 @@ namespace quiss
     using gbs::operator+;
     using gbs::operator-;
 
+    auto f_sqV = [](const auto &gp)
+    {
+        return gp.Vm * gp.Vm + gp.Vu * gp.Vu;
+    };
+
+    auto f_sqW = [](const auto &gp)
+    {
+        auto Wu = gp.Vu - gp.omg * gp.y;
+        return gp.Vm * gp.Vm + Wu * Wu;
+    };
+
+    auto f_Tt = [](const auto &gp)
+    { 
+        return gp.Ts + f_sqV(gp)  / 2. / gp.Cp; 
+    };
+
+
+
+    template <typename T>
+    struct SolverConfig{
+        T eps = 1e-5;
+    };
     template <typename T>
     struct GridInfo{
         MeridionalGrid<T> &g;
@@ -19,6 +41,14 @@ namespace quiss
         T d_eth;
         size_t ni;
         size_t nj;
+        const char* gas_name;
+        bool rho_cst = true;
+        T R = 287.04; // perfect gas constant
+    };
+
+        template <typename T>
+    struct SolverCase{
+        
     };
 
     template <typename T>
@@ -46,7 +76,8 @@ namespace quiss
             auto g1 = g(i - 1, j);
             auto g2 = g(i, j);
             g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it also works if g1 is not a blade
-            g2.s = g1.s; // TODO modify entropy
+            // g2.s = g1.s; // TODO modify entropy
+            g2.s = g(0,j).s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
         }
     };
 
@@ -82,9 +113,10 @@ namespace quiss
             // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
             
-            eval_H_s(g,i,j);
+            // eval_H_s(g,i,j);
         }
     }
+
 
     template <typename Iterator>
     void compute_massflow_distribution(Iterator begin, Iterator end)
@@ -111,6 +143,40 @@ namespace quiss
             mf += (f_mf(g(i, j)) + f_mf(g(i, j - 1))) * (g(i, j).l - g(i, j - 1).l) * 0.5;
         }
         return mf;
+    }
+
+    template <typename T>
+    auto compute_gas_properties(GridInfo<T> &gi, int i)
+    {
+        auto &g = gi.g;
+        auto nj = g.nCols();
+
+        if (i != 0) // except inlet
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                eval_H_s(g, i, j);
+                auto g1 = g(i - 1, j);
+                auto &g2 = g(i, j);
+                g2.Tt = g1.Tt + (g2.H - g1.H) / ( 0.5 * ( g1.Cp + g2.Cp) );
+                auto ga = 0.5 * (g1.ga + g2.ga);
+                auto P2is = g1.Pt * std::pow(g2.Tt / g1.Tt, ga / (ga - 1));
+                g2.Pt = P2is - 0.5 * g2.rho * g2.omg_ * f_sqW(g2); // using rho from previous
+            }
+        }
+
+        for (auto j = 0; j < nj; j++)
+        {
+            auto &gp = g(i, j);
+            gp.Ts = gp.Tt - f_sqV(gp) / 2. / gp.Cp;
+            gp.Ps = gp.Pt * std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
+            // TODO use Coolprop
+            if(!gi.rho_cst)
+            {
+                gp.rho = gp.Ps / gi.R / gp.Ts;
+            }
+            // TODO update cp ga
+        }
     }
 
     template <typename T, typename _Func>
@@ -146,6 +212,7 @@ namespace quiss
                 }
             }
         }
+        // compute_gas_properties(gi,i);
         return compute_massflow(g, i);
     }
 
@@ -224,17 +291,24 @@ namespace quiss
         {
             throw std::length_error("Grid must have dimensions >= 3");
         }
-        auto vmi = gi.g(0, 0).Vm;
         auto eps = 1e-5;
-        auto mf = compute_massflow(gi.g, 0);
         auto tol_rel_mf = 0.01;
-        auto tol_pos = 0.01 * gi.g(0, nj - 1).l;
+        auto tol_pos = 0.0001 * gi.g(0, nj - 1).l;
+
+        auto mf = compute_massflow(gi.g, 0);
+        auto vmi = gi.g(0, 0).Vm;
         int count_geom = 0;
         auto delta_pos_max = 0.;
         auto delta_pos = 0.;
         auto delta_pos_moy = 0.;
         auto converged = false;
-        size_t max_geom=500;
+        size_t max_geom=200;
+
+        for (auto i = 0; i < ni; i++) // ensure value coherence
+        {
+            compute_gas_properties(gi, i);
+        }
+
         while (!converged)
         {
             for (auto i = 0; i < ni; i++)
@@ -253,6 +327,7 @@ namespace quiss
             delta_pos_moy = 0.;
             for (auto i = 0; i < ni; i++) // TODO run in //
             {
+                compute_gas_properties(gi,i);
                 compute_massflow_distribution(gi.g.begin(i), gi.g.end(i));
                 if (i > 0 && count_geom < max_geom)
                 {
@@ -261,7 +336,13 @@ namespace quiss
                     delta_pos_max = fmax(delta_pos_max, delta_pos);
                 }
             }
-            compute_metrics(gi.g); // TODO run in //
+            // compute_geom_values(gi.g); // TODO run in //
+            compute_abscissas(gi.g);
+            compute_metrics(gi.g, f_m, f_l, gi.g_metrics);
+            // compute_angles(gi.g, gi.g_metrics);
+            compute_angles(gi.g);
+            // compute_curvature(gi.g, gi.g_metrics);
+            compute_curvature(gi.g);
             // compute_grid_metrics(gi.g,gi.g_metrics,f_m,f_l);// TODO run in // <- it should more correct to activate but results are better (aka as fluent) if not activated
 
             converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);

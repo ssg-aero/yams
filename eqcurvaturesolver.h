@@ -104,9 +104,11 @@ namespace quiss
         auto sb = sin(beta);
         auto se = sin(gp.eps);
         auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
+        // auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I));
         auto K2 = -gp.Vu / gp.y * cb * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
         auto K3 = ce * gp.sgp * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
         auto K4 = (ce * cb * gp.sgp + se * sb) * gp.Ts * cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        // auto K4 = 0.;
         return K1 + K2 + K3 + K4;
         /*
         auto tg_part = 0.;
