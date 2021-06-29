@@ -336,14 +336,8 @@ namespace quiss
                     delta_pos_max = fmax(delta_pos_max, delta_pos);
                 }
             }
-            // compute_geom_values(gi.g); // TODO run in //
-            compute_abscissas(gi.g);
-            compute_metrics(gi.g, f_m, f_l, gi.g_metrics);
-            // compute_angles(gi.g, gi.g_metrics);
-            compute_angles(gi.g);
-            // compute_curvature(gi.g, gi.g_metrics);
-            compute_curvature(gi.g);
-            // compute_grid_metrics(gi.g,gi.g_metrics,f_m,f_l);// TODO run in // <- it should more correct to activate but results are better (aka as fluent) if not activated
+            
+            compute_grid_metrics(gi.g,gi.g_metrics,f_m,f_l);// TODO run in // 
 
             converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
             std::cout << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
