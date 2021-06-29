@@ -76,6 +76,7 @@ namespace quiss
             auto g1 = g(i - 1, j);
             auto g2 = g(i, j);
             g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it also works if g1 is not a blade
+            g2.I = g2.H - g2.omg * g2.y * g2.Vu;
             // g2.s = g1.s; // TODO modify entropy
             g2.s = g(0,j).s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
         }

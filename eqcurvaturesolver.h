@@ -18,6 +18,8 @@ namespace quiss
     };
 
     auto f_I = [](const auto &gp)
+    { return gp.I; };
+    auto f_H = [](const auto &gp)
     { return gp.H; };
     auto f_S_ = [](const auto &gp)
     { return gp.s; };
@@ -103,7 +105,7 @@ namespace quiss
         auto ce = cos(gp.eps);
         auto sb = sin(beta);
         auto se = sin(gp.eps);
-        auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
+        auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
         // auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I));
         auto K2 = -gp.Vu / gp.y * cb * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
         auto K3 = ce * gp.sgp * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm

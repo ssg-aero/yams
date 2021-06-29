@@ -147,6 +147,7 @@ namespace quiss
         T omg = 0.;
         T omg_= 0.; // loss
         T H   = 300. * 1004.;
+        T I   = 300. * 1004.;
         T s   = 0.;
     };
 
