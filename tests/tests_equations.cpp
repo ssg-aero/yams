@@ -465,7 +465,7 @@ inline auto compute_vm_distribution(T mf,T &vmi,size_t i,MeridionalGrid<T> &g,_F
 template <typename T>
 inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 500)
 {
-    compute_metrics(g);// TODO run in //
+    compute_geom_values(g);// TODO run in //
     size_t ni = g.nRows();
     size_t nj = g.nCols();
 
@@ -510,7 +510,7 @@ inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 500)
                 delta_pos_max = fmax(delta_pos_max, delta_pos);
             }
         }
-        compute_metrics(g);// TODO run in //
+        compute_geom_values(g);// TODO run in //
         converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
         std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
     }
@@ -792,7 +792,7 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
     auto t1 = PI;
     auto t2 = PI * 2.;
     make_circular_grid(ri,re,t1,t2,{0.,3.},g);
-    compute_metrics(g);
+    compute_geom_values(g);
     // init values
     std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=30;gp.H=gp.Cp*gp.Tt; });
 
@@ -833,7 +833,7 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
                 delta_pos_max = fmax(delta_pos_max, delta_pos);
             }
         }
-        compute_metrics(g);
+        compute_geom_values(g);
         std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
         count_geom++;
     }while (delta_pos_moy > 0.001 * g(0,nj-1).l && count_geom < 200);
@@ -1094,7 +1094,7 @@ TEST(tests_gridreader, vtk_no_blades_2)
                 delta_pos_max = fmax(delta_pos_max, delta_pos);
             }
         }
-        compute_metrics(g);// TODO run in //
+        compute_geom_values(g);// TODO run in //
         converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
         std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
     }
