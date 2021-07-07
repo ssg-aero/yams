@@ -138,7 +138,7 @@ namespace quiss
     // }
 
     template <typename T>
-    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<quiss::Grid2dMetricsPoint<T>> g_metrics, const auto &f_m, const auto &f_l)
+    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<quiss::Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
     {
         compute_abscissas(g);
         compute_metrics(g,f_m,f_l,g_metrics);
