@@ -58,8 +58,11 @@ namespace quiss
         structuredGrid->GetPointData()->AddArray(phi);
     }
 
-    inline void plot_vtkStructuredGrid(vtkStructuredGrid *structuredGrid,bool edges_on=false)
+    inline void plot_vtkStructuredGrid(vtkStructuredGrid *structuredGrid,const char* name,bool edges_on=false)
     {
+
+        structuredGrid->GetPointData()->SetActiveScalars(name);
+
         // Create a mapper and actor
         vtkSmartPointer<vtkDataSetMapper> mapper =
             vtkSmartPointer<vtkDataSetMapper>::New();
@@ -97,7 +100,7 @@ namespace quiss
         vtkSmartPointer<vtkScalarBarActor> scalarBar =
             vtkSmartPointer<vtkScalarBarActor>::New();
         scalarBar->SetLookupTable(mapper->GetLookupTable());
-        scalarBar->SetTitle(structuredGrid->GetPointData()->GetArrayName(0));
+        scalarBar->SetTitle("name");
         scalarBar->SetNumberOfLabels(4);
         renderer->AddActor(scalarBar);
         renderer->SetBackground(.3, .6, .3); // Background color green

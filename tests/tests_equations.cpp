@@ -683,8 +683,7 @@ TEST(tests_eq, constant_flow_angle)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
 }
 
@@ -730,8 +729,7 @@ TEST(tests_eq, constant_flow_angle_clustered_grid)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
 }
 
@@ -777,8 +775,7 @@ TEST(tests_eq, constant_flow_vortex_circular)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
 }
 
@@ -844,8 +841,7 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
 }
 
@@ -868,8 +864,7 @@ TEST(tests_eq, solve_circular_grid)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
 }
 
@@ -897,8 +892,7 @@ TEST(tests_eq, solve_igv)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
 }
 
@@ -965,10 +959,10 @@ TEST(tests_eq, solve_straight_cmp)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
+        // structuredGrid->GetPointData()->SetActiveScalars("Vm");
         // add_value(g, structuredGrid, "beta_metal_deg", [](const auto &gp) { return gp.bet * 180 / PI; });
         // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid, "Vm", true);
     }
 }
 
@@ -990,10 +984,9 @@ TEST(tests_gridreader, vtk_no_blades)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
         // add_value(g, structuredGrid, "beta_metal_deg", [](const auto &gp) { return gp.bet * 180 / PI; });
         // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
         writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm.vts");
@@ -1103,10 +1096,9 @@ TEST(tests_gridreader, vtk_no_blades_2)
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
-        structuredGrid->GetPointData()->SetActiveScalars("Vm");
         // add_value(g, structuredGrid, "beta_metal_deg", [](const auto &gp) { return gp.bet * 180 / PI; });
         // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
-        plot_vtkStructuredGrid(structuredGrid, true);
+        plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
         writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm.vts");

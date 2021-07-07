@@ -25,7 +25,6 @@ TEST(tests_visu, render_curvature)
 
     auto structuredGrid = make_vtkStructuredGrid(g);
     add_value(g,structuredGrid,"Curvature",[](const auto &gp){return gp.cur;});
-    structuredGrid->GetPointData()->SetActiveScalars("Curvature");
-    plot_vtkStructuredGrid(structuredGrid);
+    plot_vtkStructuredGrid(structuredGrid,"Curvature");
 
 }
