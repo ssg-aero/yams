@@ -43,9 +43,9 @@ namespace quiss
         auto tb = tan(gp.bet);
         auto ce = cos(gp.eps);
         auto se = sin(gp.eps);
-        auto D1 = gp.cgp * ce * (gp.cur + tb / gp.y * gp.Dphi_Dth);
+        auto D1 = gp.y > 0. ?  gp.cgp * ce * (gp.cur + tb / gp.y * gp.Dphi_Dth) : 0.;
         auto D2 = gp.y > 0. ? -tb / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
-        auto D3 = gp.y > 0. ? se / gp.y / cb * cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
+        auto D3 = gp.y > 0. ?  se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
         return cb * cb * (D1 + D2 + D3);
     };
 
