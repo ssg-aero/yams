@@ -100,7 +100,7 @@ namespace quiss
         vtkSmartPointer<vtkScalarBarActor> scalarBar =
             vtkSmartPointer<vtkScalarBarActor>::New();
         scalarBar->SetLookupTable(mapper->GetLookupTable());
-        scalarBar->SetTitle("name");
+        scalarBar->SetTitle(name);
         scalarBar->SetNumberOfLabels(4);
         renderer->AddActor(scalarBar);
         renderer->SetBackground(.3, .6, .3); // Background color green
