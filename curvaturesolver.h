@@ -199,6 +199,10 @@ namespace quiss
             else
             {
                 // TODO ecart flux-profile
+                for (auto j = 0; j < nj; j++)
+                {
+                    g(i, j).bet = g(i, j).k;
+                }
             }
                 
         }

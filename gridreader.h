@@ -33,7 +33,7 @@ namespace quiss
                 g(i,j).x = pt[0];
                 g(i,j).y = pt[1];
                 if(iB_Array) g(i,j).iB= iB_Array->GetVariantValue(id).ToInt();
-                if(k_Array)  g(i,j).bet= k_Array->GetVariantValue(id).ToDouble();
+                if(k_Array)  g(i,j).k= k_Array->GetVariantValue(id).ToDouble();
                 id++;
             }
         }
