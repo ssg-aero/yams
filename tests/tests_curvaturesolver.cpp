@@ -205,11 +205,12 @@ TEST(tests_curvature_solver, vtk_static_blades1)
     };
 
     quiss::SolverCase<T> solver_case{
-        .gi = gi};
+        .gi = gi,
+        .max_geom=1};
 
     {
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(solver_case,1);
+        quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "

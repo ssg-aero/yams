@@ -306,7 +306,7 @@ namespace quiss
     }
 
     template <typename T>
-    auto curvature_solver(quiss::SolverCase<T> &solver_case, size_t max_geom=200)
+    auto curvature_solver(quiss::SolverCase<T> &solver_case)
     {
         auto &gi = solver_case.gi;
         size_t ni = gi.g.nRows();
@@ -315,6 +315,7 @@ namespace quiss
         {
             throw std::length_error("Grid must have dimensions >= 3");
         }
+        size_t max_geom=solver_case.max_geom;
         auto eps = solver_case.eps;
         auto tol_rel_mf =solver_case.tol_rel_mf;
         auto tol_pos = solver_case.tol_rel_pos * gi.g(0, nj - 1).l;
