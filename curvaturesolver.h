@@ -3,6 +3,7 @@
 #include <datastorage.h>
 #include <gridmetrics.h>
 #include <gbs/bscinterp.h>
+#include <optional>
 
 namespace quiss
 {
@@ -27,12 +28,6 @@ namespace quiss
         return gp.Ts + f_sqV(gp)  / 2. / gp.Cp; 
     };
 
-
-
-    template <typename T>
-    struct SolverConfig{
-        T eps = 1e-5;
-    };
     template <typename T>
     struct GridInfo{
         MeridionalGrid<T> &g;
@@ -45,10 +40,33 @@ namespace quiss
         bool rho_cst = true;
         T R = 287.04; // perfect gas constant
     };
+    enum class MeridionalBladeMode
+    {
+        DESIGN_BETA_OUT,
+        DESIGN_PHI,
+        DIRECT
+    };
+    template <typename T>
+    struct BladeInfo{
+        std::string name;
+        size_t i1 = -1;
+        size_t i2 = -1;
+        T omg     = 0.;
+        T omg_    = 0.;
+        MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
+        std::optional< gbs::BSCfunction<T> > beta_out;
+        std::optional< gbs::BSCfunction<T> > phi;
+    };
 
-        template <typename T>
-    struct SolverCase{
-        
+    template <typename T>
+    struct SolverCase
+    {
+        GridInfo<T> &gi;
+        std::vector<BladeInfo<T>> bld_info_lst;
+        size_t max_geom = 200;
+        T eps = 0.00001;
+        T tol_rel_mf = 0.001;
+        T tol_rel_pos = 0.00001;
     };
 
     template <typename T>
@@ -288,17 +306,18 @@ namespace quiss
     }
 
     template <typename T>
-    auto curvature_solver(GridInfo<T> &gi)
+    auto curvature_solver(quiss::SolverCase<T> &solver_case, size_t max_geom=200)
     {
+        auto &gi = solver_case.gi;
         size_t ni = gi.g.nRows();
         size_t nj = gi.g.nCols();
         if (ni < 3 && nj < 3)
         {
             throw std::length_error("Grid must have dimensions >= 3");
         }
-        auto eps = 1e-5;
-        auto tol_rel_mf = 0.01;
-        auto tol_pos = 0.0001 * gi.g(0, nj - 1).l;
+        auto eps = solver_case.eps;
+        auto tol_rel_mf =solver_case.tol_rel_mf;
+        auto tol_pos = solver_case.tol_rel_pos * gi.g(0, nj - 1).l;
 
         auto mf = compute_massflow(gi.g, 0);
         auto vmi = gi.g(0, 0).Vm;
@@ -307,7 +326,6 @@ namespace quiss
         auto delta_pos = 0.;
         auto delta_pos_moy = 0.;
         auto converged = false;
-        size_t max_geom=200;
 
         for (auto i = 0; i < ni; i++) // ensure value coherence
         {

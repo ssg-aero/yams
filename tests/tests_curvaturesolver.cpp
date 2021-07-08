@@ -36,9 +36,13 @@ TEST(tests_curvature_solver, vtk_no_blades)
         .nj = nj
     };
 
+    quiss::SolverCase<T> solver_case{
+        .gi = gi
+    };
+
     {
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(gi);
+        quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -62,7 +66,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         
         gi.rho_cst = false;
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(gi);
+        quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -87,7 +91,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         gi.rho_cst = true;
         std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(gi);
+        quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -113,7 +117,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         gi.rho_cst = false;
         std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(gi);
+        quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -143,7 +147,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         auto r2 = g(0,nj-1).y;
         std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 600. * (gp.y - r1) /(r1 -r2);});
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(gi);
+        quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -200,9 +204,12 @@ TEST(tests_curvature_solver, vtk_static_blades1)
         .nj = nj
     };
 
+    quiss::SolverCase<T> solver_case{
+        .gi = gi};
+
     {
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(gi,1);
+        quiss::curvature_solver(solver_case,1);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -254,9 +261,13 @@ TEST(tests_curvature_solver, vtk_static_blades2)
     auto dH = 1004. * 10.;
     size_t max_geom=500;
     // init values
-    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; });
     size_t ni = g.nRows();
     size_t nj = g.nCols();
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; /*gp.iB=-1;*/  if(gp.iB!=-1) gp.omg_=0.1; });
+    auto r1 = g(0, 0).y;
+    auto r2 = g(0, nj - 1).y;
+    std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 600. * (gp.y - r1) /(r1 -r2);});
+
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
@@ -272,9 +283,13 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .nj = nj
     };
 
+    quiss::SolverCase<T> solver_case{
+        .gi = gi
+    };
+
     {
         auto start = high_resolution_clock::now();
-        quiss::curvature_solver(gi,1);
+        quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -290,8 +305,14 @@ TEST(tests_curvature_solver, vtk_static_blades2)
                       { return gp.Vu; });
             add_value(g, structuredGrid, "bet", [](const auto &gp)
                       { return gp.bet * 180 / std::numbers::pi; });
+            add_value(g, structuredGrid, "Tt", [](const auto &gp)
+                      { return gp.Tt; });
+            add_value(g, structuredGrid, "Pt", [](const auto &gp)
+                      { return gp.Pt; });
+            add_value(g, structuredGrid, "s", [](const auto &gp)
+                      { return gp.s; });
             
-            quiss::plot_vtkStructuredGrid(structuredGrid,"bet", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
             vtkNew<vtkXMLStructuredGridWriter> writer;
             writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_003.vts");
