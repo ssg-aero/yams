@@ -95,8 +95,8 @@ namespace quiss
             auto &g2 = g(i, j);
             g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it also works if g1 is not a blade
             g2.I = g2.H - g2.omg * g2.y * g2.Vu;
-            // g2.s = g1.s; // TODO modify entropy
-            g2.s = g(0,j).s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
+            g2.s = g1.s; // TODO modify entropy
+            // g2.s = g(0,j).s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
         }
     };
 
@@ -132,7 +132,7 @@ namespace quiss
             // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
             
-            // eval_H_s(g,i,j);
+            eval_H_s(g,i,j);
         }
     }
 
