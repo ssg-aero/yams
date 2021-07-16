@@ -5,6 +5,7 @@
 #include <gridrender.h>
 #include <datastorage.h>
 #include <vtkXMLStructuredGridWriter.h>
+// #include <CoolPropLib.h>
 
 #include <chrono>
 const bool TESTS_USE_PLOT = true;
@@ -142,10 +143,11 @@ TEST(tests_curvature_solver, vtk_no_blades)
 
     {
         gi.rho_cst = false;
+        solver_case.max_geom=1;
         std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
         auto r1 = g(0,0).y;
         auto r2 = g(0,nj-1).y;
-        std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 600. * (gp.y - r1) /(r1 -r2);});
+        std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 310. * (gp.y - r1) /(r1 -r2);gp.H = gp.Tt * gp.Cp - 1004. * 288.;});
         auto start = high_resolution_clock::now();
         quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
@@ -259,15 +261,14 @@ TEST(tests_curvature_solver, vtk_static_blades2)
 
     auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/in/test_003.vts");
     auto Vm = 30.;
+    auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
     // init values
     size_t ni = g.nRows();
     size_t nj = g.nCols();
     std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; /*gp.iB=-1;*/  if(gp.iB!=-1) gp.omg_=0.1; });
-    auto r1 = g(0, 0).y;
-    auto r2 = g(0, nj - 1).y;
-    std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 600. * (gp.y - r1) /(r1 -r2);});
+    // std::cout << PropsSI("Dmolar","T",298,"P",1e5,"REFPROP::Propane[0.5]&Ethane[0.5]") << std::endl;
 
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
@@ -281,12 +282,46 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
-        .nj = nj
+        .nj = nj,
+        .rho_cst=false,
+        .RF = 0.01,
     };
 
     quiss::SolverCase<T> solver_case{
-        .gi = gi
+        .gi = gi,
+        .max_geom = 1000
     };
+
+    // Inlet
+    auto r1 = g(0, 0).y;
+    auto r2 = g(0, nj - 1).y;
+    // std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) 
+    //     {
+    //         // gp.Tt = 350. * (gp.y - r2) /(r1 -r2) - 300. * (gp.y - r1) /(r1 -r2);
+    //         gp.Tt = 300. + 50. * std::sin( (gp.y - r2) /(r1 -r2) * std::numbers::pi );
+    //         // gp.Tt = 300.;
+    //         // gp.Pt = 133337.02 + 0.2e5 * std::sin( (gp.y - r2) /(r1 -r2) * std::numbers::pi );
+    //         gp.Ts = gp.Tt - (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. / 1004.;
+    //         gp.Ps = gp.Pt - (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. * gp.rho;
+    //         gp.H = gp.Tt * gp.Cp;
+    //         gp.s = std::log( pow(gp.Ts / 288., gp.Cp) / std::pow(gp.Ps / 1.01325e5, 287.04) );
+    //     }
+    // );
+    std::for_each(g.begin(0), g.end(0), [r1,r2,Ps,&gi](auto &gp) 
+        {
+            // gp.Tt = 350. * (gp.y - r2) /(r1 -r2) - 300. * (gp.y - r1) /(r1 -r2);
+            gp.Ts = 300. + 50. * std::sin( (gp.y - r2) /(r1 -r2) * std::numbers::pi );
+            gp.Ps = Ps;
+            gp.rho= gp.Ps / (gi.R) / gp.Ts;
+            // gp.Tt = 300.;
+            // gp.Pt = 133337.02 + 0.2e5 * std::sin( (gp.y - r2) /(r1 -r2) * std::numbers::pi );
+            gp.Tt = gp.Ts + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. / 1004.;
+            gp.Pt = gp.Ps + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. * gp.rho;
+            gp.H = gp.Tt * gp.Cp;
+            gp.s = std::log( pow(gp.Ts / 288., gp.Cp) / std::pow(gp.Ps / 1.01325e5, 287.04) );
+        }
+    );
+
 
     {
         auto start = high_resolution_clock::now();
@@ -310,10 +345,20 @@ TEST(tests_curvature_solver, vtk_static_blades2)
                       { return gp.Tt; });
             add_value(g, structuredGrid, "Pt", [](const auto &gp)
                       { return gp.Pt; });
+            add_value(g, structuredGrid, "Ts", [](const auto &gp)
+                      { return gp.Ts; });
+            add_value(g, structuredGrid, "Ps", [](const auto &gp)
+                      { return gp.Ps; });
             add_value(g, structuredGrid, "s", [](const auto &gp)
                       { return gp.s; });
+            add_value(g, structuredGrid, "rho", [](const auto &gp)
+                      { return gp.rho; });
+            add_value(g, structuredGrid, "H", [](const auto &gp)
+                      { return gp.H; });
+            add_value(g, structuredGrid, "q", [](const auto &gp)
+                      { return gp.q; });
             
-            quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Pt", true);
 
             vtkNew<vtkXMLStructuredGridWriter> writer;
             writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_003.vts");

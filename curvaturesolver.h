@@ -41,7 +41,7 @@ namespace quiss
         const char* gas_name;
         bool rho_cst = true;
         T R = 287.04; // perfect gas constant
-        T RF = 0.05;
+        T RF = 0.01;
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =100;
@@ -71,8 +71,8 @@ namespace quiss
         std::vector<BladeInfo<T>> bld_info_lst;
         size_t max_geom = 200;
         T eps = 0.00001;
-        T tol_rel_mf = 1e-3;
-        T tol_rel_pos = 1e-3;
+        T tol_rel_mf = 1e-4;
+        T tol_rel_pos = 1e-5;
     };
 
     template <typename T>
@@ -94,15 +94,18 @@ namespace quiss
         return std::make_tuple(u, delta, count);
     };
 
-    auto eval_H_s = [](auto &g, size_t i, size_t j) {
+    auto eval_H_s = [](auto &gi, size_t i, size_t j) {
         if(i>0)
         {
+            auto &g = gi.g;
             const auto &g1 = g(i - 1, j);
             auto &g2 = g(i, j);
             g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it also works if g1 is not a blade
             g2.I = g2.H - g2.omg * g2.y * g2.Vu;
-            g2.s = g1.s; // TODO modify entropy
+            // g2.s = g1.s; // TODO modify entropy
             // g2.s = g(0,j).s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
+            // g2.s = g1.s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
+            g2.s = std::log(pow(g2.Ts/288.,g2.Cp)/std::pow(g2.Ps/1.01325e5,gi.R)) ;
         }
     };
 
@@ -115,7 +118,7 @@ namespace quiss
         g(i, 0).Vm = vmi;
         size_t nj = g.nCols();
 
-        eval_H_s(g,i,0);
+        eval_H_s(gi,i,0);
 
         for (auto j = 1; j < nj; j++)
         {
@@ -130,7 +133,7 @@ namespace quiss
             auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
             // g(i, j).Vm = std::fmin(sqrt(2. * sqVmq2_1),320.);// TODO add H and s to eq
             g(i, j).Vm = sqrt(2. * sqVmq2_1);// TODO add H and s to eq
-            eval_H_s(g,i,j); // equations are using H and s (enthalpy and entropy)
+            eval_H_s(gi,i,j); // equations are using H and s (enthalpy and entropy)
             auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth);
             assert(Fj==Fj);
 
@@ -138,7 +141,7 @@ namespace quiss
             // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
             
-            eval_H_s(g,i,j);
+            eval_H_s(gi,i,j);
         }
     }
 
@@ -180,7 +183,7 @@ namespace quiss
         {
             for (auto j = 0; j < nj; j++)
             {
-                eval_H_s(g, i, j);
+                eval_H_s(gi, i, j);
                 const auto &g1 = g(i - 1, j);
                 auto &g2 = g(i, j);
                 g2.Tt = g1.Tt + (g2.H - g1.H) / ( 0.5 * ( g1.Cp + g2.Cp) );
@@ -200,6 +203,7 @@ namespace quiss
             {
                 gp.rho = gp.Ps / gi.R / gp.Ts;
             }
+            if(i!=0) eval_H_s(gi, i, j);
             // TODO update cp ga
         }
     }
@@ -354,6 +358,7 @@ namespace quiss
         auto delta_pos_moy = 0.;
         auto converged = false;
 
+        auto i_0 = 0;
         for (auto i = 0; i < ni; i++) // ensure value coherence
         {
             compute_gas_properties(gi, i);
@@ -361,7 +366,7 @@ namespace quiss
 
         while (!converged)
         {
-            for (auto i = 0; i < ni; i++)
+            for (auto i = i_0; i < ni; i++)
             {
                 if (gi.g(i, 0).iB == -1)
                 {
@@ -375,7 +380,7 @@ namespace quiss
             count_geom++;
             delta_pos_max = 0.;
             delta_pos_moy = 0.;
-            for (auto i = 0; i < ni; i++) // TODO run in //
+            for (auto i = i_0; i < ni; i++) // TODO run in //
             {
                 compute_gas_properties(gi,i);
                 compute_massflow_distribution(gi.g.begin(i), gi.g.end(i));
