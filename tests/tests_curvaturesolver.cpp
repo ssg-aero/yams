@@ -284,7 +284,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .ni = ni,
         .nj = nj,
         .rho_cst=false,
-        .RF = 0.01,
+        .RF = 0.06,
     };
 
     quiss::SolverCase<T> solver_case{

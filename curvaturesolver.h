@@ -132,7 +132,7 @@ namespace quiss
 
             auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
             // g(i, j).Vm = std::fmin(sqrt(2. * sqVmq2_1),320.);// TODO add H and s to eq
-            g(i, j).Vm = sqrt(2. * sqVmq2_1);// TODO add H and s to eq
+            g(i, j).Vm = sqrt(2. * sqVmq2_1);
             eval_H_s(gi,i,j); // equations are using H and s (enthalpy and entropy)
             auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth);
             assert(Fj==Fj);
@@ -140,7 +140,6 @@ namespace quiss
             auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
-            
             eval_H_s(gi,i,j);
         }
     }
