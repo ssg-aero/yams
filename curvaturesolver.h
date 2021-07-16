@@ -12,6 +12,8 @@ namespace quiss
     using gbs::operator+;
     using gbs::operator-;
 
+    const bool cap_vm_rk2 = false;
+
     auto f_sqV = [](const auto &gp)
     {
         return gp.Vm * gp.Vm + gp.Vu * gp.Vu;
@@ -39,6 +41,10 @@ namespace quiss
         const char* gas_name;
         bool rho_cst = true;
         T R = 287.04; // perfect gas constant
+        T RF = 0.05;
+        T tol_newtow_mf_f = 1e-5;
+        T tol_newtow_mf_u = 1e-6;
+        size_t vm_distribution_max_count =100;
     };
     enum class MeridionalBladeMode
     {
@@ -65,8 +71,8 @@ namespace quiss
         std::vector<BladeInfo<T>> bld_info_lst;
         size_t max_geom = 200;
         T eps = 0.00001;
-        T tol_rel_mf = 0.001;
-        T tol_rel_pos = 0.00001;
+        T tol_rel_mf = 1e-3;
+        T tol_rel_pos = 1e-3;
     };
 
     template <typename T>
@@ -240,8 +246,9 @@ namespace quiss
     }
 
     template <typename T>
-    auto balance_massflow(MeridionalGrid<T> &g, int i, T tol_mf)
+    auto balance_massflow(GridInfo<T> &gi, int i, T tol_mf)
     {
+        auto &g = gi.g;
         auto nj = g.nCols();
         std::vector<T> u(nj), q(nj);
         // std::vector<T> u(nj);
@@ -262,9 +269,9 @@ namespace quiss
         // auto f_Q = gbs::BSCfunction( gbs::approx(q,2,fmax(nj / 3,3), u,true) );
         // auto f_X =  gbs::approx(X,2,fmax(nj / 3,3), u,true);
         auto delta_pos = 0.;
-        auto RF = 0.05;
-        auto tol_f = 1e-5;
-        auto tol_u = 1e-6;
+        auto RF = gi.RF;
+        auto tol_f = gi.tol_newtow_mf_f;
+        auto tol_u = gi.tol_newtow_mf_u;
 
         // T B_ = fmin(8., 0.5 * 60. / g.nRows());
         // auto RF = eval_RF(g,i,B_);
@@ -291,9 +298,10 @@ namespace quiss
     auto compute_vm_distribution(T mf, T &vmi, size_t i,GridInfo<T> &gi, _Func F, T tol_rel_mf, T eps)
     {
         auto err_mf = tol_rel_mf * 10.;
-        auto mf_ = 0., mf_pre = 0.; // mf shall allways be positive
+        auto mf_ = 0., mf_pre = 0.; // mf shall allways be strictly positive
         int count = 0;
-        while (err_mf > tol_rel_mf && count < 100)
+        auto max_count = gi.vm_distribution_max_count;
+        while (err_mf > tol_rel_mf && count < max_count)
         {
             mf_pre = eq_massflow(vmi - eps, gi, i, F);
             mf_ = eq_massflow(vmi, gi, i, F);
@@ -302,6 +310,10 @@ namespace quiss
             // vmi = fmin(fmax(0.1,vmi),360.);
             err_mf = fabs(mf_ - mf) / mf;
             count++;
+        }
+        if(count==max_count && err_mf <= tol_rel_mf)
+        {
+            std::cout << "Warning span: " << i << " did not converged." << std::endl;
         }
     }
 
@@ -355,7 +367,7 @@ namespace quiss
                 compute_massflow_distribution(gi.g.begin(i), gi.g.end(i));
                 if (i > 0 && count_geom < max_geom)
                 {
-                    delta_pos = balance_massflow(gi.g, i, tol_rel_mf * mf);
+                    delta_pos = balance_massflow(gi, i, tol_rel_mf * mf);
                     delta_pos_moy += delta_pos / (ni - 2.);
                     delta_pos_max = fmax(delta_pos_max, delta_pos);
                 }
