@@ -88,11 +88,11 @@ namespace quiss
         return std::make_tuple(u, delta, count);
     };
 
-    auto eval_H_s = [](const auto &g, size_t i, size_t j) {
+    auto eval_H_s = [](auto &g, size_t i, size_t j) {
         if(i>0)
         {
-            auto g1 = g(i - 1, j);
-            auto g2 = g(i, j);
+            const auto &g1 = g(i - 1, j);
+            auto &g2 = g(i, j);
             g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it also works if g1 is not a blade
             g2.I = g2.H - g2.omg * g2.y * g2.Vu;
             // g2.s = g1.s; // TODO modify entropy
@@ -113,8 +113,8 @@ namespace quiss
 
         for (auto j = 1; j < nj; j++)
         {
-            const auto gp = g(i, j);
-            const auto gp_prev = g(i, j - 1);
+            const auto &gp = g(i, j);
+            const auto &gp_prev = g(i, j - 1);
 
             auto sqVmq2 = f_sqVmq2(gp_prev);
             auto dl = gp.l - gp_prev.l;
@@ -175,7 +175,7 @@ namespace quiss
             for (auto j = 0; j < nj; j++)
             {
                 eval_H_s(g, i, j);
-                auto g1 = g(i - 1, j);
+                const auto &g1 = g(i - 1, j);
                 auto &g2 = g(i, j);
                 g2.Tt = g1.Tt + (g2.H - g1.H) / ( 0.5 * ( g1.Cp + g2.Cp) );
                 auto ga = 0.5 * (g1.ga + g2.ga);

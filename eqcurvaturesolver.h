@@ -38,7 +38,7 @@ namespace quiss
 
     auto D = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
-        const auto gp = g(i, j);
+        const auto &gp = g(i, j);
         auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
         auto tb = tan(gp.bet);
         auto ce = cos(gp.eps);
@@ -62,7 +62,7 @@ namespace quiss
 
     auto F = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
-        const auto gp = g(i, j);
+        const auto &gp = g(i, j);
         auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
         auto sb = sin(gp.bet);
         auto ce = cos(gp.eps);
@@ -75,7 +75,7 @@ namespace quiss
 
     auto eq_bet = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
-        const auto gp = g(i, j);
+        const auto &gp = g(i, j);
         const auto Vm = gp.Vm;
         return D(g, g_metrics, i, j, d_ksi, d_eth) * Vm * Vm + E(gp) * Vm + F(g, g_metrics, i, j, d_ksi, d_eth);
     };
@@ -91,14 +91,14 @@ namespace quiss
 
     auto J = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
-        const auto gp = g(i, j);
+        const auto &gp = g(i, j);
         auto se = sin(gp.eps);                                                    //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
         return se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu); // simplification of cos beta with dS -> dm
     };
 
     auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
-        const auto gp = g(i, j);
+        const auto &gp = g(i, j);
         auto beta = atan2(gp.Vu, gp.Vm);
         assert(abs(beta) < std::numbers::pi / 2.);
         auto cb = cos(beta);
@@ -136,7 +136,7 @@ namespace quiss
 
     auto eq_vu = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
-        const auto gp = g(i, j);
+        const auto &gp = g(i, j);
         const auto Vm = gp.Vm;
         return G(gp) * Vm * Vm + J(g, g_metrics, i, j, d_ksi, d_eth) * Vm + K(g, g_metrics, i, j, d_ksi, d_eth);
     };
