@@ -246,28 +246,43 @@ namespace quiss
     }
 
     template <typename T>
+    auto compute_span_curve(const MeridionalGrid<T> &g, int i)
+    {
+        auto nj = g.nCols();
+        std::vector<T> u(nj);
+        gbs::points_vector<T, 2> X(nj);
+        auto l_tot = g(i, nj - 1).l;
+        for (auto j = 0; j < nj; j++)
+        {
+            const auto &gp = g(i, j);
+            X[j][0] = gp.x;
+            X[j][1] = gp.y;
+            u[j]    = gp.l / l_tot;
+        }
+        size_t p = fmax(fmin(3, nj), 1);
+        return std::make_tuple( gbs::interpolate(X, u, p), u );
+    }
+
+    template <typename T>
     auto balance_massflow(GridInfo<T> &gi, int i, T tol_mf)
     {
         auto &g = gi.g;
         auto nj = g.nCols();
-        std::vector<T> u(nj), q(nj);
-        // std::vector<T> u(nj);
+        std::vector<T> q(nj);
         // gbs::points_vector<T,1> q(nj);
         gbs::points_vector<T, 2> X(nj);
         auto l_tot = g(i, nj - 1).l;
         for (auto j = 0; j < nj; j++)
         {
-            // q[j][0] = g(i, j).q * g(0, nj-1).q/ g(i, nj-1).q; // To perfectly match and then solve better
             q[j] = g(i, j).q * g(0, nj - 1).q / g(i, nj - 1).q; // To perfectly match and then solve better
-            X[j][0] = g(i, j).x;
-            X[j][1] = g(i, j).y;
-            u[j] = g(i, j).l / l_tot;
         }
-        size_t p = fmax(fmin(3, nj), 1);
-        auto f_Q = gbs::interpolate(q, u, p);
-        auto f_X = gbs::interpolate(X, u, p);
+        // size_t p = fmax(fmin(3, nj), 1);
+        auto [f_X, u] = compute_span_curve(g,i);
+        auto f_Q = gbs::interpolate(q, u, f_X.degree());
+
         // auto f_Q = gbs::BSCfunction( gbs::approx(q,2,fmax(nj / 3,3), u,true) );
         // auto f_X =  gbs::approx(X,2,fmax(nj / 3,3), u,true);
+
         auto delta_pos = 0.;
         auto RF = gi.RF;
         auto tol_f = gi.tol_newtow_mf_f;
@@ -281,8 +296,7 @@ namespace quiss
             // auto l = newton_solve<T>(f_Q, gbs::point<T,1>{g(0, j).q}, u[j]);
             auto [u1, u2] = f_Q.bounds();
             auto [l, delta, count] = newton_solve<T>(f_Q, g(0, j).q, u[j], u1, u2, tol_f, tol_u);
-            assert(l <= f_Q.bounds()[1] && l >= f_Q.bounds()[0]);
-            assert(l <= f_X.bounds()[1] && l >= f_X.bounds()[0]);
+            assert(l <= u2 && l >= u1);
             auto X = f_X.value(l);
             auto dx = g(i, j).x - X[0];
             auto dy = g(i, j).y - X[1];
