@@ -207,41 +207,34 @@ namespace quiss
         }
     }
 
-    template <typename T, typename _Func>
-    auto eq_massflow(T vmi, GridInfo<T> &gi, int i, _Func F)
+    template <typename T>
+    auto eq_massflow(T vmi, GridInfo<T> &gi, int i)
     {
         auto &g = gi.g;
         auto nj = g.nCols();
-        if (i > 0)
+        if (g(i, 0).iB == -1)
         {
-            if (g(i, 0).iB == -1)
+            for (auto j = 0; j < nj; j++)
             {
-                for (auto j = 0; j < nj; j++)
+                if (i > 0)
                 {
                     g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
-                    g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm);
-                    // g(i, j).H = g(i-1, j).H;
                 }
+                g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm);
             }
-            else
-            {
-                // TODO ecart flux-profile
-                for (auto j = 0; j < nj; j++)
-                {
-                    g(i, j).bet = g(i, j).k;
-                }
-            }
-                
+
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu);
         }
-        integrate_RK2_vm_sheet(vmi, i, gi, F);
-        if (i > 0)
+        else
         {
-            if (g(i, 0).iB != -1)
+            for (auto j = 0; j < nj; j++)
             {
-                for (auto j = 0; j < nj; j++)
-                {
-                    g(i, j).Vu = g(i, j).Vm * tan( g(i, j).bet );
-                }
+                g(i, j).bet = g(i, j).k;
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_bet);
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet);
             }
         }
         // compute_gas_properties(gi,i);
@@ -311,8 +304,8 @@ namespace quiss
         return delta_pos;
     }
 
-    template <typename T, typename _Func>
-    auto compute_vm_distribution(T mf, T &vmi, size_t i,GridInfo<T> &gi, _Func F, T tol_rel_mf, T eps)
+    template <typename T>
+    auto compute_vm_distribution(T mf, T &vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps)
     {
         auto err_mf = tol_rel_mf * 10.;
         auto mf_ = 0., mf_pre = 0.; // mf shall allways be strictly positive
@@ -320,8 +313,8 @@ namespace quiss
         auto max_count = gi.vm_distribution_max_count;
         while (err_mf > tol_rel_mf && count < max_count)
         {
-            mf_pre = eq_massflow(vmi - eps, gi, i, F);
-            mf_ = eq_massflow(vmi, gi, i, F);
+            mf_pre = eq_massflow(vmi - eps, gi, i);
+            mf_ = eq_massflow(vmi, gi, i);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
             assert(vmi >= 0.);
             // vmi = fmin(fmax(0.1,vmi),360.);
@@ -367,14 +360,7 @@ namespace quiss
         {
             for (auto i = i_0; i < ni; i++)
             {
-                if (gi.g(i, 0).iB == -1)
-                {
-                    compute_vm_distribution(mf, vmi, i, gi, eq_vu, tol_rel_mf, eps);
-                }
-                else
-                {
-                    compute_vm_distribution(mf, vmi, i, gi, eq_bet, tol_rel_mf, eps);
-                }
+                compute_vm_distribution(mf, vmi, i, gi, tol_rel_mf, eps);
             }
             count_geom++;
             delta_pos_max = 0.;
