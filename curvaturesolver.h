@@ -305,7 +305,7 @@ namespace quiss
     }
 
     template <typename T>
-    auto compute_vm_distribution(T mf, T &vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps)
+    auto compute_vm_distribution(T mf, T vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps)
     {
         auto err_mf = tol_rel_mf * 10.;
         auto mf_ = 0., mf_pre = 0.; // mf shall allways be strictly positive
@@ -360,6 +360,7 @@ namespace quiss
         {
             for (auto i = i_0; i < ni; i++)
             {
+                vmi = gi.g(i, 0).Vm;
                 compute_vm_distribution(mf, vmi, i, gi, tol_rel_mf, eps);
             }
             count_geom++;
