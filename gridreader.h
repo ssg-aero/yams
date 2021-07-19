@@ -106,6 +106,12 @@ namespace quiss
                       { return gp.phi; });
             add_value(g, structuredGrid, "r", [](const auto &gp)
                       { return gp.y; });
+            add_value(g, structuredGrid, "z", [](const auto &gp)
+                      { return gp.x; });
+            add_value(g, structuredGrid, "cp", [](const auto &gp)
+                      { return gp.Cp; });
+            add_value(g, structuredGrid, "ga", [](const auto &gp)
+                      { return gp.ga; });
 
             vtkNew<vtkXMLStructuredGridWriter> writer;
             writer->SetFileName(f_name);
