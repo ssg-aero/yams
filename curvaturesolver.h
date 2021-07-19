@@ -69,6 +69,7 @@ namespace quiss
     {
         GridInfo<T> &gi;
         std::vector<BladeInfo<T>> bld_info_lst;
+        std::vector<T> mf;
         size_t max_geom = 200;
         T eps = 0.00001;
         T tol_rel_mf = 1e-4;
@@ -342,7 +343,10 @@ namespace quiss
         auto tol_rel_mf =solver_case.tol_rel_mf;
         auto tol_pos = solver_case.tol_rel_pos * gi.g(0, nj - 1).l;
 
-        auto mf = compute_massflow(gi.g, 0);
+        auto mf_ = compute_massflow(gi.g, 0);
+        solver_case.mf.resize(ni);
+        std::fill(solver_case.mf.begin(),solver_case.mf.end(),mf_); // Todo add leakage and reintroduction
+
         auto vmi = gi.g(0, 0).Vm;
         int count_geom = 0;
         auto delta_pos_max = 0.;
@@ -361,7 +365,7 @@ namespace quiss
             for (auto i = i_0; i < ni; i++)
             {
                 vmi = gi.g(i, 0).Vm;
-                compute_vm_distribution(mf, vmi, i, gi, tol_rel_mf, eps);
+                compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps);
             }
             count_geom++;
             delta_pos_max = 0.;
@@ -372,7 +376,7 @@ namespace quiss
                 compute_massflow_distribution(gi.g.begin(i), gi.g.end(i));
                 if (i > 0 && count_geom < max_geom)
                 {
-                    delta_pos = balance_massflow(gi, i, tol_rel_mf * mf);
+                    delta_pos = balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]);
                     delta_pos_moy += delta_pos / (ni - 2.);
                     delta_pos_max = fmax(delta_pos_max, delta_pos);
                 }
