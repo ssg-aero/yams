@@ -14,6 +14,7 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkTable.h>
+#include <vtkAxis.h>
 namespace quiss
 {
     template <typename T>
@@ -28,13 +29,13 @@ namespace quiss
         arrX->SetName("X Axis");
         table->AddColumn(arrX);
 
-        vtkNew<vtkFloatArray> arrC;
-        arrC->SetName("Cosine");
-        table->AddColumn(arrC);
+        vtkNew<vtkFloatArray> arr_res_moy;
+        arr_res_moy->SetName("Arg Residual");
+        table->AddColumn(arr_res_moy);
 
-        vtkNew<vtkFloatArray> arrS;
-        arrS->SetName("Sine");
-        table->AddColumn(arrS);
+        vtkNew<vtkFloatArray> arr_res_max;
+        arr_res_max->SetName("Max Residual");
+        table->AddColumn(arr_res_max);
 
         // Fill in the table with some example values.
         int numPoints = log.delta_pos_moy.size();
@@ -43,8 +44,8 @@ namespace quiss
         for (int i = 0; i < numPoints; ++i)
         {
             table->SetValue(i, 0, i );
-            table->SetValue(i, 1, log.delta_pos_moy[i]);
-            table->SetValue(i, 2, log.delta_pos_max[i]);
+            table->SetValue(i, 1, std::log10(log.delta_pos_moy[i]));
+            table->SetValue(i, 2, std::log10(log.delta_pos_max[i]));
         }
 
         // Set up the view
@@ -62,12 +63,14 @@ namespace quiss
         line = chart->AddPlot(vtkChart::LINE);
         line->SetInputData(table, 0, 2);
         line->SetColor(255, 0, 0, 255);
-        line->SetWidth(5.0);
-
+        // line->SetWidth(5.0);
+        chart->SetShowLegend(true);
+        chart->GetAxis(vtkAxis::LEFT)->SetTitle("Residual magnitude");
+        chart->GetAxis(vtkAxis::BOTTOM)->SetTitle("Iterations");
         // For dotted line, the line type can be from 2 to 5 for different dash/dot
         // patterns (see enum in vtkPen containing DASH_LINE, value 2):
         // #ifndef WIN32
-        //   line->GetPen()->SetLineType(vtkPen::DASH_LINE);
+          line->GetPen()->SetLineType(vtkPen::DASH_LINE);
         // #endif
         // (ifdef-ed out on Windows because DASH_LINE does not work on Windows
         //  machines with built-in Intel HD graphics card...)
