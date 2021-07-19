@@ -16,7 +16,7 @@
 namespace quiss
 {
     template <typename T>
-    inline auto make_vtkStructuredGrid(const MeridionalGrid<T> &g)
+    inline auto make_vtkStructuredGrid(const MeridionalGrid<T> &g) -> vtkSmartPointer<vtkStructuredGrid>
     {
         vtkSmartPointer<vtkStructuredGrid> structuredGrid =
             vtkSmartPointer<vtkStructuredGrid>::New();

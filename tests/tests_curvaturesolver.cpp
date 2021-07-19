@@ -34,11 +34,12 @@ TEST(tests_curvature_solver, vtk_no_blades)
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
-        .nj = nj
+        .nj = nj,
+        // .RF = 0.01
     };
 
     quiss::SolverCase<T> solver_case{
-        .gi = gi
+        .gi = gi,
     };
 
     {
@@ -90,7 +91,24 @@ TEST(tests_curvature_solver, vtk_no_blades)
 
     {
         gi.rho_cst = true;
-        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
+        // std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
+        std::for_each(g.begin(0), g.end(0), [Vm, &gi](auto &gp)
+            {
+                gp.Vm = Vm * 0.5;
+                gp.Vu = Vm * 0.5;
+                // gp.Tt = 350. * (gp.y - r2) /(r1 -r2) - 300. * (gp.y - r1) /(r1 -r2);
+                // gp.Ts = 300. + 50. * std::sin( (gp.y - r2) /(r1 -r2) * std::numbers::pi );
+                gp.Ts = 300.;
+                gp.Ps = 1.6432411e5;
+                gp.rho = gp.Ps / (gi.R) / gp.Ts;
+                // gp.Tt = 300.;
+                // gp.Pt = 133337.02 + 0.2e5 * std::sin( (gp.y - r2) /(r1 -r2) * std::numbers::pi );
+                gp.Tt = gp.Ts + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. / gp.Cp;
+                gp.Pt = gp.Ps + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. * gp.rho;
+                gp.H = gp.Tt * gp.Cp;
+                gp.s = std::log(pow(gp.Ts / 288., gp.Cp) / std::pow(gp.Ps / 1.01325e5, 287.04));
+            });
+        std::for_each(g.begin(), g.end(), [&Vm,&gi](auto &gp) {gp.rho= 1.6432411e5 / (gi.R) / 300.; });
         auto start = high_resolution_clock::now();
         quiss::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
@@ -105,6 +123,8 @@ TEST(tests_curvature_solver, vtk_no_blades)
                       { return gp.Vm; });
             add_value(g, structuredGrid, "Vu", [](const auto &gp)
                       { return gp.Vu; });
+            add_value(g, structuredGrid, "rho", [](const auto &gp)
+                      { return gp.rho; });
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
 
             vtkNew<vtkXMLStructuredGridWriter> writer;
@@ -114,68 +134,68 @@ TEST(tests_curvature_solver, vtk_no_blades)
         }
     }
 
-    {
-        gi.rho_cst = false;
-        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
-        auto start = high_resolution_clock::now();
-        quiss::curvature_solver(solver_case);
-        auto stop = high_resolution_clock::now();
-        auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+    // {
+    //     gi.rho_cst = false;
+    //     // std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
+    //     auto start = high_resolution_clock::now();
+    //     quiss::curvature_solver(solver_case);
+    //     auto stop = high_resolution_clock::now();
+    //     auto duration = duration_cast<microseconds>(stop - start);
+    //     cout << "Time taken by meridian computation: "
+    //          << duration.count() << " microseconds" << endl;
 
-        if (TESTS_USE_PLOT)
-        {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            structuredGrid->GetPointData()->SetActiveScalars("Vu");
-            quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+    //     if (TESTS_USE_PLOT)
+    //     {
+    //         auto structuredGrid = quiss::make_vtkStructuredGrid(g);
+    //         add_value(g, structuredGrid, "Vm", [](const auto &gp)
+    //                   { return gp.Vm; });
+    //         add_value(g, structuredGrid, "Vu", [](const auto &gp)
+    //                   { return gp.Vu; });
+    //         structuredGrid->GetPointData()->SetActiveScalars("Vu");
+    //         quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
 
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_var.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
-        }
-    }
+    //         vtkNew<vtkXMLStructuredGridWriter> writer;
+    //         writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_var.vts");
+    //         writer->SetInputData(structuredGrid);
+    //         writer->Write();
+    //     }
+    // }
 
-    {
-        gi.rho_cst = false;
-        solver_case.max_geom=1;
-        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
-        auto r1 = g(0,0).y;
-        auto r2 = g(0,nj-1).y;
-        std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 310. * (gp.y - r1) /(r1 -r2);gp.H = gp.Tt * gp.Cp - 1004. * 288.;});
-        auto start = high_resolution_clock::now();
-        quiss::curvature_solver(solver_case);
-        auto stop = high_resolution_clock::now();
-        auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+    // {
+    //     gi.rho_cst = false;
+    //     solver_case.max_geom=1;
+    //     std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
+    //     auto r1 = g(0,0).y;
+    //     auto r2 = g(0,nj-1).y;
+    //     std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 310. * (gp.y - r1) /(r1 -r2);gp.H = gp.Tt * gp.Cp - 1004. * 288.;});
+    //     auto start = high_resolution_clock::now();
+    //     quiss::curvature_solver(solver_case);
+    //     auto stop = high_resolution_clock::now();
+    //     auto duration = duration_cast<microseconds>(stop - start);
+    //     cout << "Time taken by meridian computation: "
+    //          << duration.count() << " microseconds" << endl;
 
-        if (TESTS_USE_PLOT)
-        {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            add_value(g, structuredGrid, "Tt", [](const auto &gp)
-                      { return gp.Tt; });
-            add_value(g, structuredGrid, "Ts", [](const auto &gp)
-                      { return gp.Ts; });
-            add_value(g, structuredGrid, "rho", [](const auto &gp)
-                      { return gp.rho; });
-            quiss::plot_vtkStructuredGrid(structuredGrid,"rho", true);
+    //     if (TESTS_USE_PLOT)
+    //     {
+    //         auto structuredGrid = quiss::make_vtkStructuredGrid(g);
+    //         add_value(g, structuredGrid, "Vm", [](const auto &gp)
+    //                   { return gp.Vm; });
+    //         add_value(g, structuredGrid, "Vu", [](const auto &gp)
+    //                   { return gp.Vu; });
+    //         add_value(g, structuredGrid, "Tt", [](const auto &gp)
+    //                   { return gp.Tt; });
+    //         add_value(g, structuredGrid, "Ts", [](const auto &gp)
+    //                   { return gp.Ts; });
+    //         add_value(g, structuredGrid, "rho", [](const auto &gp)
+    //                   { return gp.rho; });
+    //         quiss::plot_vtkStructuredGrid(structuredGrid,"rho", true);
 
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
-        }
-    }
+    //         vtkNew<vtkXMLStructuredGridWriter> writer;
+    //         writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
+    //         writer->SetInputData(structuredGrid);
+    //         writer->Write();
+    //     }
+    // }
 }
 
 TEST(tests_curvature_solver, vtk_static_blades1)
@@ -235,21 +255,10 @@ TEST(tests_curvature_solver, vtk_static_blades1)
             std::cout << res << " " << res_analytic << " " << err_pc << "%" << std::endl;
         }
 
+        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
         if (TESTS_USE_PLOT)
         {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            add_value(g, structuredGrid, "k", [](const auto &gp)
-                      { return gp.bet; });
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
         }
     }
 }
@@ -332,38 +341,13 @@ TEST(tests_curvature_solver, vtk_static_blades2)
              << duration.count() << " microseconds" << endl;
 
 
+        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_003.vts");
         if (TESTS_USE_PLOT)
         {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            add_value(g, structuredGrid, "bet", [](const auto &gp)
-                      { return gp.bet * 180 / std::numbers::pi; });
-            add_value(g, structuredGrid, "Tt", [](const auto &gp)
-                      { return gp.Tt; });
-            add_value(g, structuredGrid, "Pt", [](const auto &gp)
-                      { return gp.Pt; });
-            add_value(g, structuredGrid, "Ts", [](const auto &gp)
-                      { return gp.Ts; });
-            add_value(g, structuredGrid, "Ps", [](const auto &gp)
-                      { return gp.Ps; });
-            add_value(g, structuredGrid, "s", [](const auto &gp)
-                      { return gp.s; });
-            add_value(g, structuredGrid, "rho", [](const auto &gp)
-                      { return gp.rho; });
-            add_value(g, structuredGrid, "H", [](const auto &gp)
-                      { return gp.H; });
-            add_value(g, structuredGrid, "q", [](const auto &gp)
-                      { return gp.q; });
-            
+            quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_003.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
         }
     }
 }
@@ -446,45 +430,13 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-
+        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_004.vts");
         if (TESTS_USE_PLOT)
         {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            add_value(g, structuredGrid, "bet", [](const auto &gp)
-                      { return gp.bet * 180 / std::numbers::pi; });
-            add_value(g, structuredGrid, "Tt", [](const auto &gp)
-                      { return gp.Tt; });
-            add_value(g, structuredGrid, "Pt", [](const auto &gp)
-                      { return gp.Pt; });
-            add_value(g, structuredGrid, "Ts", [](const auto &gp)
-                      { return gp.Ts; });
-            add_value(g, structuredGrid, "Ps", [](const auto &gp)
-                      { return gp.Ps; });
-            add_value(g, structuredGrid, "s", [](const auto &gp)
-                      { return gp.s; });
-            add_value(g, structuredGrid, "rho", [](const auto &gp)
-                      { return gp.rho; });
-            add_value(g, structuredGrid, "H", [](const auto &gp)
-                      { return gp.H; });
-            add_value(g, structuredGrid, "q", [](const auto &gp)
-                      { return gp.q; });
-            add_value(g, structuredGrid, "cur", [](const auto &gp)
-                      { return gp.cur; });
-            add_value(g, structuredGrid, "gam", [](const auto &gp)
-                      { return gp.gam; });
-            add_value(g, structuredGrid, "phi", [](const auto &gp)
-                      { return gp.phi; });
-            
+            quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_004.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
         }
     }
 }
@@ -557,49 +509,13 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
              << duration.count() << " microseconds" << endl;
 
 
+        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_005.vts");
         if (TESTS_USE_PLOT)
         {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            add_value(g, structuredGrid, "bet", [](const auto &gp)
-                      { return gp.bet * 180 / std::numbers::pi; });
-            add_value(g, structuredGrid, "Tt", [](const auto &gp)
-                      { return gp.Tt; });
-            add_value(g, structuredGrid, "Pt", [](const auto &gp)
-                      { return gp.Pt; });
-            add_value(g, structuredGrid, "Ts", [](const auto &gp)
-                      { return gp.Ts; });
-            add_value(g, structuredGrid, "Ps", [](const auto &gp)
-                      { return gp.Ps; });
-            add_value(g, structuredGrid, "s", [](const auto &gp)
-                      { return gp.s; });
-            add_value(g, structuredGrid, "rho", [](const auto &gp)
-                      { return gp.rho; });
-            add_value(g, structuredGrid, "H", [](const auto &gp)
-                      { return gp.H; });
-            add_value(g, structuredGrid, "q", [](const auto &gp)
-                      { return gp.q; });
-            add_value(g, structuredGrid, "cur", [](const auto &gp)
-                      { return gp.cur; });
-            add_value(g, structuredGrid, "gam", [](const auto &gp)
-                      { return gp.gam; });
-            add_value(g, structuredGrid, "phi", [](const auto &gp)
-                      { return gp.phi; });
-            add_value(g, structuredGrid, "r", [](const auto &gp)
-                      { return gp.y; });
-            
             quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_005.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
         }
     }
 }
@@ -672,49 +588,13 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
              << duration.count() << " microseconds" << endl;
 
 
+        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_006.vts");
         if (TESTS_USE_PLOT)
         {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            add_value(g, structuredGrid, "bet", [](const auto &gp)
-                      { return gp.bet * 180 / std::numbers::pi; });
-            add_value(g, structuredGrid, "Tt", [](const auto &gp)
-                      { return gp.Tt; });
-            add_value(g, structuredGrid, "Pt", [](const auto &gp)
-                      { return gp.Pt; });
-            add_value(g, structuredGrid, "Ts", [](const auto &gp)
-                      { return gp.Ts; });
-            add_value(g, structuredGrid, "Ps", [](const auto &gp)
-                      { return gp.Ps; });
-            add_value(g, structuredGrid, "s", [](const auto &gp)
-                      { return gp.s; });
-            add_value(g, structuredGrid, "rho", [](const auto &gp)
-                      { return gp.rho; });
-            add_value(g, structuredGrid, "H", [](const auto &gp)
-                      { return gp.H; });
-            add_value(g, structuredGrid, "q", [](const auto &gp)
-                      { return gp.q; });
-            add_value(g, structuredGrid, "cur", [](const auto &gp)
-                      { return gp.cur; });
-            add_value(g, structuredGrid, "gam", [](const auto &gp)
-                      { return gp.gam; });
-            add_value(g, structuredGrid, "phi", [](const auto &gp)
-                      { return gp.phi; });
-            add_value(g, structuredGrid, "r", [](const auto &gp)
-                      { return gp.y; });
-            
             quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_006.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
         }
     }
 }
@@ -787,49 +667,13 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
              << duration.count() << " microseconds" << endl;
 
 
+        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_007.vts");
         if (TESTS_USE_PLOT)
         {
-            auto structuredGrid = quiss::make_vtkStructuredGrid(g);
-            add_value(g, structuredGrid, "Vm", [](const auto &gp)
-                      { return gp.Vm; });
-            add_value(g, structuredGrid, "Vu", [](const auto &gp)
-                      { return gp.Vu; });
-            add_value(g, structuredGrid, "bet", [](const auto &gp)
-                      { return gp.bet * 180 / std::numbers::pi; });
-            add_value(g, structuredGrid, "Tt", [](const auto &gp)
-                      { return gp.Tt; });
-            add_value(g, structuredGrid, "Pt", [](const auto &gp)
-                      { return gp.Pt; });
-            add_value(g, structuredGrid, "Ts", [](const auto &gp)
-                      { return gp.Ts; });
-            add_value(g, structuredGrid, "Ps", [](const auto &gp)
-                      { return gp.Ps; });
-            add_value(g, structuredGrid, "s", [](const auto &gp)
-                      { return gp.s; });
-            add_value(g, structuredGrid, "rho", [](const auto &gp)
-                      { return gp.rho; });
-            add_value(g, structuredGrid, "H", [](const auto &gp)
-                      { return gp.H; });
-            add_value(g, structuredGrid, "q", [](const auto &gp)
-                      { return gp.q; });
-            add_value(g, structuredGrid, "cur", [](const auto &gp)
-                      { return gp.cur; });
-            add_value(g, structuredGrid, "gam", [](const auto &gp)
-                      { return gp.gam; });
-            add_value(g, structuredGrid, "phi", [](const auto &gp)
-                      { return gp.phi; });
-            add_value(g, structuredGrid, "r", [](const auto &gp)
-                      { return gp.y; });
-            
             quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-
-            vtkNew<vtkXMLStructuredGridWriter> writer;
-            writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_007.vts");
-            writer->SetInputData(structuredGrid);
-            writer->Write();
         }
     }
 }
