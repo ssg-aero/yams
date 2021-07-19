@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <curvaturesolver.h>
+#include <plots.h>
 #include <gridreader.h>
 #include <gridsbuilders.h>
 #include <gridrender.h>
@@ -56,6 +57,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
             add_value(g, structuredGrid, "Vm", [](const auto &gp)
                       { return gp.Vm; });
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            quiss::plot_residual(solver_case.log);
 
             vtkNew<vtkXMLStructuredGridWriter> writer;
             writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_rho_cst.vts");
@@ -670,6 +672,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
         auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_007.vts");
         if (TESTS_USE_PLOT)
         {
+            quiss::plot_residual(solver_case.log);
             quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);

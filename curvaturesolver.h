@@ -64,12 +64,23 @@ namespace quiss
         std::optional< gbs::BSCfunction<T> > phi;
     };
 
+
+    template <typename T>
+    struct SolverLog
+    {
+        std::vector<T> delta_pos_max;
+        std::vector<T> delta_pos_moy;
+        std::vector<std::vector<T>> delta_pos;
+        void clear(){delta_pos.clear(),delta_pos_max.clear();delta_pos_moy.clear();}
+    };
+
     template <typename T>
     struct SolverCase
     {
         GridInfo<T> &gi;
         std::vector<BladeInfo<T>> bld_info_lst;
         std::vector<T> mf;
+        SolverLog<T> log;
         size_t max_geom = 200;
         T eps = 0.00001;
         T tol_rel_mf = 1e-4;
@@ -349,9 +360,8 @@ namespace quiss
 
         auto vmi = gi.g(0, 0).Vm;
         int count_geom = 0;
-        auto delta_pos_max = 0.;
-        auto delta_pos = 0.;
-        auto delta_pos_moy = 0.;
+
+        solver_case.log.clear();
         auto converged = false;
 
         auto i_0 = 0;
@@ -368,8 +378,10 @@ namespace quiss
                 compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps);
             }
             count_geom++;
-            delta_pos_max = 0.;
-            delta_pos_moy = 0.;
+            T delta_pos_max {};
+            T delta_pos {};
+            T delta_pos_moy {};
+            solver_case.log.delta_pos.push_back(std::vector<T>{});
             for (auto i = i_0; i < ni; i++) // TODO run in //
             {
                 compute_gas_properties(gi,i);
@@ -378,9 +390,12 @@ namespace quiss
                 {
                     delta_pos = balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]);
                     delta_pos_moy += delta_pos / (ni - 2.);
-                    delta_pos_max = fmax(delta_pos_max, delta_pos);
+                    delta_pos_max = fmax(delta_pos_max,delta_pos);
+                    solver_case.log.delta_pos.back().push_back(delta_pos);
                 }
             }
+            solver_case.log.delta_pos_max.push_back(delta_pos_max);
+            solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
 
             compute_grid_metrics(gi.g,gi.g_metrics,f_m,f_l);// TODO run in // 
 
