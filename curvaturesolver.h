@@ -4,6 +4,7 @@
 #include <gridmetrics.h>
 #include <gbs/bscinterp.h>
 #include <optional>
+#include <functional>
 
 namespace quiss
 {
@@ -41,6 +42,8 @@ namespace quiss
         const char* gas_name;
         bool rho_cst = true;
         T R = 287.04; // perfect gas constant
+        T Pref = 1.01325e5;
+        T Tref = 288.;
         T RF = 0.01;
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
@@ -64,6 +67,21 @@ namespace quiss
         std::optional< gbs::BSCfunction<T> > phi;
     };
 
+    enum class MeridionalBC
+    {
+        INLET_Mf_Ts_Ps_Vu,
+        INLET_VmMoy_Ts_Ps_Vu,
+    };
+
+    template <typename T>
+    struct Inlet_BC{
+        MeridionalBC mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu;
+        std::function<T(T)> Ps = [](auto l_rel){return 1.01325e5;};
+        std::function<T(T)> Ts = [](auto l_rel){return 300.;};
+        std::function<T(T)> Vu = [](auto l_rel){return 0.;};
+        T Mf =1.;
+        T Vm_moy = 30.;
+    };
 
     template <typename T>
     struct SolverLog
@@ -79,6 +97,7 @@ namespace quiss
     {
         GridInfo<T> &gi;
         std::vector<BladeInfo<T>> bld_info_lst;
+        Inlet_BC<T> inlet;
         std::vector<T> mf;
         SolverLog<T> log;
         size_t max_geom = 200;
@@ -106,21 +125,6 @@ namespace quiss
         return std::make_tuple(u, delta, count);
     };
 
-    auto eval_H_s = [](auto &gi, size_t i, size_t j) {
-        if(i>0)
-        {
-            auto &g = gi.g;
-            const auto &g1 = g(i - 1, j);
-            auto &g2 = g(i, j);
-            g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it also works if g1 is not a blade
-            g2.I = g2.H - g2.omg * g2.y * g2.Vu;
-            // g2.s = g1.s; // TODO modify entropy
-            // g2.s = g(0,j).s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
-            // g2.s = g1.s + g2.Cp/g2.ga * std::log((g2.Ps/g1.Ps)/std::pow(g2.rho/g1.rho,g2.ga)) ;
-            g2.s = std::log(pow(g2.Ts/288.,g2.Cp)/std::pow(g2.Ps/1.01325e5,gi.R)) ;
-        }
-    };
-
     template <typename T, typename _Func>
     void integrate_RK2_vm_sheet(T vmi, size_t i, GridInfo<T> &gi, _Func F)
     {
@@ -130,7 +134,7 @@ namespace quiss
         g(i, 0).Vm = vmi;
         size_t nj = g.nCols();
 
-        eval_H_s(gi,i,0);
+        // eval_H_s(gi,i,0);
 
         for (auto j = 1; j < nj; j++)
         {
@@ -145,14 +149,14 @@ namespace quiss
             auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
             // g(i, j).Vm = std::fmin(sqrt(2. * sqVmq2_1),320.);// TODO add H and s to eq
             g(i, j).Vm = sqrt(2. * sqVmq2_1);
-            eval_H_s(gi,i,j); // equations are using H and s (enthalpy and entropy)
+            // eval_H_s(gi,i,j); // equations are using H and s (enthalpy and entropy)
             auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth);
             assert(Fj==Fj);
 
             auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
-            eval_H_s(gi,i,j);
+            // eval_H_s(gi,i,j);
         }
     }
 
@@ -194,9 +198,13 @@ namespace quiss
         {
             for (auto j = 0; j < nj; j++)
             {
-                eval_H_s(gi, i, j);
                 const auto &g1 = g(i - 1, j);
                 auto &g2 = g(i, j);
+
+                // Compute enthalpy variation
+                g2.H = g1.H + g2.omg * (g2.y * g2.Vu - g1.y * g1.Vu); // So it also works if g1 is not a blade
+                g2.I = g2.H - g2.omg * g2.y * g2.Vu;
+
                 g2.Tt = g1.Tt + (g2.H - g1.H) / ( 0.5 * ( g1.Cp + g2.Cp) );
                 auto ga = 0.5 * (g1.ga + g2.ga);
                 auto P2is = g1.Pt * std::pow(g2.Tt / g1.Tt, ga / (ga - 1));
@@ -214,8 +222,11 @@ namespace quiss
             {
                 gp.rho = gp.Ps / gi.R / gp.Ts;
             }
-            if(i!=0) eval_H_s(gi, i, j);
-            // TODO update cp ga
+            // TODO update cp
+            gp.ga = 1. / (1. - gi.R / gp.Cp);
+            // Compute entropy rise
+            // TODO compute elemetary entropy rises from different losses and the compute Ps then Pt
+            gp.s = std::log(pow(gp.Ts/gi.Tref,gp.Cp)/std::pow(gp.Ps/gi.Pref,gi.R)) ;
         }
     }
 
@@ -329,7 +340,7 @@ namespace quiss
             mf_ = eq_massflow(vmi, gi, i);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
             assert(vmi >= 0.);
-            // vmi = fmin(fmax(0.1,vmi),360.);
+            vmi = fmin(fmax(0.1,vmi),360.);
             err_mf = fabs(mf_ - mf) / mf;
             count++;
         }
@@ -338,6 +349,55 @@ namespace quiss
             std::cout << "Warning span: " << i << " did not converged." << std::endl;
         }
     }
+
+    template <typename T>
+    auto apply_bc(quiss::SolverCase<T> &solver_case)
+    {
+        auto &gi = solver_case.gi;
+        auto &g  = gi.g;
+        const auto &inlet = solver_case.inlet;
+        size_t nj = g.nCols();
+        auto l_tot = g(0, nj - 1).l;
+        auto Pref = solver_case.gi.Pref;
+        auto Tref = solver_case.gi.Tref;
+        if (solver_case.inlet.mode == MeridionalBC::INLET_VmMoy_Ts_Ps_Vu ||
+            solver_case.inlet.mode == MeridionalBC::INLET_Mf_Ts_Ps_Vu)
+        {
+            std::for_each(g.begin(0), g.end(0), [l_tot, Tref, Pref, &inlet, &gi](auto &gp)
+                          {
+                              auto l_rel = gp.l / l_tot;
+                              gp.Vu = inlet.Vu(l_rel);
+                              gp.Ts = inlet.Ts(l_rel);
+                              gp.Ps = inlet.Ps(l_rel);
+                              if(!gi.rho_cst)
+                                    gp.rho = gp.Ps / (gi.R) / gp.Ts;
+                              gp.Tt = gp.Ts + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. / gp.Cp;
+                              gp.Pt = gp.Ps + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. * gp.rho;
+                              gp.H = gp.Tt * gp.Cp;
+                              gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
+                          });
+        }
+    }
+
+    template <typename T>
+    auto apply_mf(quiss::SolverCase<T> &solver_case)
+    {
+        auto &gi = solver_case.gi;
+        size_t ni = gi.g.nRows();
+        if(solver_case.inlet.mode == MeridionalBC::INLET_VmMoy_Ts_Ps_Vu)
+        {
+            // std::fill(gi.g.begin(0),gi.g.end(0),solver_case.inlet.Vm_moy);
+            std::for_each(gi.g.begin(0),gi.g.end(0),
+                [Vm = solver_case.inlet.Vm_moy](auto &gp)
+                {
+                    gp.Vm=Vm;
+                }
+            );
+            solver_case.inlet.Mf = compute_massflow(gi.g, 0);
+        }
+        solver_case.mf.resize(ni);
+        std::fill(solver_case.mf.begin(),solver_case.mf.end(),solver_case.inlet.Mf); // Todo add leakage and reintroduction
+    }  
 
     template <typename T>
     auto curvature_solver(quiss::SolverCase<T> &solver_case)
@@ -354,9 +414,7 @@ namespace quiss
         auto tol_rel_mf =solver_case.tol_rel_mf;
         auto tol_pos = solver_case.tol_rel_pos * gi.g(0, nj - 1).l;
 
-        auto mf_ = compute_massflow(gi.g, 0);
-        solver_case.mf.resize(ni);
-        std::fill(solver_case.mf.begin(),solver_case.mf.end(),mf_); // Todo add leakage and reintroduction
+        apply_mf(solver_case);
 
         auto vmi = gi.g(0, 0).Vm;
         int count_geom = 0;
@@ -370,13 +428,19 @@ namespace quiss
             compute_gas_properties(gi, i);
         }
 
+        apply_bc(solver_case);
+
         while (!converged)
         {
+
+            // apply_bc(solver_case);
+
             for (auto i = i_0; i < ni; i++)
             {
                 vmi = gi.g(i, 0).Vm;
                 compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps);
             }
+
             count_geom++;
             T delta_pos_max {};
             T delta_pos {};
@@ -398,6 +462,8 @@ namespace quiss
             solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
 
             compute_grid_metrics(gi.g,gi.g_metrics,f_m,f_l);// TODO run in // 
+
+            // apply_bc(solver_case);
 
             converged = (delta_pos_moy < tol_pos) || (count_geom >= max_geom);
             std::cout << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
