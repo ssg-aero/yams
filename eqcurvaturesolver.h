@@ -44,8 +44,10 @@ namespace quiss
         auto ce = cos(gp.eps);
         auto se = sin(gp.eps);
         auto D1 = gp.y > 0. ?  gp.cgp * ce * (gp.cur + tb / gp.y * gp.Dphi_Dth) : 0.;
-        auto D2 = gp.y > 0. ? -tb / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
-        auto D3 = gp.y > 0. ?  se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
+        // auto D2 = gp.y > 0. ? -tb / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
+        auto D2 = gp.y > 0. ? -tb / gp.y * ce * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
+        // auto D3 = gp.y > 0. ?  se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
+        auto D3 = gp.y > 0. ?  se / gp.y * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
         return cb * cb * (D1 + D2 + D3);
     };
 
@@ -67,9 +69,11 @@ namespace quiss
         auto sb = sin(gp.bet);
         auto ce = cos(gp.eps);
         auto se = sin(gp.eps);
-        auto F1 = ce * cb * cb * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
+        // auto F1 = ce * cb * cb * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
+        auto F1 = ce * cb * cb * (D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I) - gp.Ts * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
         auto F2 = ce * cb * gp.sgp + se * sb;
-        auto F3 = cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2) + cb * cb * cb * gp.Ts * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        // auto F3 = cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2) + cb * cb * cb * gp.Ts * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        auto F3 = cb * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2) + cb * cb * cb * gp.Ts * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
         return F1 + F2 * F3;
     };
 
@@ -93,7 +97,8 @@ namespace quiss
     {
         const auto &gp = g(i, j);
         auto se = sin(gp.eps);                                                    //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
-        return se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu); // simplification of cos beta with dS -> dm
+        // return se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu); // simplification of cos beta with dS -> dm
+        return se / gp.y * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu); // simplification of cos beta with dS -> dm
     };
 
     auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
@@ -105,32 +110,17 @@ namespace quiss
         auto ce = cos(gp.eps);
         auto sb = sin(beta);
         auto se = sin(gp.eps);
-        auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
-        auto K2 = -gp.Vu / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
-        auto K3 = ce * gp.sgp * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
-        auto K4 = (ce * cb * gp.sgp + se * sb) * gp.Ts * cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        // auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
+        auto K1 = ce * (D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
+        // auto K2 = -gp.Vu / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
+        auto K2 = -gp.Vu / gp.y * ce * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
+        // auto K3 = ce * gp.sgp * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
+        auto K3 = ce * gp.sgp * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
+        // auto K4 = (ce * cb * gp.sgp + se * sb) * gp.Ts * cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        auto K4 = (ce * cb * gp.sgp + se * sb) * gp.Ts * cb * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
         // auto K4 = 0.;
         return K1 + K2 + K3 + K4;
-        /*
-        auto tg_part = 0.;
-        if (gp.y > 0.)
-        {
-            tg_part = -gp.Vu / gp.y;
-            tg_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu);
 
-        }
-        assert(tg_part == tg_part);
-        auto m_part = 0.;
-        if (i > 0)
-        {
-            m_part = sin(gp.gam + gp.phi) / cos(beta);
-                        T v_ksi, v_eth;
-            m_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu) / cos(beta);
-
-        }
-        assert(m_part == m_part);
-        return tg_part + m_part;
-        */
     };
 
     auto eq_vu = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)

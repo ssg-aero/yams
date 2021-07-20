@@ -251,7 +251,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .ni = ni,
         .nj = nj,
         .rho_cst=false,
-        .RF = 0.06,
+        .RF = 0.05,
     };
 
     quiss::SolverCase<T> solver_case{
@@ -277,7 +277,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_003.vts");
         if (TESTS_USE_PLOT)
         {
-            quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
@@ -341,7 +341,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_004.vts");
         if (TESTS_USE_PLOT)
         {
-            quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);

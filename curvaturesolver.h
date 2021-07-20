@@ -136,28 +136,52 @@ namespace quiss
 
         // eval_H_s(gi,i,0);
 
-        for (auto j = 1; j < nj; j++)
+        // for (auto j = 1; j < nj; j++)
+        // {
+        //     const auto &gp = g(i, j);
+        //     const auto &gp_prev = g(i, j - 1);
+
+        //     auto sqVmq2 = f_sqVmq2(gp_prev);
+        //     auto dl = gp.l - gp_prev.l;
+        //     auto Fjm= F(g,g_metrics, i, j - 1,gi.d_ksi,gi.d_eth);
+        //     assert(Fjm==Fjm);
+
+        //     auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
+        //     // g(i, j).Vm = std::fmin(sqrt(2. * sqVmq2_1),320.);// TODO add H and s to eq
+        //     g(i, j).Vm = sqrt(2. * sqVmq2_1);
+        //     // eval_H_s(gi,i,j); // equations are using H and s (enthalpy and entropy)
+        //     auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth);
+        //     assert(Fj==Fj);
+
+        //     auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
+        //     // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
+        //     g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
+        //     // eval_H_s(gi,i,j);
+        // }
+
+        // int j_beg = nj-2;
+        // int j_end = -1;
+        // int j_stp = -1;
+        int j_beg = 1;
+        int j_end = nj;
+        int j_stp = 1;
+        for (int j = j_beg; j != j_end; j+=j_stp)
         {
             const auto &gp = g(i, j);
-            const auto &gp_prev = g(i, j - 1);
+            const auto &gp_prev = g(i, j - j_stp);
 
             auto sqVmq2 = f_sqVmq2(gp_prev);
             auto dl = gp.l - gp_prev.l;
-            auto Fjm= F(g,g_metrics, i, j - 1,gi.d_ksi,gi.d_eth);
-            assert(Fjm==Fjm);
 
+            auto Fjm= F(g,g_metrics, i, j - j_stp,gi.d_ksi,gi.d_eth); assert(Fjm==Fjm);
             auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
-            // g(i, j).Vm = std::fmin(sqrt(2. * sqVmq2_1),320.);// TODO add H and s to eq
             g(i, j).Vm = sqrt(2. * sqVmq2_1);
-            // eval_H_s(gi,i,j); // equations are using H and s (enthalpy and entropy)
-            auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth);
-            assert(Fj==Fj);
-
+            
+            auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth); assert(Fj==Fj);
             auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
-            // g(i, j).Vm = std::fmin(0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2)),320.);
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
-            // eval_H_s(gi,i,j);
         }
+
     }
 
 
