@@ -515,9 +515,9 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
         .gi = gi,
         .inlet = quiss::Inlet_BC<T>{
             .mode = quiss::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
-            .Ps   = [Ps](auto l_rel){return Ps;},
+            .Ps   = [Ps](auto l_rel){return Ps + 0.5 * Ps * l_rel;},
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
-            .Vu   = [Vm](auto l_rel){return  Vm * 0.8 * (1.-l_rel) - Vm * 1.2 * l_rel;},
+            .Vu   = [Vm](auto l_rel){return  Vm * 0.8 * (1.-l_rel) + Vm * 1.2 * l_rel;},
             .Vm_moy=Vm
         },
         .max_geom = 5000
@@ -536,8 +536,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
         auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_007.vts");
         if (TESTS_USE_PLOT)
         {
-            quiss::plot_residual(solver_case.log);
-            quiss::plot_vtkStructuredGrid(structuredGrid,"r", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
