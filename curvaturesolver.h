@@ -281,7 +281,7 @@ namespace quiss
             integrate_RK2_vm_sheet(vmi, i, gi, eq_bet);
             for (auto j = 0; j < nj; j++)
             {
-                g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet);
+                g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet + g(i, j).y * g(i, j).omg );
             }
         }
         // compute_gas_properties(gi,i);
