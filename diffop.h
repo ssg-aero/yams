@@ -128,6 +128,16 @@ namespace quiss
         return (-1. * X(g(i, j - 1)) + 1. * X(g(i , j)) ) /  d_eth;
     }
     template <typename T, typename fX,typename L>
+    auto D1_O1_ksi_fw(T &g, size_t i, size_t j, fX X, L d_ksi)
+    {
+        return ( 1. * X(g(i + 1, j)) - 1. * X(g(i , j)) ) /  d_ksi;
+    }
+    template <typename T, typename fX,typename L>
+    auto D1_O1_eth_fw(T &g, size_t i, size_t j, fX X, L d_eth)
+    {
+        return ( 1. * X(g(i, j + 1)) - 1. * X(g(i , j)) ) /  d_eth;
+    }
+    template <typename T, typename fX,typename L>
     auto D1_O2_ksi_fw(T &g, size_t i, size_t j, fX X, L d_ksi)
     {
         return (-3. * X(g(i, j)) + 4. * X(g(i + 1, j)) - 1. * X(g(i + 2, j)) ) / (2. * d_ksi);
@@ -162,11 +172,13 @@ namespace quiss
     {
         if (i == 0)
         {
-            return D1_O2_ksi_fw(g, i, j, X, d_ksi);
+            // return D1_O2_ksi_fw(g, i, j, X, d_ksi);
+            return D1_O1_ksi_fw(g, i, j, X, d_ksi);
         }
         else if (i == g.nRows() - 1)
         {
-            return D1_O2_ksi_bw(g, i, j, X, d_ksi);
+            // return D1_O2_ksi_bw(g, i, j, X, d_ksi);
+            return D1_O1_ksi_bw(g, i, j, X, d_ksi);
         }
         else
         {
@@ -179,11 +191,13 @@ namespace quiss
     {
         if(j==0)
         {
-            return D1_O2_eth_fw(g,i,j,X,d_eth);
+            // return D1_O2_eth_fw(g,i,j,X,d_eth);
+            return D1_O1_eth_fw(g,i,j,X,d_eth);
         }
         else if (j==g.nCols()-1)
         {
-            return D1_O2_eth_bw(g,i,j,X,d_eth);
+            // return D1_O2_eth_bw(g,i,j,X,d_eth);
+            return D1_O1_eth_bw(g,i,j,X,d_eth);
         }
         else{
             return D1_O2_eth_ct(g, i, j, X, d_eth);
