@@ -477,6 +477,7 @@ namespace quiss
                 if (i > 0 && count_geom < max_geom)
                 {
                     delta_pos = balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]);
+                    delta_pos /= gi.g(i,nj-1).l; // To get relative length
                     delta_pos_moy += delta_pos / (ni - 2.);
                     delta_pos_max = fmax(delta_pos_max,delta_pos);
                     solver_case.log.delta_pos.back().push_back(delta_pos);
