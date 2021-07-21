@@ -23,12 +23,14 @@ namespace quiss
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =100;
     };
+    
     enum class MeridionalBladeMode
     {
         DESIGN_BETA_OUT,
         DESIGN_PHI,
         DIRECT
     };
+
     template <typename T>
     struct BladeInfo{
         std::string name;
@@ -37,8 +39,8 @@ namespace quiss
         T omg     = 0.;
         T omg_    = 0.;
         MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
-        std::optional< gbs::BSCfunction<T> > beta_out;
-        std::optional< gbs::BSCfunction<T> > phi;
+        std::optional< std::function<T(T)> > beta_out;
+        std::optional< std::function<T(T)> > phi;
     };
 
     enum class MeridionalBC
