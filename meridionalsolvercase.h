@@ -13,6 +13,7 @@ namespace quiss
         T d_eth;
         size_t ni;
         size_t nj;
+        T j_0 {0.5};
         const char* gas_name;
         bool rho_cst = true;
         T R = 287.04; // perfect gas constant
@@ -23,7 +24,7 @@ namespace quiss
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =100;
     };
-    
+
     enum class MeridionalBladeMode
     {
         DESIGN_BETA_OUT,
