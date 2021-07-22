@@ -82,7 +82,7 @@ namespace quiss
             std::for_each(g.begin(i),g.end(i),[vmi](auto &gp){gp.Vm=vmi;});
             return;
         }
-        
+
         size_t nj = g.nCols();
         int j_0 = nj * gi.j_0 + 1;
         g(i, j_0).Vm = vmi;
@@ -383,7 +383,7 @@ namespace quiss
 
             for (auto i = i_0; i < ni; i++)
             {
-                vmi = gi.g(i, 0).Vm;
+                vmi = gi.g(i, nj * gi.j_0 + 1).Vm;
                 compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps,true);
                 compute_gas_properties(gi,i);
             }
