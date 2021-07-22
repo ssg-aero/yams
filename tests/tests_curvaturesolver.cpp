@@ -299,7 +299,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
     // init values
     size_t ni = g.nRows();
     size_t nj = g.nCols();
-    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; /*gp.iB=-1;*/  if(gp.iB!=-1) gp.omg_=0.0; });
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; /*gp.iB=-1;*/  if(gp.iB!=-1) gp.omg_=0.1; });
     // std::cout << PropsSI("Dmolar","T",298,"P",1e5,"REFPROP::Propane[0.5]&Ethane[0.5]") << std::endl;
 
     double ksi = 1. / (ni-1.);
@@ -327,7 +327,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
             .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
         },
-        .max_geom = 1000
+        .max_geom = 1000,
     };
 
     {
@@ -341,6 +341,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_004.vts");
         if (TESTS_USE_PLOT)
         {
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Pt", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);

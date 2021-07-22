@@ -35,8 +35,9 @@ namespace quiss
     template <typename T>
     struct BladeInfo{
         std::string name;
-        size_t i1 = -1;
-        size_t i2 = -1;
+        int i1 = -1;
+        int is = -1; 
+        int i2 = -1;
         T omg     = 0.;
         T omg_    = 0.;
         MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
@@ -56,6 +57,8 @@ namespace quiss
         std::function<T(T)> Ps = [](auto l_rel){return 1.01325e5;};
         std::function<T(T)> Ts = [](auto l_rel){return 300.;};
         std::function<T(T)> Vu = [](auto l_rel){return 0.;};
+        std::function<T(T)> Pt = [](auto l_rel){return 1.01325e5;};
+        std::function<T(T)> Tt = [](auto l_rel){return 300.;};
         T Mf =1.;
         T Vm_moy = 30.;
     };
