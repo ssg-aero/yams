@@ -41,8 +41,8 @@ namespace quiss
         T omg     = 0.;
         T omg_    = 0.;
         MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
-        std::optional< std::function<T(T)> > beta_out;
-        std::optional< std::function<T(T)> > phi;
+        std::function<T(T)> beta_out;
+        std::function<T(T)> phi;
     };
 
     enum class MeridionalBC

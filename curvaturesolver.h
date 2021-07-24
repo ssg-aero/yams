@@ -161,10 +161,12 @@ namespace quiss
     }
 
     template <typename T>
-    auto eq_massflow(T vmi, GridInfo<T> &gi, int i, bool integrate)
+    auto eq_massflow(T vmi, quiss::SolverCase<T> &solver_case, int i, bool integrate)
     {
+        auto &gi= solver_case.gi;
         auto &g = gi.g;
         auto nj = g.nCols();
+        
         if (g(i, 0).iB == -1)
         {
             for (auto j = 0; j < nj; j++)
@@ -173,22 +175,56 @@ namespace quiss
                 {
                     g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
                 }
-                g(i, j).bet = atan2(g(i, j).Vu, g(i, j).Vm); // <- lag from previous
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
             }
 
             integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
         }
         else
         {
-            for (auto j = 0; j < nj; j++)
+            if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DIRECT)
             {
-                g(i, j).bet = g(i, j).k;
-            g(i,j).Vm = vmi;
+                for (auto j = 0; j < nj; j++)
+                {
+                    g(i, j).bet = g(i, j).k;
+                }
+                integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
+                for (auto j = 0; j < nj; j++)
+                {
+                    g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
+                }
             }
-            integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
-            for (auto j = 0; j < nj; j++)
+            else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_BETA_OUT)
             {
-                g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet + g(i, j).y * g(i, j).omg );
+                auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
+                auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
+                if(i == i1)
+                {
+                    for (auto j = 0; j < nj; j++)
+                    {
+                        g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+                        g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+                    }
+                    integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+                }
+                else
+                {
+                    for (auto j = 0; j < nj; j++)
+                    {
+                        auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
+                        auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
+                        auto bet_out = solver_case.bld_info_lst[g(i, j).iB].beta_out(l_rel);
+                        auto bet_in  = g(i1, j).bet;
+                        g(i, j).bet = bet_in *(1.-m_rel_loc) + bet_out * m_rel_loc;
+                        auto gp = g(i, j);
+                        auto b = gp.bet;
+                    }
+                    integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
+                    for (auto j = 0; j < nj; j++)
+                    {
+                        g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
+                    }
+                }
             }
         }
         // compute_gas_properties(gi,i);
@@ -259,18 +295,20 @@ namespace quiss
     }
 
     template <typename T>
-    auto compute_vm_distribution(T mf, T vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps, bool integrate)
+    // auto compute_vm_distribution(T mf, T vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps, bool integrate)
+    auto compute_vm_distribution(quiss::SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
     {
+        auto mf     = solver_case.mf[i];
         auto err_mf = tol_rel_mf * 10.;
-        auto mf_ = 0., mf_pre = 0.; // mf shall allways be strictly positive
-        int count = 0;
-        auto max_count = gi.vm_distribution_max_count;
+        auto mf_    = 0., mf_pre = 0.; // mf shall allways be strictly positive
+        int count   = 0;
+        auto max_count = solver_case.gi.vm_distribution_max_count;
         while (err_mf > tol_rel_mf && count < max_count)
         {
-            mf_pre = eq_massflow(vmi - eps, gi, i, integrate);
-            mf_ = eq_massflow(vmi, gi, i, integrate);
+            mf_pre = eq_massflow(vmi - eps, solver_case, i, integrate);
+            mf_ = eq_massflow(vmi, solver_case, i, integrate);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
-            assert(vmi >= 0.);
+            // assert(vmi >= 0.);
             vmi = fmin(fmax(0.1,vmi),360.);
             err_mf = fabs(mf_ - mf) / mf;
             count++;
@@ -332,18 +370,20 @@ namespace quiss
     }  
 
     template <typename T>
-    auto init_values(GridInfo<T> &gi,const std::vector<T> &mf, T tol_rel_mf, T eps)
+    // auto init_values(GridInfo<T> &gi,const std::vector<T> &mf, T tol_rel_mf, T eps)
+     auto init_values(quiss::SolverCase<T> &solver_case, T tol_rel_mf, T eps)
     {
+        auto &gi   = solver_case.gi;
         size_t ni = gi.g.nRows();
-        auto vmi = gi.g(0, 0).Vm;
+        auto vmi  = gi.g(0, 0).Vm;
         for (auto i = 0; i < ni; i++)
         {
-            compute_vm_distribution(mf[i], vmi, i, gi, tol_rel_mf, eps, false);
+            compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps, false);
             compute_gas_properties(gi, i);
         }
         for (auto i = 0; i < ni; i++)
         {
-            compute_vm_distribution(mf[i], vmi, i, gi, tol_rel_mf, eps, false);
+            compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps, false);
             compute_gas_properties(gi, i);
         }
     }
@@ -374,7 +414,7 @@ namespace quiss
 
         apply_bc(solver_case);
 
-        init_values(gi,solver_case.mf,tol_rel_mf, eps);
+        init_values(solver_case,tol_rel_mf, eps);
 
         while (!converged && (count_geom < max_geom))
         {
@@ -384,7 +424,8 @@ namespace quiss
             for (auto i = i_0; i < ni; i++)
             {
                 vmi = gi.g(i, nj * gi.j_0 + 1).Vm;
-                compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps,true);
+                // compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps,true);
+                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,true);
                 compute_gas_properties(gi,i);
             }
 
@@ -413,7 +454,7 @@ namespace quiss
             // apply_bc(solver_case);
 
             converged = delta_pos_moy < tol_pos;
-            std::cout << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
+
         }
     }
 }
