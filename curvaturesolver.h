@@ -216,13 +216,44 @@ namespace quiss
                         auto bet_out = solver_case.bld_info_lst[g(i, j).iB].beta_out(l_rel);
                         auto bet_in  = g(i1, j).bet;
                         g(i, j).bet = bet_in *(1.-m_rel_loc) + bet_out * m_rel_loc;
-                        auto gp = g(i, j);
-                        auto b = gp.bet;
                     }
                     integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
                     for (auto j = 0; j < nj; j++)
                     {
                         g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
+                    }
+                }
+            }
+            else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_PHI)
+            {
+                auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
+                auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
+                auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
+                auto f_phi=solver_case.bld_info_lst[g(i, 0).iB].phi;
+                if(i == i1)
+                {
+                    for (auto j = 0; j < nj; j++)
+                    {
+                        g(i, j).omg = omg; // TODO rem omg from grid
+                        g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+                        g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+                    }
+                    integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+                }
+                else
+                {
+                    for (auto j = 0; j < nj; j++)
+                    {
+                        g(i, j).omg = omg; // TODO rem omg from grid
+                        auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
+                        auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
+                        auto phi_out =f_phi(l_rel);
+                        g(i, j).Vu = g(i1, j).Vu + m_rel_loc * phi_out * g(i, j).y * omg;
+                    }
+                    integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+                    for (auto j = 0; j < nj; j++)
+                    {
+                        g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
                     }
                 }
             }

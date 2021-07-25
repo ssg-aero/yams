@@ -146,10 +146,27 @@ namespace quiss
             info_.is     = bld_info["is"].GetUint64();
             info_.omg    = gbs::get_val<T>( bld_info["omg"] );
             info_.mode   = magic_enum::enum_cast<MeridionalBladeMode>( bld_info["mode"].GetString() ).value_or(MeridionalBladeMode::DIRECT);
-            auto span    = gbs::make_vec<T>(bld_info["span"]);
-            auto b_out   = gbs::make_vec<T>(bld_info["b_out"]);
-            size_t p     = std::min<size_t>(span.size()-1, 5);
-            info_.beta_out = gbs::BSCfunction<T>{gbs::interpolate(b_out, span, p)};
+            switch (info_.mode)
+            {
+            case MeridionalBladeMode::DESIGN_BETA_OUT:
+            {
+                auto span = gbs::make_vec<T>(bld_info["span"]);
+                auto b_out = gbs::make_vec<T>(bld_info["b_out"]);
+                size_t p = std::min<size_t>(span.size() - 1, 5);
+                info_.beta_out = gbs::BSCfunction<T>{gbs::interpolate(b_out, span, p)};
+            }
+            break;
+            case MeridionalBladeMode::DESIGN_PHI:
+            {
+                auto span = gbs::make_vec<T>(bld_info["span"]);
+                auto phi = gbs::make_vec<T>(bld_info["phi"]);
+                size_t p = std::min<size_t>(span.size() - 1, 5);
+                info_.phi = gbs::BSCfunction<T>{gbs::interpolate(phi, span, p)};
+            }
+            break;
+            default:
+                break;
+            }
         }
 
         solver_case.max_geom    = document["max_geom"].GetUint64();
