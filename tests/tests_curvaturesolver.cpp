@@ -6,6 +6,10 @@
 #include <gridrender.h>
 #include <datastorage.h>
 #include <vtkXMLStructuredGridWriter.h>
+#include <rapidjson/filewritestream.h>
+#include <rapidjson/writer.h>
+#include <tbs/io/json2.h>
+#include <tbs/ui/plots.h>
 // #include <CoolPropLib.h>
 
 #include <chrono>
@@ -672,9 +676,9 @@ TEST(tests_curvature_solver, vtk_fan_design)
     };
 
     quiss::read_blade_info( (fname+"_bld.json").c_str(), solver_case );
-    solver_case.max_geom = 1000;
-    solver_case.tol_rel_mf=0.05;
-    solver_case.tol_rel_pos=0.05;
+    solver_case.max_geom = 5000;
+    // solver_case.tol_rel_mf=0.05;
+    // solver_case.tol_rel_pos=0.05;
 
     std::for_each(g.begin(), g.end(), [&Vm](auto &gp)
                   {
@@ -692,7 +696,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_008_design.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,(fname+"_design.vts").c_str());
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -710,4 +714,37 @@ TEST(tests_curvature_solver, vtk_fan_design)
         }
     }
 
+    rapidjson::Document document;
+    gbs::parse_file((fname+".json").c_str(), document);
+
+    {
+        tbs::AeroMachine<double> b_set;
+        tbs::read_and_store_aero_machine(b_set, document);
+        tbs::plot_3d(b_set);
+    }
+
+    auto i1 = solver_case.bld_info_lst[0].i1;
+    auto i2 = solver_case.bld_info_lst[0].i2;
+    document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][0]["k"][0] = g(i1,0).bet;
+    document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][0]["k"][1] = g(i2,0).bet;
+    document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][0]["gauge"]= 0.5 *( g(i1,0).bet + g(i2,0).bet);
+    document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][1]["k"][0] = g(i1,nj-1).bet;
+    document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][1]["k"][1] = g(i2,nj-1).bet;
+    document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][1]["gauge"]= 0.5 *( g(i1,nj-1).bet + g(i2,nj-1).bet);
+
+    FILE *fp = fopen((fname+"_desing.json").c_str(), "wb"); // non-Windows use "w"
+
+    char writeBuffer[65536];
+    rapidjson::FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
+
+    rapidjson::Writer<rapidjson::FileWriteStream> writer(os);
+    document.Accept(writer);
+
+    fclose(fp);
+
+    {
+        tbs::AeroMachine<double> b_set;
+        tbs::read_and_store_aero_machine(b_set, document);
+        tbs::plot_3d(b_set);
+    }
 }

@@ -66,6 +66,7 @@ target_link_libraries(${PROJECT_NAME}
                             xtensor::use_xsimd
                             ${VTK_LIBRARIES}
                             nlopt
+                            gbs-render
                     )
 
 vtk_module_autoinit(
