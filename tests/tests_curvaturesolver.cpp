@@ -663,6 +663,14 @@ TEST(tests_curvature_solver, vtk_fan_design)
 
     quiss::read_blade_info( (fname+"_bld.json").c_str(), solver_case );
     solver_case.max_geom = 1000;
+    solver_case.tol_rel_mf=0.05;
+    solver_case.tol_rel_pos=0.05;
+
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp)
+                  {
+                      if (gp.iB != -1)
+                          gp.omg_ = 0.01;
+                  });
 
     using namespace std::chrono;
     {
@@ -679,6 +687,8 @@ TEST(tests_curvature_solver, vtk_fan_design)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Pt", true);
+            quiss::plot_vtkStructuredGrid(structuredGrid,"Tt", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
             quiss::plot_vtkStructuredGrid(structuredGrid,"V", true);
