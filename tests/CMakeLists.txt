@@ -67,6 +67,7 @@ target_link_libraries(${PROJECT_NAME}
                             ${VTK_LIBRARIES}
                             nlopt
                             gbs-render
+                            iges
                     )
 
 vtk_module_autoinit(

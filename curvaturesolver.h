@@ -395,6 +395,7 @@ namespace quiss
                 }
             );
             solver_case.inlet.Mf = compute_massflow(gi.g, 0);
+            std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
         }
         solver_case.mf.resize(ni);
         std::fill(solver_case.mf.begin(),solver_case.mf.end(),solver_case.inlet.Mf); // Todo add leakage and reintroduction

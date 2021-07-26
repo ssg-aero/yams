@@ -9,7 +9,9 @@
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/writer.h>
 #include <tbs/io/json2.h>
+#include <tbs/io/iges.h>
 #include <tbs/ui/plots.h>
+
 // #include <CoolPropLib.h>
 
 #include <chrono>
@@ -732,7 +734,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
     document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][1]["k"][1] = g(i2,nj-1).bet;
     document["channel_sets"][0]["channels"][1]["blades"][0]["sections"][1]["gauge"]= 0.5 *( g(i1,nj-1).bet + g(i2,nj-1).bet);
 
-    FILE *fp = fopen((fname+"_desing.json").c_str(), "wb"); // non-Windows use "w"
+    FILE *fp = fopen((fname+"_design.json").c_str(), "wb"); // non-Windows use "w"
 
     char writeBuffer[65536];
     rapidjson::FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
@@ -746,5 +748,6 @@ TEST(tests_curvature_solver, vtk_fan_design)
         tbs::AeroMachine<double> b_set;
         tbs::read_and_store_aero_machine(b_set, document);
         tbs::plot_3d(b_set);
+        tbs::export_iges(b_set,(fname+"_design.iges").c_str());
     }
 }
