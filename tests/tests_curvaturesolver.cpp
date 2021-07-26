@@ -186,7 +186,11 @@ TEST(tests_curvature_solver, vtk_static_blades1)
 
     quiss::SolverCase<T> solver_case{
         .gi = gi,
-        .max_geom=1};
+        .bld_info_lst {quiss::BladeInfo<T>{
+            .mode=quiss::MeridionalBladeMode::DIRECT,
+            }},
+        .max_geom=1,
+        };
 
     {
         auto start = high_resolution_clock::now();
@@ -256,6 +260,9 @@ TEST(tests_curvature_solver, vtk_static_blades2)
 
     quiss::SolverCase<T> solver_case{
         .gi = gi,
+        .bld_info_lst {quiss::BladeInfo<T>{
+            .mode=quiss::MeridionalBladeMode::DIRECT,
+            }},
         .inlet = quiss::Inlet_BC<T>{
             .mode = quiss::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
@@ -321,6 +328,9 @@ TEST(tests_curvature_solver, vtk_static_blades3)
 
     quiss::SolverCase<T> solver_case{
         .gi = gi,
+        .bld_info_lst {quiss::BladeInfo<T>{
+            .mode=quiss::MeridionalBladeMode::DIRECT,
+            }},
         .inlet = quiss::Inlet_BC<T>{
             .mode = quiss::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
