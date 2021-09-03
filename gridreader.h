@@ -88,6 +88,8 @@ namespace quiss
                       { return std::sqrt(gp.Vu * gp.Vu + gp.Vm * gp.Vm); });
             add_value(g, structuredGrid, "bet", [](const auto &gp)
                       { return gp.bet * 180 / std::numbers::pi; });
+            add_value(g, structuredGrid, "alf", [](const auto &gp)
+                      { return std::atan2(gp.Vu,gp.Vm) * 180 / std::numbers::pi; });
             add_value(g, structuredGrid, "Tt", [](const auto &gp)
                       { return gp.Tt; });
             add_value(g, structuredGrid, "Pt", [](const auto &gp)
