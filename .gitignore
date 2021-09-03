@@ -1,0 +1,11 @@
+.vscode/
+.pytest_cache/
+build/
+/doc/*.aux
+/doc/*.bbl
+/doc/*.blg
+/doc/*.fdb_*
+/doc/*.pdf
+/doc/*.gz
+/doc/*.log
+/doc/*.fls
