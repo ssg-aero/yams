@@ -28,11 +28,11 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # endif()
 # message(${LIBRARY_LIB} ${LIBRARY_BIN} ${LIBRARY_INC})
 # c++ conf
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-add_compile_options(/bigobj)
+# set(CMAKE_CXX_STANDARD 20)
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# set(CMAKE_CXX_EXTENSIONS ON)
+# set(CMAKE_INCLUDE_CURRENT_DIR ON)
+# add_compile_options(/bigobj)
 
 # Set installation directories (CMAKE_INSTALL_INCLUDEDIR, CMAKE_INSTALL_BINDIR, CMAKE_INSTALL_LIBDIR)
 include(GNUInstallDirs)
@@ -74,5 +74,63 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 include_directories(${EIGEN3_INCLUDE_DIR})
 # libIGES
 include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iges/)
+#
+# xtensors
+#
+set(XTENSOR_USE_XSIMD BOOL:ON)
+find_package(xtl REQUIRED)
+find_package(xtensor REQUIRED)
+find_package(xsimd REQUIRED)
+add_definitions(-DXTENSOR_USE_XSIMD)
+#
+# VTK
+#
+set(VTK_DIR  ${LIBRARY_LIB}/cmake/vtk-9.0)
+include_directories(${LIBRARY_INC}/vtk-9.0)
+find_package(VTK COMPONENTS
+            CommonCore
+            CommonColor
+            CommonDataModel
+            FiltersSources
+            InteractionStyle
+            RenderingCore
+            RenderingAnnotation
+            RenderingFreeType
+            RenderingOpenGL2
+            IOXML
+            ChartsCore
+            CommonColor
+            CommonCore
+            CommonDataModel
+            InteractionStyle
+            RenderingContext2D
+            RenderingContextOpenGL2
+            RenderingCore
+            RenderingFreeType
+            RenderingGL2PSOpenGL2
+            RenderingOpenGL2
+            ViewsContext2D
+            )
 
 add_subdirectory(tests)
+
+add_executable(
+    yams MACOSX_BUNDLE 
+    yams.cpp
+)
+target_link_libraries(
+    yams 
+    ${NLOPT_LIBRARIES}
+    ${VTK_LIBRARIES}
+    xtensor 
+    xtensor::optimize 
+    xtensor::use_xsimd
+    gbs-render
+    iges
+)
+
+vtk_module_autoinit(
+    TARGETS yams
+    MODULES ${VTK_LIBRARIES}
+)
+install(TARGETS yams)
