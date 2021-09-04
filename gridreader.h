@@ -171,9 +171,9 @@ namespace quiss
             }
         }
 
-        solver_case.max_geom    = document["max_geom"].GetUint64();
-        solver_case.eps         = gbs::get_val<T>( document["eps"] );
-        solver_case.tol_rel_mf  = gbs::get_val<T>( document["tol_rel_mf"] );
-        solver_case.tol_rel_pos = gbs::get_val<T>( document["tol_rel_pos"] );
+        if(document.HasMember("max_geom")) solver_case.max_geom    = document["max_geom"].GetUint64();
+        if(document.HasMember("eps")) solver_case.eps = gbs::get_val<T>( document["eps"] );
+        if(document.HasMember("tol_rel_mf")) solver_case.tol_rel_mf  = gbs::get_val<T>( document["tol_rel_mf"] );
+        if(document.HasMember("tol_rel_pos")) solver_case.tol_rel_pos = gbs::get_val<T>( document["tol_rel_pos"] );
     }
 }

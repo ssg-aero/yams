@@ -7,43 +7,36 @@ add_compile_options(/bigobj)
 #
 message(${CMAKE_CURRENT_SOURCE_DIR}/../)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
-#
-# xtensors
-#
-set(XTENSOR_USE_XSIMD BOOL:ON)
-find_package(xtl REQUIRED)
-find_package(xtensor REQUIRED)
-find_package(xsimd REQUIRED)
-add_definitions(-DXTENSOR_USE_XSIMD)
-#
-# VTK
-#
-set(VTK_DIR  ${LIBRARY_LIB}/cmake/vtk-9.0)
-include_directories(${LIBRARY_INC}/vtk-9.0)
-find_package(VTK COMPONENTS
-            CommonCore
-            CommonColor
-            CommonDataModel
-            FiltersSources
-            InteractionStyle
-            RenderingCore
-            RenderingAnnotation
-            RenderingFreeType
-            RenderingOpenGL2
-            IOXML
-            ChartsCore
-            CommonColor
-            CommonCore
-            CommonDataModel
-            InteractionStyle
-            RenderingContext2D
-            RenderingContextOpenGL2
-            RenderingCore
-            RenderingFreeType
-            RenderingGL2PSOpenGL2
-            RenderingOpenGL2
-            ViewsContext2D
-            )
+
+# #
+# # VTK
+# #
+# set(VTK_DIR  ${LIBRARY_LIB}/cmake/vtk-9.0)
+# include_directories(${LIBRARY_INC}/vtk-9.0)
+# find_package(VTK COMPONENTS
+#             CommonCore
+#             CommonColor
+#             CommonDataModel
+#             FiltersSources
+#             InteractionStyle
+#             RenderingCore
+#             RenderingAnnotation
+#             RenderingFreeType
+#             RenderingOpenGL2
+#             IOXML
+#             ChartsCore
+#             CommonColor
+#             CommonCore
+#             CommonDataModel
+#             InteractionStyle
+#             RenderingContext2D
+#             RenderingContextOpenGL2
+#             RenderingCore
+#             RenderingFreeType
+#             RenderingGL2PSOpenGL2
+#             RenderingOpenGL2
+#             ViewsContext2D
+#             )
 #
 file(GLOB SRC_LIST "tests_*")
 message(${SRC_LIST})
