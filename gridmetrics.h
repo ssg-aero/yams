@@ -24,15 +24,15 @@ namespace quiss
     }
 
 
-    auto fz = [](const auto &gp) { return gp.x; };
+    inline auto fz = [](const auto &gp) { return gp.x; };
 
-    auto fr = [](const auto &gp) { return gp.y; };
+    inline auto fr = [](const auto &gp) { return gp.y; };
 
-    auto fm = [](const auto &gp) { return gp.m; };
+    inline auto fm = [](const auto &gp) { return gp.m; };
     
-    auto fl = [](const auto &gp) { return gp.l; };
+    inline auto fl = [](const auto &gp) { return gp.l; };
     
-    auto fphi = [](const auto &gp) { return gp.phi; };
+    inline auto fphi = [](const auto &gp) { return gp.phi; };
 
     template <typename T>
     inline auto compute_angles(MeridionalGrid<T> &g)
