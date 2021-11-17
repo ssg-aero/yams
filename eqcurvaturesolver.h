@@ -9,6 +9,8 @@ namespace quiss
     using std::sqrt;
     using std::tan;
 
+    const double c_r = 287.04;
+
     auto f_sqVmq2 = [](const auto &gp)
     { return 0.5 * gp.Vm * gp.Vm; };
 
