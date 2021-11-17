@@ -61,14 +61,12 @@ endfunction()
 # link_directories(${LIBRARY_BIN})
 # link_directories(${LIBRARY_LIB})
 # Paths
-file(TO_CMAKE_PATH ${CMAKE_INSTALL_PREFIX}/lib lib_dir)
+file(TO_CMAKE_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} lib_dir)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/gbs)
 link_directories(${lib_dir})
 
 
-# gbs
-include_directories(C:/Users/sebastien/workspace/gbslib)
 # Eigen
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 include_directories(${EIGEN3_INCLUDE_DIR})
@@ -111,8 +109,13 @@ find_package(VTK COMPONENTS
             RenderingOpenGL2
             ViewsContext2D
             )
+if(LINUX)
+    find_package(TBB REQUIRED)
+endif()
 
-add_subdirectory(tests)
+if(${BUILD_TESTS})
+    add_subdirectory(tests)
+endif()
 
 add_executable(
     yams MACOSX_BUNDLE 
@@ -127,6 +130,7 @@ target_link_libraries(
     xtensor::use_xsimd
     gbs-render
     iges
+    TBB::tbb
 )
 
 vtk_module_autoinit(
