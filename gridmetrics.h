@@ -1,6 +1,6 @@
 #pragma once
 #include <datastorage.h>
-namespace quiss
+namespace yams
 {
     template <typename T>
     inline auto distance(const MeridionalGridPoint<T> &gp1, const MeridionalGridPoint<T> &gp2) -> T
@@ -85,7 +85,7 @@ namespace quiss
     }
 
     // template <typename T>
-    // inline auto compute_angles(MeridionalGrid<T> &g,const Array2d<quiss::Grid2dMetricsPoint<T>> &g_metrics)
+    // inline auto compute_angles(MeridionalGrid<T> &g,const Array2d<yams::Grid2dMetricsPoint<T>> &g_metrics)
     // {
     //     size_t ni = g.nRows();
     //     size_t nj = g.nCols();
@@ -115,7 +115,7 @@ namespace quiss
     // }
     
     // template <typename T>
-    // inline auto compute_curvature(MeridionalGrid<T> &g,const Array2d<quiss::Grid2dMetricsPoint<T>> &g_metrics)
+    // inline auto compute_curvature(MeridionalGrid<T> &g,const Array2d<yams::Grid2dMetricsPoint<T>> &g_metrics)
     // {
     //     size_t ni = g.nRows();
     //     size_t nj = g.nCols();
@@ -138,7 +138,7 @@ namespace quiss
     // }
 
     template <typename T>
-    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<quiss::Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
+    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<yams::Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
     {
         compute_abscissas(g);
         compute_metrics(g,f_m,f_l,g_metrics);
@@ -147,4 +147,4 @@ namespace quiss
         // compute_angles(g,g_metrics); <- problematics Novak 1977 indicate derivatte has to be made along stream lines hence a priori more correct without metrics
         // compute_curvature(g,g_metrics);
     }
-} // namespace quiss
+} // namespace yams

@@ -12,7 +12,7 @@
 #include <gbs-io/fromjson.h>
 #include <meridionalsolvercase.h>
 
-namespace quiss
+namespace yams
 {
     template<typename T>
     auto read_vtk_grid(const char *fname)
@@ -130,7 +130,7 @@ namespace quiss
     }
 
     template <typename T>
-    auto read_blade_info(const char *fname, quiss::SolverCase<T> &solver_case)
+    auto read_blade_info(const char *fname, yams::SolverCase<T> &solver_case)
     {
         solver_case.bld_info_lst.clear();
         rapidjson::Document document;

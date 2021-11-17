@@ -2,7 +2,7 @@
 #include <vector>
 #include <xtensor/xarray.hpp>
 #include <execution>
-namespace quiss
+namespace yams
 {
     template <typename Container,typename T>
     class _Array2d
@@ -205,4 +205,4 @@ namespace quiss
             [n](const auto &a_,const auto &b_){S<T2> bcp_ ;copy(a_,bcp_,n);return bcp_;}
         );
     }
-} // namespace quiss
+} // namespace yams

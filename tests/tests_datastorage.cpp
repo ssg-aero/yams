@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <chrono>
 
-using namespace quiss;
+using namespace yams;
 
 const double PI = acos(-1.);
 
@@ -213,7 +213,7 @@ TEST(tests_datastorage, GridStd_perfo)
     size_t ni = 2100;
     size_t nj = 1300;
     
-    Array2d<quiss::MeridionalGridPoint<double>> g{ni,nj};
+    Array2d<yams::MeridionalGridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
     auto r3 =  3.;
@@ -237,7 +237,7 @@ TEST(tests_datastorage, GridX_perfo)
     size_t ni = 2100;
     size_t nj = 1300;
     
-    ArrayX2d<quiss::MeridionalGridPoint<double>> g{ni,nj};
+    ArrayX2d<yams::MeridionalGridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
     auto r3 =  3.;
@@ -264,14 +264,14 @@ TEST(tests_datastorage, convertion)
     gpf.y=3.1;
 
     size_t n =  sizeof(gpf) / sizeof(float);
-    quiss::copy(gpf,gpd,n);
+    yams::copy(gpf,gpd,n);
     ASSERT_NEAR(gpd.x, gpd.x, 1e-30);
     ASSERT_NEAR(gpd.y, gpd.y, 1e-30);
 
     size_t ni = 21;
     size_t nj = 13;
     
-    ArrayX2d<quiss::MeridionalGridPoint<double>> g{ni,nj};
+    ArrayX2d<yams::MeridionalGridPoint<double>> g{ni,nj};
     auto r1 =  1.;
     auto r2 =  2.;
     auto r3 =  3.;
@@ -289,9 +289,9 @@ TEST(tests_datastorage, convertion)
         }
     }
 
-    Array2d<quiss::MeridionalGridPoint<float>> g1{ni,nj};
+    Array2d<yams::MeridionalGridPoint<float>> g1{ni,nj};
 
-    quiss::copy(g,g1);
+    yams::copy(g,g1);
 
     for (auto i = 0; i < ni; i++)
     {

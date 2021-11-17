@@ -1,6 +1,6 @@
 #pragma once 
 #include <datastorage.h>
-namespace quiss
+namespace yams
 {
     template <typename T,typename fX,typename fY>
     auto D1_O1_i_bw( T &g,size_t i, size_t j,fY Y,fX X)
@@ -216,10 +216,10 @@ namespace quiss
             for (auto i = 0; i < ni; i++)
             {
                 auto &gp_m = g_metrics(i, j);
-                gp_m.x1_ksi = quiss::D1_O2_ksi(g, i, j, fx1, d_ksi);
-                gp_m.x1_eth = quiss::D1_O2_eth(g, i, j, fx1, d_eth);
-                gp_m.x2_ksi = quiss::D1_O2_ksi(g, i, j, fx2, d_ksi);
-                gp_m.x2_eth = quiss::D1_O2_eth(g, i, j, fx2, d_eth);
+                gp_m.x1_ksi = yams::D1_O2_ksi(g, i, j, fx1, d_ksi);
+                gp_m.x1_eth = yams::D1_O2_eth(g, i, j, fx1, d_eth);
+                gp_m.x2_ksi = yams::D1_O2_ksi(g, i, j, fx2, d_ksi);
+                gp_m.x2_eth = yams::D1_O2_eth(g, i, j, fx2, d_eth);
                 gp_m.J = 1. / (gp_m.x1_ksi * gp_m.x2_eth - gp_m.x2_ksi * gp_m.x1_eth);
             }
         }
@@ -227,64 +227,64 @@ namespace quiss
 
     auto D1_O2_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O2_ksi(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O2_eth(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O2_ksi(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
     }
 
     auto D1_O2_dx2(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O2_ksi(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O2_eth(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O2_ksi(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
     }
 
     auto D1_O1_bw_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O1_eth_bw(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
     }
 
     auto D1_O1_bw_dx2(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O1_eth_bw(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
     }
 
     auto D1_O2_bw_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O2_eth_bw(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
     }
 
     auto D1_O2_bw_dx2(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O2_eth_bw(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
     }
 
     auto D1_O2_fw_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O2_ksi_fw(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O2_eth_fw(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O2_ksi_fw(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth_fw(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
     }
 
     auto D1_O2_fw_dx2(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
-        auto v_ksi = quiss::D1_O2_ksi_fw(g, i, j, fv_, d_ksi);
-        auto v_eth = quiss::D1_O2_eth_fw(g, i, j, fv_, d_eth);
+        auto v_ksi = yams::D1_O2_ksi_fw(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth_fw(g, i, j, fv_, d_eth);
         auto gp_m = g_metrics(i, j);
         return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
     }
@@ -299,11 +299,11 @@ namespace quiss
         }
         else if (i == 1)
         {
-            v_ksi = quiss::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
+            v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
         }
         else
         {
-            v_ksi = quiss::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
+            v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
         }
         if (j == 0)
         {
@@ -311,11 +311,11 @@ namespace quiss
         }
         else if (j == 1)
         {
-            v_eth = quiss::D1_O1_eth_bw(g, i, j, fv_, d_eth);
+            v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
         }
         else
         {
-            v_eth = quiss::D1_O2_eth_bw(g, i, j, fv_, d_eth);
+            v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
         }
         auto gp_m = g_metrics(i, j);
         return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
@@ -331,11 +331,11 @@ namespace quiss
         }
         else if (i == 1)
         {
-            v_ksi = quiss::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
+            v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
         }
         else
         {
-            v_ksi = quiss::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
+            v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
         }
         if (j == 0)
         {
@@ -343,11 +343,11 @@ namespace quiss
         }
         else if (j == 1)
         {
-            v_eth = quiss::D1_O1_eth_bw(g, i, j, fv_, d_eth);
+            v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
         }
         else
         {
-            v_eth = quiss::D1_O2_eth_bw(g, i, j, fv_, d_eth);
+            v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
         }
         auto gp_m = g_metrics(i, j);
         return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;

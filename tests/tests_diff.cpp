@@ -3,7 +3,7 @@
 #include <gridsbuilders.h>
 #include <gridreader.h>
 
-using namespace quiss;
+using namespace yams;
 
 const double PI = acos(-1.);
 
@@ -317,8 +317,8 @@ TEST(tests_diff, D1_O2_test_001)
 
 
     Array2d<gp>   g;
-    quiss::read_vtk_grid(g,"../../../tbslib/tests/out/test_001_250x21.vts");
-        // quiss::read_vtk_grid(g,"../../../tbslib/tests/out/test_002.vts");
+    yams::read_vtk_grid(g,"../../../tbslib/tests/out/test_001_250x21.vts");
+        // yams::read_vtk_grid(g,"../../../tbslib/tests/out/test_002.vts");
 
     auto f     = [](auto & gp){gp.v = gp.x * gp.y + gp.y * sin(gp.x);};
     auto dfqdx = [](auto & gp){return gp.y + gp.y * cos(gp.x);};
@@ -332,7 +332,7 @@ TEST(tests_diff, D1_O2_test_001)
 
     size_t ni = g.nRows();
     size_t nj = g.nCols();
-    Array2d<quiss::Grid2dMetricsPoint<double>>   gp_metrics(ni,nj);
+    Array2d<yams::Grid2dMetricsPoint<double>>   gp_metrics(ni,nj);
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
     double err_max_x = 0.;
@@ -340,14 +340,14 @@ TEST(tests_diff, D1_O2_test_001)
     auto fx = [&g](const auto &gp) { return gp.x; };
     auto fy = [&g](const auto &gp) { return gp.y; };
     auto fv = [&g](const auto &gp) { return gp.v; };
-    quiss::compute_metrics(g,fx,fy,gp_metrics);
+    yams::compute_metrics(g,fx,fy,gp_metrics);
 
     for (auto j = 0; j < nj; j++)
     {
         for (auto i = 0; i < ni; i++)
         {
-            auto v_x = quiss::D1_O2_dx1(g,gp_metrics,i,j,ksi,eth,fv);
-            auto v_y = quiss::D1_O2_dx2(g,gp_metrics,i,j,ksi,eth,fv);
+            auto v_x = yams::D1_O2_dx1(g,gp_metrics,i,j,ksi,eth,fv);
+            auto v_y = yams::D1_O2_dx2(g,gp_metrics,i,j,ksi,eth,fv);
             err_max_x = fmax(v_x - dfqdx(g(i, j)), err_max_x);
             err_max_y = fmax(v_y - dfqdy(g(i, j)), err_max_y);
             ASSERT_NEAR(

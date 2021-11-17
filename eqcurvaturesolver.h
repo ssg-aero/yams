@@ -2,7 +2,7 @@
 #include <diffop.h>
 #include <numbers>
 // Using Novak and Hearsey 1977
-namespace quiss
+namespace yams
 {
     using std::cos;
     using std::sin;

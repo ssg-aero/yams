@@ -16,7 +16,7 @@ const double PI = acos(-1.);
 const bool TESTS_USE_PLOT = true;
 const double c_r = 287.04;
 
-using namespace quiss;
+using namespace yams;
 using gbs::operator*;
 using gbs::operator+;
 using gbs::operator-;
@@ -971,9 +971,9 @@ TEST(tests_eq, solve_straight_cmp)
 TEST(tests_gridreader, vtk_no_blades)
 {
     using T = double;
-    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
-    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
-    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
+    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
+    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
+    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     // init values
@@ -998,9 +998,9 @@ TEST(tests_gridreader, vtk_no_blades)
 TEST(tests_gridreader, vtk_no_blades_2)
 {
     using T = double;
-    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
-    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
-    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
+    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
+    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
+    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -1111,12 +1111,12 @@ TEST(tests_gridreader, vtk_no_blades_2)
 TEST(tests_gridreader, derivates)
 {
     using T = double;
-    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
+    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
 
     std::transform(
         g.begin(),g.end(),g.begin(),
         [](const auto &gp){
-            quiss::MeridionalGridPoint gp_ = gp;
+            yams::MeridionalGridPoint gp_ = gp;
             gp_.bet = 2. * gp.y * gp.x * gp.x + 3. * std::sin(gp.y) * gp.x ;
             return gp_;
         }
@@ -1134,8 +1134,8 @@ TEST(tests_gridreader, derivates)
     {
         for(size_t i {1}; i < nim ;i++)
         {
-            auto res_x = quiss::D1_O2_i_ct(g,i,j,f_F,f_x);
-            // auto res_y = quiss::D1_O2_i_ct(g,i,j,f_F,f_y);
+            auto res_x = yams::D1_O2_i_ct(g,i,j,f_F,f_x);
+            // auto res_y = yams::D1_O2_i_ct(g,i,j,f_F,f_y);
             std::cout << "i " << i << " j " << j << " " << res_x << " " << dFdx(g,i,j) << std::endl;
         }
     }

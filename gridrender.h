@@ -13,7 +13,7 @@
 #include <vtkScalarBarActor.h>
 #include <vtkLookupTable.h>
 
-namespace quiss
+namespace yams
 {
     template <typename T>
     inline auto make_vtkStructuredGrid(const MeridionalGrid<T> &g) -> vtkSmartPointer<vtkStructuredGrid>
@@ -111,4 +111,4 @@ namespace quiss
         renderWindow->Render();
         renderWindowInteractor->Start();
     }
-} // namespace quiss
+} // namespace yams

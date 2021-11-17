@@ -7,7 +7,7 @@
 
 const double PI = acos(-1.);
 
-using namespace quiss;
+using namespace yams;
 
 TEST(tests_visu, render_curvature)
 {

@@ -15,7 +15,7 @@
 #include <vtkRenderer.h>
 #include <vtkTable.h>
 #include <vtkAxis.h>
-namespace quiss
+namespace yams
 {
     template <typename T>
     auto plot_residual(const SolverLog<T> &log)

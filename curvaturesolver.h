@@ -5,7 +5,7 @@
 #include <gbs/bscinterp.h>
 
 
-namespace quiss
+namespace yams
 {
 
     using gbs::operator*;
@@ -161,7 +161,7 @@ namespace quiss
     }
 
     template <typename T>
-    auto eq_massflow(T vmi, quiss::SolverCase<T> &solver_case, int i, bool integrate)
+    auto eq_massflow(T vmi, yams::SolverCase<T> &solver_case, int i, bool integrate)
     {
         auto &gi= solver_case.gi;
         auto &g = gi.g;
@@ -327,7 +327,7 @@ namespace quiss
 
     template <typename T>
     // auto compute_vm_distribution(T mf, T vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps, bool integrate)
-    auto compute_vm_distribution(quiss::SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
+    auto compute_vm_distribution(yams::SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
     {
         auto mf     = solver_case.mf[i];
         auto err_mf = tol_rel_mf * 10.;
@@ -351,7 +351,7 @@ namespace quiss
     }
 
     template <typename T>
-    auto apply_bc(quiss::SolverCase<T> &solver_case)
+    auto apply_bc(yams::SolverCase<T> &solver_case)
     {
         auto &gi = solver_case.gi;
         auto &g  = gi.g;
@@ -381,7 +381,7 @@ namespace quiss
     }
 
     template <typename T>
-    auto apply_mf(quiss::SolverCase<T> &solver_case)
+    auto apply_mf(yams::SolverCase<T> &solver_case)
     {
         auto &gi = solver_case.gi;
         size_t ni = gi.g.nRows();
@@ -403,7 +403,7 @@ namespace quiss
 
     template <typename T>
     // auto init_values(GridInfo<T> &gi,const std::vector<T> &mf, T tol_rel_mf, T eps)
-     auto init_values(quiss::SolverCase<T> &solver_case, T tol_rel_mf, T eps)
+     auto init_values(yams::SolverCase<T> &solver_case, T tol_rel_mf, T eps)
     {
         auto &gi   = solver_case.gi;
         size_t ni = gi.g.nRows();
@@ -421,7 +421,7 @@ namespace quiss
     }
 
     template <typename T>
-    auto curvature_solver(quiss::SolverCase<T> &solver_case)
+    auto curvature_solver(yams::SolverCase<T> &solver_case)
     {
         auto &gi = solver_case.gi;
         size_t ni = gi.g.nRows();

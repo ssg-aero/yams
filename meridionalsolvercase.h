@@ -3,7 +3,7 @@
 #include <optional>
 #include <functional>
 #include <gbs/curves>
-namespace quiss
+namespace yams
 {
     template <typename T>
     struct GridInfo{
