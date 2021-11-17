@@ -1,43 +1,15 @@
 cmake_minimum_required(VERSION 3.17.0)
 
+find_package(GTest REQUIRED)
+
 project(quiss_tests LANGUAGES CXX)
-add_compile_options(/bigobj)
-#
-# quiss
-#
+if(MSVC)
+    add_compile_options(/bigobj)
+endif()
+
 message(${CMAKE_CURRENT_SOURCE_DIR}/../)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 
-# #
-# # VTK
-# #
-# set(VTK_DIR  ${LIBRARY_LIB}/cmake/vtk-9.0)
-# include_directories(${LIBRARY_INC}/vtk-9.0)
-# find_package(VTK COMPONENTS
-#             CommonCore
-#             CommonColor
-#             CommonDataModel
-#             FiltersSources
-#             InteractionStyle
-#             RenderingCore
-#             RenderingAnnotation
-#             RenderingFreeType
-#             RenderingOpenGL2
-#             IOXML
-#             ChartsCore
-#             CommonColor
-#             CommonCore
-#             CommonDataModel
-#             InteractionStyle
-#             RenderingContext2D
-#             RenderingContextOpenGL2
-#             RenderingCore
-#             RenderingFreeType
-#             RenderingGL2PSOpenGL2
-#             RenderingOpenGL2
-#             ViewsContext2D
-#             )
-#
 file(GLOB SRC_LIST "tests_*")
 message(${SRC_LIST})
 add_executable(${PROJECT_NAME} ${SRC_LIST})
@@ -52,8 +24,8 @@ if ( MSVC )
 endif ( MSVC )
 
 target_link_libraries(${PROJECT_NAME} 
-                            optimized gtest_dll
-                            debug gtest_dlld
+                            GTest::gtest
+                            GTest::gtest_main
                             xtensor 
                             xtensor::optimize 
                             xtensor::use_xsimd
@@ -61,6 +33,7 @@ target_link_libraries(${PROJECT_NAME}
                             nlopt
                             gbs-render
                             iges
+                            TBB::tbb
                     )
 
 vtk_module_autoinit(

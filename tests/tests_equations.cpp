@@ -971,9 +971,9 @@ TEST(tests_eq, solve_straight_cmp)
 TEST(tests_gridreader, vtk_no_blades)
 {
     using T = double;
-    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/alpx001.vts");
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_001.vts");
-    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
+    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
+    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     // init values
@@ -989,8 +989,8 @@ TEST(tests_gridreader, vtk_no_blades)
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
-        writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm.vts");
-        // writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_002_Vm.vts");
+        writer->SetFileName("../../../tbslib/tests/out/test_001_Vm.vts");
+        // writer->SetFileName("../../../tbslib/tests/out/test_002_Vm.vts");
         writer->SetInputData(structuredGrid);
         writer->Write();
     }
@@ -998,9 +998,9 @@ TEST(tests_gridreader, vtk_no_blades)
 TEST(tests_gridreader, vtk_no_blades_2)
 {
     using T = double;
-    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/alpx001.vts");
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_001.vts");
-    // auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
+    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
+    // auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -1101,8 +1101,8 @@ TEST(tests_gridreader, vtk_no_blades_2)
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
-        writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm.vts");
-        // writer->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_002_Vm.vts");
+        writer->SetFileName("../../../tbslib/tests/out/test_001_Vm.vts");
+        // writer->SetFileName("../../../tbslib/tests/out/test_002_Vm.vts");
         writer->SetInputData(structuredGrid);
         writer->Write();
     }
@@ -1111,7 +1111,7 @@ TEST(tests_gridreader, vtk_no_blades_2)
 TEST(tests_gridreader, derivates)
 {
     using T = double;
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/alpx001.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
 
     std::transform(
         g.begin(),g.end(),g.begin(),

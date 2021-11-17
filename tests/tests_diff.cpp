@@ -317,8 +317,8 @@ TEST(tests_diff, D1_O2_test_001)
 
 
     Array2d<gp>   g;
-    quiss::read_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_001_250x21.vts");
-        // quiss::read_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
+    quiss::read_vtk_grid(g,"../../../tbslib/tests/out/test_001_250x21.vts");
+        // quiss::read_vtk_grid(g,"../../../tbslib/tests/out/test_002.vts");
 
     auto f     = [](auto & gp){gp.v = gp.x * gp.y + gp.y * sin(gp.x);};
     auto dfqdx = [](auto & gp){return gp.y + gp.y * cos(gp.x);};

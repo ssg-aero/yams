@@ -10,8 +10,8 @@ int main(int argc, char *argv[])
     using T = double;
     auto Vm = 100.;
 
-    // std::string fname { "C:/Users/sebastien/workspace/cosapp-tubomachine/tests/data/cmp_ax_1_stage_cad" };
-    // std::string fname { "C:/Users/sebastien/workspace/tbslib/tests/in/test_009" };
+    // std::string fname { "../../../cosapp-tubomachine/tests/data/cmp_ax_1_stage_cad" };
+    // std::string fname { "../../../tbslib/tests/in/test_009" };
     std::string fname { argv[1] };
     std::cout << "opening " << fname << std::endl;
     auto g = quiss::read_vtk_grid<T>( (fname+".vts").c_str() );

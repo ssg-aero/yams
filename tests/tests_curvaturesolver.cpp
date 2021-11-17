@@ -21,7 +21,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
     using T = double;
     using namespace std::chrono;
 
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/out/test_001.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     auto Pt = 133337.02;
@@ -68,7 +68,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_rho_cst.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_001_Vm_rho_cst.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
@@ -86,7 +86,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_rho_var.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_001_Vm_rho_var.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
@@ -109,7 +109,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_cst.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_001_Vm_swirl_rho_cst.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
@@ -127,7 +127,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_var.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_001_Vm_swirl_rho_var.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
@@ -153,7 +153,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
@@ -167,7 +167,7 @@ TEST(tests_curvature_solver, vtk_static_blades1)
     using T = double;
     using namespace std::chrono;
 
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/in/test_002.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/in/test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -223,7 +223,7 @@ TEST(tests_curvature_solver, vtk_static_blades1)
             std::cout << res << " " << res_analytic << " " << err_pc << "%" << std::endl;
         }
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_002.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_002.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
@@ -236,7 +236,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
     using T = double;
     using namespace std::chrono;
 
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/in/test_003.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/in/test_003.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
@@ -287,7 +287,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_003.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_003.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -304,7 +304,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
     using T = double;
     using namespace std::chrono;
 
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/in/test_004.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/in/test_004.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -354,7 +354,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_004.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_004.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Pt", true);
@@ -372,7 +372,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
     using T = double;
     using namespace std::chrono;
 
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/in/test_005.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/in/test_005.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -419,7 +419,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_005.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_005.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -436,7 +436,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
     using T = double;
     using namespace std::chrono;
 
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/in/test_006.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/in/test_006.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -484,7 +484,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_006.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_006.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -501,7 +501,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
     using T = double;
     using namespace std::chrono;
 
-    auto g = quiss::read_vtk_grid<T>("C:/Users/sebastien/workspace/tbslib/tests/in/test_007.vts");
+    auto g = quiss::read_vtk_grid<T>("../../../tbslib/tests/in/test_007.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
@@ -551,7 +551,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_007.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_007.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -572,7 +572,7 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
     using T = double;
     auto Vm = 30.;
 
-    std::string fname { "C:/Users/sebastien/workspace/tbslib/tests/in/test_004" };
+    std::string fname { "../../../tbslib/tests/in/test_004" };
     auto g = quiss::read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
@@ -619,7 +619,7 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = quiss::write_vtk_grid(g,"C:/Users/sebastien/workspace/tbslib/tests/out/test_004_design.vts");
+        auto structuredGrid = quiss::write_vtk_grid(g,"../../../tbslib/tests/out/test_004_design.vts");
         if (TESTS_USE_PLOT)
         {
             quiss::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -643,7 +643,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
     using T = double;
     auto Vm = 100.;
 
-    std::string fname { "C:/Users/sebastien/workspace/tbslib/tests/in/test_008" };
+    std::string fname { "../../../tbslib/tests/in/test_008" };
     auto g = quiss::read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
@@ -757,7 +757,7 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
     using T = double;
     auto Vm = 100.;
 
-    std::string fname { "C:/Users/sebastien/workspace/tbslib/tests/in/test_009" };
+    std::string fname { "../../../tbslib/tests/in/test_009" };
     auto g = quiss::read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
