@@ -9,3 +9,4 @@ build/
 /doc/*.gz
 /doc/*.log
 /doc/*.fls
+__pycache__

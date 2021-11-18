@@ -110,11 +110,16 @@ find_package(VTK COMPONENTS
             ViewsContext2D
             )
 if(LINUX)
+    # add_definitions(-D__TBB_show_deprecation_message_task_H))
     find_package(TBB REQUIRED)
 endif()
 
 if(${BUILD_TESTS})
     add_subdirectory(tests)
+endif()
+
+if(${BUILD_PYTHON_BINDING})
+    add_subdirectory(python)
 endif()
 
 add_executable(
