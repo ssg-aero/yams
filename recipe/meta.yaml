@@ -1,0 +1,43 @@
+package:
+  name: yams
+  version:  0.0.1
+
+source:  
+  # git_url: https://github.com/ssg-aero/yams.git
+  path: ../
+
+build:
+requirements:
+  build:
+    # - {{ compiler('cxx') }}
+    # - {{ cdt('libx11-devel') }}         # [linux]
+    # - {{ cdt('xorg-x11-proto-devel') }} # [linux]
+    # - {{ cdt('mesa-libgl-devel') }}     # [linux]
+    # - {{ cdt('libxi-devel') }}          # [linux]
+    - vs2019_win-64 [win]
+    - ninja
+    - cmake 
+  host:
+    # - {{ cdt('libx11-devel') }}         # [linux]
+    # - {{ cdt('xorg-x11-proto-devel') }} # [linux]
+    # - {{ cdt('mesa-libgl-devel') }}     # [linux]
+    # - {{ cdt('libxi-devel') }}          # [linux]
+    - python {{ python }}
+    # - python-devtools
+    - pybind11
+    - xtl
+    - xtensor
+    - xsimd
+    - gbs >=0.1.3
+    - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
+  run:
+    - python
+    # - pytest
+    - gbs
+    - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
+about:
+  home: http://www.ssg-aero.com
+  license: LGPL3
+test:
+  imports:
+    - pyams.yams

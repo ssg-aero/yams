@@ -94,7 +94,6 @@ find_package(VTK COMPONENTS
             RenderingCore
             RenderingAnnotation
             RenderingFreeType
-            RenderingOpenGL2
             IOXML
             ChartsCore
             CommonColor
@@ -102,11 +101,8 @@ find_package(VTK COMPONENTS
             CommonDataModel
             InteractionStyle
             RenderingContext2D
-            RenderingContextOpenGL2
             RenderingCore
             RenderingFreeType
-            RenderingGL2PSOpenGL2
-            RenderingOpenGL2
             ViewsContext2D
             )
 if(LINUX)
