@@ -10,65 +10,67 @@ namespace yams
     using crv_vector = std::vector<std::shared_ptr<gbs::Curve<T, 2>>>;
 
     template <typename T>
-    auto build_iso_ksi_curves(const crv_vector<T> &crv_iso_eth, const std::vector<T> &u, size_t max_deg = 3)
+    auto build_iso_ksi_curves(const crv_vector<T> &iso_eth, const std::vector<T> &ksi_i, size_t max_deg = 3)
     {
-        auto n_eth = crv_iso_eth.size();
+        auto n_eth = iso_eth.size();
         if (n_eth < 2)
         {
             throw std::length_error("yams::mesh_channel, 2 Curves at least needed.");
         }
-        auto n_ksi = u.size();
-        crv_vector<T> crv_iso_ksi(n_ksi);
+        auto n_ksi = ksi_i.size();
+        crv_vector<T> iso_ksi(n_ksi);
 
-        auto v1 = static_cast<T>(0.);
-        auto v2 = static_cast<T>(1.);
-        auto v = gbs::make_range(v1, v2, n_eth);
+        auto eth_1 = static_cast<T>(0.);
+        auto eth_2 = static_cast<T>(1.);
+        auto eth_j = gbs::make_range(eth_1, eth_2, n_eth);
 
         std::transform(
-            u.begin(), u.end(), crv_iso_ksi.begin(),
-            [&crv_iso_eth, &v, max_deg, n_eth](T u_)
+            ksi_i.begin(), ksi_i.end(), iso_ksi.begin(),
+            [&iso_eth, &eth_j, max_deg, n_eth](T u_)
             {
                 gbs::points_vector<T, 2> pts(n_eth);
                 std::transform(
-                    crv_iso_eth.begin(), crv_iso_eth.end(), pts.begin(),
+                    iso_eth.begin(), iso_eth.end(), pts.begin(),
                     [u_](const auto &crv)
                     {
                         return crv->value(u_);
                     });
                 auto deg = std::min(max_deg, n_eth-1);
-                return std::make_shared<gbs::BSCurve<T, 2>>(gbs::interpolate(pts, v, deg));
+                return std::make_shared<gbs::BSCurve<T, 2>>(gbs::interpolate(pts, eth_j, deg));
             });
         return std::make_pair(
-            crv_iso_ksi,
-            v
+            iso_ksi,
+            eth_j
         ); 
     }
 
     template <typename T>
-    auto mesh_channel(const crv_vector<T> &crv_iso_eth, const crv_vector<T> &crv_iso_ksi, const std::vector<T> &u, const std::vector<T> &v, size_t nu, size_t nv)
+    auto mesh_channel(const crv_vector<T> &iso_ksi, const crv_vector<T> &iso_eth, const std::vector<T> &ksi_i, const std::vector<T> &eth_j, size_t n_iso_ksi, size_t n_iso_eth)
     {
         const size_t dim = 2;
         const size_t P = 2;
         const size_t Q = 1;
 
-        return gbs::tfi_mesh_2d<T, 2, P, Q, true>(crv_iso_ksi, crv_iso_eth, u, v, nu, nv);
+        return gbs::tfi_mesh_2d<T, 2, P, Q, true>(iso_ksi, iso_eth, ksi_i, eth_j, n_iso_ksi, n_iso_eth);
     }
     /**
      * @brief 
      * 
      * @tparam T 
-     * @param crv_iso_eth 
-     * @param u 
+     * @param iso_eth 
+     * @param ksi_i 
+     * @param n_ksi 
+     * @param n_eth 
      * @param max_deg 
      * @return auto 
      */
     template <typename T>
-    auto mesh_channel(const crv_vector<T> &crv_iso_eth, const std::vector<T> &u, size_t nu, size_t nv, size_t max_deg = 3)
+    auto mesh_channel(const crv_vector<T> &iso_eth, const std::vector<T> &ksi_i, size_t n_iso_ksi, size_t n_iso_eth, size_t max_deg = 3)
     {
 
-        auto [ crv_iso_ksi, v ] = build_iso_ksi_curves<T>(crv_iso_eth,u, max_deg);
+        auto [ iso_ksi, eth_j ] = build_iso_ksi_curves<T>(iso_eth,ksi_i, max_deg);
 
-        return mesh_channel(crv_iso_eth, crv_iso_ksi, u, v, nu, nv);
+        return mesh_channel(iso_ksi, iso_eth, ksi_i, eth_j, n_iso_ksi, n_iso_eth);
     }
 
 

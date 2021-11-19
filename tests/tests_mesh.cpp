@@ -11,18 +11,20 @@ TEST(tests_mesh, channel)
 
     std::vector<std::array<T,2>> poles1{
             {0.0,0.0},
-            {0.2,0.0},
+            {0.1,0.0},
+            {0.5,0.2},
             {0.8,0.3},
             {1.0,0.3},
         };
     std::vector<std::array<T,2>> poles2{
             {0.0,0.5},
-            {0.4,0.5},
+            {0.1,0.5},
+            {0.5,0.6},
             {0.8,1.0},
             {1.0,1.0},
         };
-    std::vector<T> knots{0.,0.5,1.};
-    std::vector<size_t> mult{3,1,3};
+    std::vector<T> knots{0.,0.33,0.66,1.};
+    std::vector<size_t> mult{3,1,1,3};
     size_t deg{2};
 
     auto crv1 = std::make_shared<gbs::BSCurve<T,2>>(
@@ -65,7 +67,7 @@ TEST(tests_mesh, channel)
     size_t nu{30};
     size_t nv{15};
 
-    auto [pts, ni, nj, n_iso_eth, n_iso_ksi] = yams::mesh_channel<T>(crv_lst, knots, nu, nv);
+    auto [pts, ni, nj, n_iso_eth, n_iso_ksi] = yams::mesh_channel<T>(crv_lst, knots, nv, nu);
 
     ASSERT_LT(
         gbs::distance(
@@ -91,6 +93,10 @@ TEST(tests_mesh, channel)
     if(PLOT_ON)
     {
         auto sgrid_actor = gbs::make_structuredgrid_actor(pts, ni, nj);
-        gbs::plot(crv_lst, crv_lst_opp, sgrid_actor);
+        gbs::plot(
+            crv_lst, 
+            crv_lst_opp, 
+            sgrid_actor
+        );
     }
 }
