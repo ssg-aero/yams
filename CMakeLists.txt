@@ -83,28 +83,29 @@ add_definitions(-DXTENSOR_USE_XSIMD)
 #
 # VTK
 #
-set(VTK_DIR  ${LIBRARY_LIB}/cmake/vtk-9.0)
-include_directories(${LIBRARY_INC}/vtk-9.0)
-find_package(VTK COMPONENTS
-            CommonCore
-            CommonColor
-            CommonDataModel
-            FiltersSources
-            InteractionStyle
-            RenderingCore
-            RenderingAnnotation
-            RenderingFreeType
-            IOXML
-            ChartsCore
-            CommonColor
-            CommonCore
-            CommonDataModel
-            InteractionStyle
-            RenderingContext2D
-            RenderingCore
-            RenderingFreeType
-            ViewsContext2D
-            )
+find_package(
+    VTK REQUIRED
+    COMPONENTS
+        CommonCore
+        CommonColor
+        CommonDataModel
+        FiltersSources
+        InteractionStyle
+        RenderingCore
+        RenderingAnnotation
+        RenderingFreeType
+        IOXML
+        ChartsCore
+        CommonColor
+        CommonCore
+        CommonDataModel
+        InteractionStyle
+        RenderingContext2D
+        RenderingCore
+        RenderingFreeType
+        ViewsContext2D
+        RenderingOpenGL2
+)
 if(LINUX)
     # add_definitions(-D__TBB_show_deprecation_message_task_H))
     find_package(TBB REQUIRED)

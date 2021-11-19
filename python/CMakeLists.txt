@@ -7,14 +7,22 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(Python3 COMPONENTS Interpreter Developement)
 find_package(pybind11 REQUIRED)
 
+file(GLOB SRC_LIST "*.cpp")
+
 pybind11_add_module(
     ${PROJECT_NAME}
-    yamsbind.cpp
+    ${SRC_LIST}
 )
 
 target_link_libraries(
         ${PROJECT_NAME} PRIVATE 
+        ${VTK_LIBRARIES}
         TBB::tbb 
+)
+
+vtk_module_autoinit(
+    TARGETS ${PROJECT_NAME}
+    MODULES ${VTK_LIBRARIES}
 )
 
 set_target_properties(
@@ -25,4 +33,10 @@ set_target_properties(
 install(
     TARGETS ${PROJECT_NAME} 
     DESTINATION ${Python3_SITELIB}/${PROJECT_NAME}
+)
+
+file(GLOB PY_SRC_LIST "*.py")
+
+install(FILES ${PY_SRC_LIST}
+        DESTINATION ${Python3_SITELIB}/${PROJECT_NAME}
 )
