@@ -78,6 +78,7 @@ find_package(
         CommonDataModel
         InteractionStyle
         RenderingContext2D
+        RenderingContextOpenGL2
         RenderingCore
         RenderingFreeType
         ViewsContext2D
