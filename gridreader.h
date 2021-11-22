@@ -48,6 +48,12 @@ namespace yams
 
     }
 
+    template<typename T>
+    auto read_vtk_grid(const std::string &fname)
+    {
+        return read_vtk_grid<T>(fname.c_str());
+    }
+
     auto read_vtk_grid(auto &g, const char *fname)
     {
         vtkNew<vtkXMLStructuredGridReader> reader;
@@ -74,6 +80,12 @@ namespace yams
             }
         }
         
+    }
+
+    template<typename T>
+    auto read_vtk_grid(auto &g, const std::string &fname)
+    {
+        return read_vtk_grid<T>(fname.c_str());
     }
 
     template <typename T>
@@ -130,6 +142,12 @@ namespace yams
     }
 
     template <typename T>
+    auto write_vtk_grid(const MeridionalGrid<T> &g, const std::string &f_name) -> vtkSmartPointer<vtkStructuredGrid>
+    {
+        return write_vtk_grid<T>(g, f_name.c_str());
+    }
+
+    template <typename T>
     auto read_blade_info(const char *fname, yams::SolverCase<T> &solver_case)
     {
         solver_case.bld_info_lst.clear();
@@ -176,4 +194,11 @@ namespace yams
         if(document.HasMember("tol_rel_mf")) solver_case.tol_rel_mf  = gbs::get_val<T>( document["tol_rel_mf"] );
         if(document.HasMember("tol_rel_pos")) solver_case.tol_rel_pos = gbs::get_val<T>( document["tol_rel_pos"] );
     }
+
+    template <typename T>
+    auto read_blade_info(const std::string &fname, yams::SolverCase<T> &solver_case)
+    {
+        read_blade_info(fname.c_str(), solver_case);
+    }
+
 }
