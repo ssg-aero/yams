@@ -71,6 +71,14 @@ namespace yams
             container_.resize(ni * nj);
             nj_ = nj;            
         }
+        void init(const T &v)
+        {
+            std::for_each(
+                std::execution::par,
+                container_.begin(), container_.end(),
+                [v](T &v_) { v_ = v; }
+            );
+        }
     };
 
 // xtensor specialization
