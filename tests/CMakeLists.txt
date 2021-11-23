@@ -11,19 +11,11 @@ message(${CMAKE_CURRENT_SOURCE_DIR}/../)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 
 file(GLOB SRC_LIST "tests_*")
-message(${SRC_LIST})
-add_executable(${PROJECT_NAME} ${SRC_LIST})
+foreach(file_name ${SRC_LIST})
+        get_filename_component(exe_name ${file_name} NAME_WE  )
+        add_executable(${exe_name} ${file_name})
 
-if(MSVC) # xt
-    set(CMAKE_EXE_LINKER_FLAGS /MANIFEST:NO)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
-endif()
-
-if ( MSVC )
-    SET_OUT_DIR(${PROJECT_NAME} ${CMAKE_BINARY_DIR})
-endif ( MSVC )
-
-target_link_libraries(${PROJECT_NAME} 
+        target_link_libraries(${exe_name} 
                             GTest::gtest
                             GTest::gtest_main
                             xtensor 
@@ -34,9 +26,15 @@ target_link_libraries(${PROJECT_NAME}
                             gbs-render
                             iges
                             TBB::tbb
-                    )
+        )
 
-vtk_module_autoinit(
-    TARGETS ${PROJECT_NAME}
-    MODULES ${VTK_LIBRARIES}
-)
+        install(TARGETS ${exe_name})
+        if ( MSVC )
+        SET_OUT_DIR(${exe_name} ${CMAKE_BINARY_DIR})
+        endif ( MSVC )
+        vtk_module_autoinit(
+                TARGETS ${exe_name}
+                MODULES ${VTK_LIBRARIES}
+                )
+        
+endforeach()
