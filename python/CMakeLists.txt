@@ -1,10 +1,15 @@
 cmake_minimum_required(VERSION 3.17.0)
 
-project(pyams)
+project(pyams LANGUAGES CXX)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
+# set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Python3 COMPONENTS Interpreter Developement)
+find_package(Python3 
+    COMPONENTS 
+        Interpreter 
+        Developement
+)
+message("Python3_SITELIB:" ${Python3_SITELIB})
 find_package(pybind11 REQUIRED)
 
 file(GLOB SRC_LIST "*.cpp")

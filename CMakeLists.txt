@@ -82,7 +82,9 @@ find_package(
         RenderingCore
         RenderingFreeType
         ViewsContext2D
-        RenderingOpenGL2
+        RenderingOpenGL2 
+        Python
+        WrappingPythonCore
 )
 if(LINUX)
     # add_definitions(-D__TBB_show_deprecation_message_task_H))
