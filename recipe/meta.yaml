@@ -9,7 +9,7 @@ source:
 build:
 requirements:
   build:
-    # - {{ compiler('cxx') }}
+    - {{ compiler('cxx') }}
     # - {{ cdt('libx11-devel') }}         # [linux]
     # - {{ cdt('xorg-x11-proto-devel') }} # [linux]
     # - {{ cdt('mesa-libgl-devel') }}     # [linux]
@@ -17,13 +17,15 @@ requirements:
     - vs2019_win-64 [win]
     - ninja
     - cmake 
+    # - python {{ python }}
   host:
     # - {{ cdt('libx11-devel') }}         # [linux]
     # - {{ cdt('xorg-x11-proto-devel') }} # [linux]
     # - {{ cdt('mesa-libgl-devel') }}     # [linux]
     # - {{ cdt('libxi-devel') }}          # [linux]
-    - python {{ python }}
-    # - python-devtools
+    # - python {{ python }}
+    - python=3.9
+    - python-devtools
     - pybind11
     - xtl
     - xtensor
@@ -31,8 +33,9 @@ requirements:
     - gbs >=0.1.3
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
   run:
-    - python
+    # - python {{ python }}
     # - pytest
+    - python=3.9
     - gbs
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
 about:
