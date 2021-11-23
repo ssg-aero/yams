@@ -50,6 +50,7 @@ def channel1():
     )
 
     return [ crv1, crv2, crv3]
+    
 
 @pytest.mark.parametrize("state", [
     {
@@ -114,8 +115,36 @@ def test_grid_base_channel(channel1, state):
     gp.Pt = 2e5
     gp.Tt = 600.0
 
+    g.init(gp)
+    assert g(ni-1,nj-1).Pt == approx(gp.Pt)
+    assert g(ni-1,nj-1).Tt == approx(gp.Tt)
+    assert g(ni-1,nj-1).Vm == approx(gp.Vm)
+    assert g(ni-1,nj-1).Vu == approx(gp.Vu)
+
+
     try:
         gi = yams.GridInfo()
         gi.g = g
     except:
         assert False
+
+@pytest.mark.parametrize("state", [
+    {
+        "nu": 30,
+        "nv": 15,
+    },
+])
+
+def test_grid_metrics_base_channel(channel1, state):
+    crv_lst = channel1
+    knots = crv_lst[1].knots()
+
+    nu = state['nu']
+    nv = state['nv']
+
+    pts, ni, nj, n_iso_ksi, n_iso_eth = yams.mesh_channel(crv_lst, knots, nv, nu)
+    sgrid = gbs.make_structuredgrid(pts, ni, nj)
+    gi =yams. make_grid_info(sgrid)
+
+    assert gi.g(0,0).cur    != 0.
+    if plot_on: yams.plot(gi.g,"cur",False)

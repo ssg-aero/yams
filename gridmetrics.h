@@ -1,5 +1,8 @@
 #pragma once
 #include <datastorage.h>
+#include <meridionalsolvercase.h>
+#include <vtkStructuredGrid.h>
+#include <vtkXMLStructuredGridReader.h>
 namespace yams
 {
     template <typename T>
@@ -85,7 +88,7 @@ namespace yams
     }
 
     // template <typename T>
-    // inline auto compute_angles(MeridionalGrid<T> &g,const Array2d<yams::Grid2dMetricsPoint<T>> &g_metrics)
+    // inline auto compute_angles(MeridionalGrid<T> &g,const Array2d<Grid2dMetricsPoint<T>> &g_metrics)
     // {
     //     size_t ni = g.nRows();
     //     size_t nj = g.nCols();
@@ -115,7 +118,7 @@ namespace yams
     // }
     
     // template <typename T>
-    // inline auto compute_curvature(MeridionalGrid<T> &g,const Array2d<yams::Grid2dMetricsPoint<T>> &g_metrics)
+    // inline auto compute_curvature(MeridionalGrid<T> &g,const Array2d<Grid2dMetricsPoint<T>> &g_metrics)
     // {
     //     size_t ni = g.nRows();
     //     size_t nj = g.nCols();
@@ -138,7 +141,7 @@ namespace yams
     // }
 
     template <typename T>
-    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<yams::Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
+    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
     {
         compute_abscissas(g);
         compute_metrics(g,f_m,f_l,g_metrics);
@@ -146,5 +149,40 @@ namespace yams
         compute_curvature(g);
         // compute_angles(g,g_metrics); <- problematics Novak 1977 indicate derivatte has to be made along stream lines hence a priori more correct without metrics
         // compute_curvature(g,g_metrics);
+    }
+
+    template <typename T>
+    auto make_grid_info(vtkStructuredGrid* sgrid)
+    {
+        auto dims =sgrid->GetDimensions();
+        size_t ni = dims[0];
+        size_t nj = dims[1];
+        double ksi = 1. / (ni-1.);
+        double eth = 1. / (nj-1.);
+
+        auto g = read_vtk_grid<T>(sgrid);
+        auto g_metrics = Grid2dMetrics<T>{ni,nj};
+        compute_grid_metrics(g,g_metrics,fm,fl);
+
+        auto gi = GridInfo<T>{
+                .g = std::make_shared<  MeridionalGrid<T> >(g),
+                .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
+                .d_ksi = ksi,
+                .d_eth = eth,
+                .ni = ni,
+                .nj = nj,
+            };
+
+        return std::make_shared<GridInfo<T>>( gi );
+    }
+
+    template <typename T>
+    auto make_grid_info(const std::string &fname)
+    {
+        vtkNew<vtkXMLStructuredGridReader> reader;
+        reader->SetFileName(fname.c_str());
+        reader->Update();
+        vtkSmartPointer<vtkStructuredGrid> sgrid {reader->GetOutput()};
+        return make_grid_info<T>( sgrid );
     }
 } // namespace yams

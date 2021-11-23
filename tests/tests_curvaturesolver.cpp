@@ -58,7 +58,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [Ts](auto l_rel){return Ts;},
@@ -300,7 +300,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .bld_info_lst {BladeInfo<T>{
             .mode=MeridionalBladeMode::DIRECT,
             }},
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
@@ -372,7 +372,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         .bld_info_lst {BladeInfo<T>{
             .mode=MeridionalBladeMode::DIRECT,
             }},
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
@@ -440,7 +440,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
@@ -508,7 +508,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
@@ -577,7 +577,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
@@ -648,7 +648,7 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
@@ -723,7 +723,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             // .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
@@ -841,7 +841,7 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .inlet = Inlet_BC<T>{
+        .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             // .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},

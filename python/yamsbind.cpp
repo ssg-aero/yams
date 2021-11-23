@@ -1,8 +1,14 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
 #include <meshtools.h>
 #include <gridreader.h>
 #include <meridionalsolvercase.h>
+#include <gridmetrics.h>
+#include <eqcurvaturesolver.h>
+#include <gridrender.h>
+#include <curvaturesolver.h>
+#include <plots.h>
 #include <vtk_bind.h>
 namespace py = pybind11;
 
@@ -15,6 +21,8 @@ PYBIND11_MODULE(yams, m)
     .def(py::init<>())
     .def_readwrite("x", &MeridionalGridPoint<T>::x)
     .def_readwrite("y", &MeridionalGridPoint<T>::y)
+    .def_readwrite("cur", &MeridionalGridPoint<T>::cur)
+
     .def_readwrite("Vm", &MeridionalGridPoint<T>::Vm)
     .def_readwrite("Vu", &MeridionalGridPoint<T>::Vu)
     .def_readwrite("rho", &MeridionalGridPoint<T>::rho)
@@ -66,14 +74,77 @@ PYBIND11_MODULE(yams, m)
     ;
 
     py::class_< Grid2dMetrics<T>, std::shared_ptr<Grid2dMetrics<T>> >(m, "Grid2dMetrics")
-    .def(py::init<>())
+    .def(py::init<size_t, size_t>())
     ;
 
     py::class_< GridInfo<T>, std::shared_ptr<GridInfo<T>> >( m, "GridInfo" )
     .def(py::init<>())
     .def_readwrite("g", &GridInfo<T>::g)
-    // .def_readwrite("g_metrics", &GridInfo<T>::g_metrics)
-    // .def_readwrite("d_ksi", &GridInfo<T>::d_ksi)
+    .def_readwrite("g_metrics", &GridInfo<T>::g_metrics)
+    .def_readwrite("rho_cst", &GridInfo<T>::rho_cst)
+    .def_readwrite("RF", &GridInfo<T>::RF)
+    .def_readwrite("Pref", &GridInfo<T>::Pref)
+    .def_readwrite("Tref", &GridInfo<T>::Tref)
+    .def_readwrite("tol_newtow_mf_f", &GridInfo<T>::tol_newtow_mf_f)
+    .def_readwrite("tol_newtow_mf_u", &GridInfo<T>::tol_newtow_mf_u)
+    .def_readwrite("vm_distribution_max_count", &GridInfo<T>::vm_distribution_max_count)
+    ;
+
+    py::enum_<MeridionalBladeMode>(m, "MeridionalBladeMode", py::arithmetic())
+    .value("DESIGN_BETA_OUT", MeridionalBladeMode::DESIGN_BETA_OUT)
+    .value("DESIGN_PHI", MeridionalBladeMode::DESIGN_PHI)
+    .value("DIRECT", MeridionalBladeMode::DIRECT)
+    ;
+
+    py::class_<BladeInfo<T>>(m,"BladeInfo")
+    .def(py::init<>())
+    .def_readwrite("name",&BladeInfo<T>::name)
+    .def_readwrite("i1",&BladeInfo<T>::i1)
+    .def_readwrite("is",&BladeInfo<T>::is)
+    .def_readwrite("i2",&BladeInfo<T>::i2)
+    .def_readwrite("omg",&BladeInfo<T>::omg)
+    .def_readwrite("omg_",&BladeInfo<T>::omg_)
+    .def_readwrite("mode",&BladeInfo<T>::mode)
+    .def_readwrite("beta_out",&BladeInfo<T>::beta_out)
+    .def_readwrite("phi",&BladeInfo<T>::phi)
+    ;
+
+    py::enum_<MeridionalBC>(m, "MeridionalBC", py::arithmetic())
+    .value("INLET_Mf_Ts_Ps_Vu", MeridionalBC::INLET_Mf_Ts_Ps_Vu)
+    .value("INLET_VmMoy_Ts_Ps_Vu", MeridionalBC::INLET_VmMoy_Ts_Ps_Vu)
+    ;
+
+    py::class_<InletBC<T>>(m,"InletBC")
+    .def(py::init<>())
+    .def_readwrite("mode",&InletBC<T>::mode)
+    .def_readwrite("Ps",&InletBC<T>::Ps)
+    .def_readwrite("Ts",&InletBC<T>::Ts)
+    .def_readwrite("Vu",&InletBC<T>::Vu)
+    .def_readwrite("Pt",&InletBC<T>::Pt)
+    .def_readwrite("Tt",&InletBC<T>::Tt)
+    .def_readwrite("Mf",&InletBC<T>::Mf)
+    .def_readwrite("Vm_moy",&InletBC<T>::Vm_moy)
+    ;
+
+    py::class_<SolverLog<T>>(m,"SolverLog")
+    .def(py::init<>())
+    .def_readonly("delta_pos_max",&SolverLog<T>::delta_pos_max)
+    .def_readonly("delta_pos_moy",&SolverLog<T>::delta_pos_moy)
+    .def_readonly("delta_pos",&SolverLog<T>::delta_pos)
+    .def("clear",&SolverLog<T>::clear)
+    ;
+
+    py::class_<SolverCase<T>>(m,"SolverCase")
+    .def(py::init<>())
+    .def_readwrite("gi",&SolverCase<T>::gi)
+    .def_readwrite("bld_info_lst",&SolverCase<T>::bld_info_lst)
+    .def_readwrite("inlet",&SolverCase<T>::inlet)
+    .def_readwrite("mf",&SolverCase<T>::mf)
+    .def_readwrite("log",&SolverCase<T>::log)
+    .def_readwrite("max_geom",&SolverCase<T>::max_geom)
+    .def_readwrite("eps",&SolverCase<T>::eps)
+    .def_readwrite("tol_rel_mf",&SolverCase<T>::tol_rel_mf)
+    .def_readwrite("tol_rel_pos",&SolverCase<T>::tol_rel_pos)
     ;
 
 
@@ -96,4 +167,39 @@ PYBIND11_MODULE(yams, m)
         "Read Channel Grid containing meridional mesh and blades informations",
         py::arg("fname")
     );
+
+    m.def( "make_vtk_grid",
+        py::overload_cast<const MeridionalGrid<T> &>(&make_vtk_grid<T>),
+        "Convert grid to vtk strutured grid",
+        py::arg("g")
+    );
+
+    m.def( "make_grid_info",
+        py::overload_cast<vtkStructuredGrid*>(&make_grid_info<T>),
+        "Make and init GridInfo",
+        py::arg( "sgrid" )
+    );
+
+    m.def( "make_grid_info",
+        py::overload_cast<const std::string&>(&make_grid_info<T>),
+        "Make and init GridInfo",
+        py::arg( "fname" )
+    );
+
+
+    m.def("curvature_solver",
+        &curvature_solver<T>,
+        "Solve case with curvature solver",
+        py::arg( "solver_case" )
+    );
+
+    m.def( "plot",
+        [](const MeridionalGrid<T> g, const std::string &value = "Vm", bool edges_on = false)
+        {
+            plot_vtkStructuredGrid(make_vtk_grid<T>(g), value.c_str(), true);
+        }
+    );
+
+    m.def( "plot_residual",&plot_residual<T>,py::arg("log"));
+
 }

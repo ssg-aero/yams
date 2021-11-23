@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 
     yams::SolverCase<T> solver_case{
         .gi = std::make_shared< yams::GridInfo<T> >( gi ),
-        .inlet = yams::Inlet_BC<T>{
+        .inlet = yams::InletBC<T>{
             .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             // .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},

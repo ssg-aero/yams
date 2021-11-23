@@ -52,7 +52,7 @@ namespace yams
     };
 
     template <typename T>
-    struct Inlet_BC{
+    struct InletBC{
         MeridionalBC mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu;
         std::function<T(T)> Ps = [](auto l_rel){return 1.01325e5;};
         std::function<T(T)> Ts = [](auto l_rel){return 300.;};
@@ -77,7 +77,7 @@ namespace yams
     {
         std::shared_ptr< GridInfo<T> > gi;
         std::vector<BladeInfo<T>> bld_info_lst;
-        Inlet_BC<T> inlet;
+        InletBC<T> inlet;
         std::vector<T> mf;
         SolverLog<T> log;
         size_t max_geom = 200;
@@ -85,4 +85,5 @@ namespace yams
         T tol_rel_mf = 1e-4;
         T tol_rel_pos = 1e-5;
     };
+
 }
