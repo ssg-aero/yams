@@ -6,7 +6,11 @@
 using namespace yams;
 
 const double PI = acos(-1.);
-
+#ifdef _WIN32
+    const std::string test_files_path = "C:/Users/sebastien/workspace/tbslib/tests/";
+#else
+    const std::string test_files_path = "../../../tbslib/tests/";
+#endif
 TEST(tests_diff, D1_O2)
 {
     struct gp
@@ -317,7 +321,30 @@ TEST(tests_diff, D1_O2_test_001)
 
 
     Array2d<gp>   g;
-    yams::read_vtk_grid(g,"../../../tbslib/tests/out/test_001_250x21.vts");
+    vtkNew<vtkXMLStructuredGridReader> reader;
+    reader->SetFileName((test_files_path+"/out/test_001_250x21.vts").c_str());
+    // reader->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_250x21.vts");
+    reader->Update();
+    auto sgrid = reader->GetOutput();
+    auto points= sgrid->GetPoints();
+    auto dims  =sgrid->GetDimensions();
+    size_t ni = dims[0];
+    size_t nj = dims[1];
+    ASSERT_TRUE(nj != 0);
+    ASSERT_TRUE(ni != 0);
+    g.resize(ni,nj);
+    vtkIdType id {};
+    for(size_t j {} ; j < nj ; j++)
+    {
+        for(size_t i {} ; i < ni ; i++)
+        {
+            auto pt = points->GetPoint(id);
+            g(i,j).x = pt[0];
+            g(i,j).y = pt[1];
+            id++;
+        }
+    }
+    // yams::Array2d<double>(g,"../../../tbslib/tests/out/test_001_250x21.vts");
         // yams::read_vtk_grid(g,"../../../tbslib/tests/out/test_002.vts");
 
     auto f     = [](auto & gp){gp.v = gp.x * gp.y + gp.y * sin(gp.x);};
@@ -330,8 +357,8 @@ TEST(tests_diff, D1_O2_test_001)
         f
     );
 
-    size_t ni = g.nRows();
-    size_t nj = g.nCols();
+    ni = g.nRows();
+    nj = g.nCols();
     Array2d<yams::Grid2dMetricsPoint<double>>   gp_metrics(ni,nj);
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
@@ -353,11 +380,11 @@ TEST(tests_diff, D1_O2_test_001)
             ASSERT_NEAR(
                 v_x,
                 dfqdx(g(i, j)),
-                2e-3);
+                1e-2);
             ASSERT_NEAR(
                 v_x,
                 dfqdx(g(i, j)),
-                2e-3);
+                1e-2);
         }
     }
 

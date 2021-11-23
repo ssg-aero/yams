@@ -801,6 +801,7 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
     auto delta_pos_max = 0.;
     auto delta_pos=0.;
     auto delta_pos_moy =0.;
+    auto count_geom_max{1000} ;
     do
     {
         delta_pos_max = 0.;
@@ -833,9 +834,9 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
         compute_geom_values(g);
         std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
         count_geom++;
-    }while (delta_pos_moy > 0.001 * g(0,nj-1).l && count_geom < 200);
+    }while (delta_pos_moy > 0.001 * g(0,nj-1).l && count_geom < count_geom_max);
 
-    ASSERT_LT(count_geom , 200);
+    ASSERT_LT(count_geom , count_geom_max);
 
     if (TESTS_USE_PLOT)
     {
