@@ -26,8 +26,8 @@ int main(int argc, char *argv[])
     yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
 
     yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+        .g = std::make_shared< yams::MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< yams::Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     };
 
     yams::SolverCase<T> solver_case{
-        .gi = gi,
+        .gi = std::make_shared< yams::GridInfo<T> >( gi ),
         .inlet = yams::Inlet_BC<T>{
             .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess

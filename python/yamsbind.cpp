@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 #include <meshtools.h>
 #include <gridreader.h>
+#include <meridionalsolvercase.h>
 #include <vtk_bind.h>
 namespace py = pybind11;
 
@@ -11,6 +12,7 @@ PYBIND11_MODULE(yams, m)
     using T = double;
 
     py::class_< MeridionalGridPoint<T> >(m, "MeridionalGridPoint")
+    .def(py::init<>())
     .def_readwrite("x", &MeridionalGridPoint<T>::x)
     .def_readwrite("y", &MeridionalGridPoint<T>::y)
     .def_readwrite("Vm", &MeridionalGridPoint<T>::Vm)
@@ -23,7 +25,7 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("s", &MeridionalGridPoint<T>::s)
     ;
 
-    py::class_< MeridionalGrid<T> >(m, "MeridionalGrid")
+    py::class_< MeridionalGrid<T>, std::shared_ptr<MeridionalGrid<T>> >(m, "MeridionalGrid")
     .def(py::init<>())
     .def(py::init<size_t, size_t>())
     // .def(
@@ -48,8 +50,31 @@ PYBIND11_MODULE(yams, m)
         "resize",
         &MeridionalGrid<T>::resize
     )
+    .def(
+        "init",
+        &MeridionalGrid<T>::init
+    )
     ;
 
+    py::class_< Grid2dMetricsPoint<T> >(m, "Grid2dMetricsPoint")
+    .def(py::init<>())
+    .def_readwrite("x1_ksi", &Grid2dMetricsPoint<T>::x1_ksi)
+    .def_readwrite("x1_eth", &Grid2dMetricsPoint<T>::x1_eth)
+    .def_readwrite("x2_ksi", &Grid2dMetricsPoint<T>::x2_ksi)
+    .def_readwrite("x2_eth", &Grid2dMetricsPoint<T>::x2_eth)
+    .def_readwrite("J", &Grid2dMetricsPoint<T>::J)
+    ;
+
+    py::class_< Grid2dMetrics<T>, std::shared_ptr<Grid2dMetrics<T>> >(m, "Grid2dMetrics")
+    .def(py::init<>())
+    ;
+
+    py::class_< GridInfo<T>, std::shared_ptr<GridInfo<T>> >( m, "GridInfo" )
+    .def(py::init<>())
+    .def_readwrite("g", &GridInfo<T>::g)
+    // .def_readwrite("g_metrics", &GridInfo<T>::g_metrics)
+    // .def_readwrite("d_ksi", &GridInfo<T>::d_ksi)
+    ;
 
 
     m.def( "mesh_channel",

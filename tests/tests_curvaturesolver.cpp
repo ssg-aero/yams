@@ -22,12 +22,13 @@
 
 #include <chrono>
 const bool TESTS_USE_PLOT = true;
+using namespace yams;
 TEST(tests_curvature_solver, vtk_no_blades)
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = yams::read_vtk_grid<T>(test_files_path+"out/test_001.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"out/test_001.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     auto Pt = 133337.02;
@@ -42,12 +43,12 @@ TEST(tests_curvature_solver, vtk_no_blades)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -55,10 +56,10 @@ TEST(tests_curvature_solver, vtk_no_blades)
         .RF = 0.05
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [Ts](auto l_rel){return Ts;},
             .Vm_moy=Vm
@@ -67,81 +68,101 @@ TEST(tests_curvature_solver, vtk_no_blades)
     };
     
     {
+        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_cst.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_cst.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_residual(solver_case.log);
         }
     }
 // return;
     {
+        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
         
         gi.rho_cst = false;
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_var.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_var.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_residual(solver_case.log);
         }
     }
 
 
 
     {
+        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
         gi.rho_cst = true;
         solver_case.inlet.Vu = [Vm](auto l_rel){return 0.5*Vm;};
         solver_case.inlet.Vm_moy = 0.5* Vm;
 
         std::for_each(g.begin(), g.end(), [&Vm,&gi](auto &gp) {gp.rho= 1.6432411e5 / (gi.R) / 300.; });
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_cst.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_cst.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_residual(solver_case.log);
         }
     }
 
     {
+        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
         gi.rho_cst = false;
         // std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_residual(solver_case.log);
         }
     }
 
     {
+        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         gi.rho_cst = false;
         // solver_case.max_geom=1;
         std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
@@ -153,17 +174,17 @@ TEST(tests_curvature_solver, vtk_no_blades)
         // std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 310. * (gp.y - r1) /(r1 -r2);gp.H = gp.Tt * gp.Cp - 1004. * 288.;});
 
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_residual(solver_case.log);
         }
     }
 }
@@ -173,7 +194,7 @@ TEST(tests_curvature_solver, vtk_static_blades1)
     using T = double;
     using namespace std::chrono;
 
-    auto g = yams::read_vtk_grid<T>(test_files_path+"in/test_002.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"in/test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -184,29 +205,33 @@ TEST(tests_curvature_solver, vtk_static_blades1)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
         .nj = nj
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .bld_info_lst {yams::BladeInfo<T>{
-            .mode=yams::MeridionalBladeMode::DIRECT,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .bld_info_lst {BladeInfo<T>{
+            .mode=MeridionalBladeMode::DIRECT,
             }},
         .max_geom=1,
         };
 
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
@@ -229,10 +254,10 @@ TEST(tests_curvature_solver, vtk_static_blades1)
             std::cout << res << " " << res_analytic << " " << err_pc << "%" << std::endl;
         }
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_002.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_002.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
         }
     }
 }
@@ -242,7 +267,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
     using T = double;
     using namespace std::chrono;
 
-    auto g = yams::read_vtk_grid<T>(test_files_path+"in/test_003.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"in/test_003.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
@@ -256,12 +281,12 @@ TEST(tests_curvature_solver, vtk_static_blades2)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -270,13 +295,13 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .RF = 0.05,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .bld_info_lst {yams::BladeInfo<T>{
-            .mode=yams::MeridionalBladeMode::DIRECT,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .bld_info_lst {BladeInfo<T>{
+            .mode=MeridionalBladeMode::DIRECT,
             }},
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
@@ -284,23 +309,27 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .max_geom = 1000
     };
 
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_003.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_003.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_residual(solver_case.log);
         }
     }
 }
@@ -310,7 +339,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
     using T = double;
     using namespace std::chrono;
 
-    auto g = yams::read_vtk_grid<T>(test_files_path+"in/test_004.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"in/test_004.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -324,12 +353,12 @@ TEST(tests_curvature_solver, vtk_static_blades3)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -338,13 +367,13 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         .RF = 0.06,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .bld_info_lst {yams::BladeInfo<T>{
-            .mode=yams::MeridionalBladeMode::DIRECT,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .bld_info_lst {BladeInfo<T>{
+            .mode=MeridionalBladeMode::DIRECT,
             }},
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
@@ -352,23 +381,27 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         .max_geom = 1000,
     };
 
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_004.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_004.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Pt", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Pt", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_residual(solver_case.log);
         }
     }
 }
@@ -378,7 +411,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
     using T = double;
     using namespace std::chrono;
 
-    auto g = yams::read_vtk_grid<T>(test_files_path+"in/test_005.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"in/test_005.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -391,12 +424,12 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -405,10 +438,10 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
         .RF = 0.025,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
@@ -416,23 +449,27 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
         .max_geom = 2000
     };
 
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_005.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_005.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_residual(solver_case.log);
         }
     }
 }
@@ -442,7 +479,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
     using T = double;
     using namespace std::chrono;
 
-    auto g = yams::read_vtk_grid<T>(test_files_path+"in/test_006.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"in/test_006.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -455,12 +492,12 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -469,10 +506,10 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
         .RF = 0.05,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
@@ -481,23 +518,27 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
     };
 
 
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_006.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_006.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_residual(solver_case.log);
         }
     }
 }
@@ -507,7 +548,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
     using T = double;
     using namespace std::chrono;
 
-    auto g = yams::read_vtk_grid<T>(test_files_path+"in/test_007.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"in/test_007.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
@@ -520,12 +561,12 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -534,10 +575,10 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
         .RF = 0.025,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
             .Vu   = [Vm](auto l_rel){return  Vm * 0.8 * (1.-l_rel) + Vm * 1.2 * l_rel;},
@@ -548,26 +589,30 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
     };
 
 
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_007.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_007.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"rho", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"s", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"H", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_vtkStructuredGrid(structuredGrid,"rho", true);
+            plot_vtkStructuredGrid(structuredGrid,"s", true);
+            plot_vtkStructuredGrid(structuredGrid,"H", true);
+            plot_residual(solver_case.log);
         }
     }
 
@@ -579,7 +624,7 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
     auto Vm = 30.;
 
     std::string fname { test_files_path+"in/test_004" };
-    auto g = yams::read_vtk_grid<T>( (fname+".vts").c_str() );
+    auto g = read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
     size_t nj = g.nCols();
@@ -587,12 +632,12 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -601,10 +646,10 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
         .RF = 0.025,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
             .Vu   = [Vm](auto l_rel){return  Vm * 0.5 * (1.-l_rel) + Vm * 1.5 * l_rel;},
@@ -612,32 +657,36 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
         },
     };
 
-    yams::read_blade_info( (fname+"_bld.json").c_str(), solver_case );
+    read_blade_info( (fname+"_bld.json").c_str(), solver_case );
 
 
     using namespace std::chrono;
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = yams::write_vtk_grid(g,test_files_path+"out/test_004_design.vts");
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_004_design.vts");
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"V", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"rho", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"bet", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"s", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"H", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_vtkStructuredGrid(structuredGrid,"V", true);
+            plot_vtkStructuredGrid(structuredGrid,"rho", true);
+            plot_vtkStructuredGrid(structuredGrid,"bet", true);
+            plot_vtkStructuredGrid(structuredGrid,"s", true);
+            plot_vtkStructuredGrid(structuredGrid,"H", true);
+            plot_residual(solver_case.log);
         }
     }
 
@@ -650,7 +699,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
     auto Vm = 100.;
 
     std::string fname { test_files_path+"in/test_008" };
-    auto g = yams::read_vtk_grid<T>( (fname+".vts").c_str() );
+    auto g = read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
     size_t nj = g.nCols();
@@ -658,12 +707,12 @@ TEST(tests_curvature_solver, vtk_fan_design)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -672,10 +721,10 @@ TEST(tests_curvature_solver, vtk_fan_design)
         .RF = 0.025,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             // .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
             // .Vu   = [Vm](auto l_rel){return  Vm * 0.5 * (1.-l_rel) + Vm * 1.5 * l_rel;},
@@ -683,7 +732,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
         },
     };
 
-    yams::read_blade_info( (fname+"_bld.json").c_str(), solver_case );
+    read_blade_info( (fname+"_bld.json").c_str(), solver_case );
     solver_case.max_geom = 5000;
     // solver_case.tol_rel_mf=0.05;
     // solver_case.tol_rel_pos=0.05;
@@ -695,30 +744,34 @@ TEST(tests_curvature_solver, vtk_fan_design)
                   });
 
     using namespace std::chrono;
-    {
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = yams::write_vtk_grid(g,(fname+"_design.vts").c_str());
+        auto structuredGrid = write_vtk_grid(g,(fname+"_design.vts").c_str());
         if (TESTS_USE_PLOT)
         {
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Pt", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Tt", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"V", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"rho", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"bet", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"s", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"H", true);
-            yams::plot_residual(solver_case.log);
+            plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Pt", true);
+            plot_vtkStructuredGrid(structuredGrid,"Tt", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_vtkStructuredGrid(structuredGrid,"V", true);
+            plot_vtkStructuredGrid(structuredGrid,"rho", true);
+            plot_vtkStructuredGrid(structuredGrid,"bet", true);
+            plot_vtkStructuredGrid(structuredGrid,"s", true);
+            plot_vtkStructuredGrid(structuredGrid,"H", true);
+            plot_residual(solver_case.log);
         }
     }
 
@@ -764,7 +817,7 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
     auto Vm = 100.;
 
     std::string fname { test_files_path+"in/test_009" };
-    auto g = yams::read_vtk_grid<T>( (fname+".vts").c_str() );
+    auto g = read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
     size_t nj = g.nCols();
@@ -772,12 +825,12 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
     double ksi = 1. / (ni-1.);
     double eth = 1. / (nj-1.);
 
-    yams::Array2d<yams::Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
-    yams::compute_grid_metrics(g,g_metrics,yams::f_m,yams::f_l);// TODO run in //
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    yams::GridInfo<T> gi{
-        .g = g,
-        .g_metrics = g_metrics,
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
@@ -786,10 +839,10 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
         .RF = 0.01,
     };
 
-    yams::SolverCase<T> solver_case{
-        .gi = gi,
-        .inlet = yams::Inlet_BC<T>{
-            .mode = yams::MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = Inlet_BC<T>{
+            .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
             // .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
             // .Vu   = [Vm](auto l_rel){return  Vm * 0.5 * (1.-l_rel) + Vm * 1.5 * l_rel;},
@@ -797,10 +850,16 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
         },
     };
 
-    yams::read_blade_info( (fname+"_bld.json").c_str(), solver_case );
-    solver_case.max_geom = 300;
+    read_blade_info( (fname+"_bld.json").c_str(), solver_case );
+    solver_case.max_geom = 200;
     // solver_case.tol_rel_mf=0.05;
     // solver_case.tol_rel_pos=0.05;
+
+
+    using namespace std::chrono;
+    {        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
 
     std::for_each(g.begin(), g.end(), [&Vm](auto &gp)
                   {
@@ -808,32 +867,30 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
                           gp.omg_ = 0.01;
                   });
 
-    using namespace std::chrono;
-    {
         auto start = high_resolution_clock::now();
-        yams::curvature_solver(solver_case);
+        curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 
-        auto structuredGrid = yams::write_vtk_grid(g,(fname+"_design.vts").c_str());
+        auto structuredGrid = write_vtk_grid(g,(fname+"_design.vts").c_str());
         if (TESTS_USE_PLOT)
         {
-            // yams::plot_vtkStructuredGrid(structuredGrid,"Ps", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"Pt", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"Tt", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"Vm", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"Vu", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"V", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"rho", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"bet", true);
-            yams::plot_vtkStructuredGrid(structuredGrid,"alf", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"s", true);
-            // yams::plot_vtkStructuredGrid(structuredGrid,"H", true);
-            yams::plot_residual(solver_case.log);
+            // plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            // plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            // plot_vtkStructuredGrid(structuredGrid,"Pt", true);
+            // plot_vtkStructuredGrid(structuredGrid,"Tt", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            // plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            // plot_vtkStructuredGrid(structuredGrid,"V", true);
+            // plot_vtkStructuredGrid(structuredGrid,"rho", true);
+            plot_vtkStructuredGrid(structuredGrid,"bet", true);
+            plot_vtkStructuredGrid(structuredGrid,"alf", true);
+            plot_vtkStructuredGrid(structuredGrid,"s", true);
+            // plot_vtkStructuredGrid(structuredGrid,"H", true);
+            plot_residual(solver_case.log);
         }
     }
 }

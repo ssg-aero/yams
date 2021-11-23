@@ -52,8 +52,8 @@ namespace yams
     template <typename T, typename _Func>
     void integrate_RK2_vm_sheet(size_t i,  GridInfo<T> &gi, _Func F, int j_beg, int j_end, int j_stp)
     {
-        auto &g = gi.g;
-        auto &g_metrics= gi.g_metrics;
+        auto &g = *gi.g;
+        auto &g_metrics= *gi.g_metrics;
         for (int j = j_beg; j != j_end; j+=j_stp)
         {
             const auto &gp = g(i, j);
@@ -75,7 +75,7 @@ namespace yams
     template <typename T, typename _Func>
     void integrate_RK2_vm_sheet(T vmi, size_t i, GridInfo<T> &gi, _Func F, bool integrate)
     {
-        auto &g = gi.g;
+        auto &g = *gi.g;
 
         if(!integrate)
         {
@@ -121,7 +121,7 @@ namespace yams
     template <typename T>
     auto compute_gas_properties(GridInfo<T> &gi, int i)
     {
-        auto &g = gi.g;
+        auto &g = *gi.g;
         auto nj = g.nCols();
 
         if (i != 0) // except inlet
@@ -161,10 +161,10 @@ namespace yams
     }
 
     template <typename T>
-    auto eq_massflow(T vmi, yams::SolverCase<T> &solver_case, int i, bool integrate)
+    auto eq_massflow(T vmi, SolverCase<T> &solver_case, int i, bool integrate)
     {
-        auto &gi= solver_case.gi;
-        auto &g = gi.g;
+        auto &gi= *solver_case.gi;
+        auto &g = *gi.g;
         auto nj = g.nCols();
         
         if (g(i, 0).iB == -1)
@@ -283,7 +283,7 @@ namespace yams
     template <typename T>
     auto balance_massflow(GridInfo<T> &gi, int i, T tol_mf)
     {
-        auto &g = gi.g;
+        auto &g = *gi.g;
         auto nj = g.nCols();
         std::vector<T> q(nj);
         // gbs::points_vector<T,1> q(nj);
@@ -327,13 +327,13 @@ namespace yams
 
     template <typename T>
     // auto compute_vm_distribution(T mf, T vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps, bool integrate)
-    auto compute_vm_distribution(yams::SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
+    auto compute_vm_distribution(SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
     {
         auto mf     = solver_case.mf[i];
         auto err_mf = tol_rel_mf * 10.;
         auto mf_    = 0., mf_pre = 0.; // mf shall allways be strictly positive
         int count   = 0;
-        auto max_count = solver_case.gi.vm_distribution_max_count;
+        auto max_count = solver_case.gi->vm_distribution_max_count;
         while (err_mf > tol_rel_mf && count < max_count)
         {
             mf_pre = eq_massflow(vmi - eps, solver_case, i, integrate);
@@ -351,15 +351,15 @@ namespace yams
     }
 
     template <typename T>
-    auto apply_bc(yams::SolverCase<T> &solver_case)
+    auto apply_bc(SolverCase<T> &solver_case)
     {
-        auto &gi = solver_case.gi;
-        auto &g  = gi.g;
+        auto &gi = *solver_case.gi;
+        auto &g  = *gi.g;
         const auto &inlet = solver_case.inlet;
         size_t nj = g.nCols();
         auto l_tot = g(0, nj - 1).l;
-        auto Pref = solver_case.gi.Pref;
-        auto Tref = solver_case.gi.Tref;
+        auto Pref = gi.Pref;
+        auto Tref = gi.Tref;
         if (solver_case.inlet.mode == MeridionalBC::INLET_VmMoy_Ts_Ps_Vu ||
             solver_case.inlet.mode == MeridionalBC::INLET_Mf_Ts_Ps_Vu)
         {
@@ -381,20 +381,21 @@ namespace yams
     }
 
     template <typename T>
-    auto apply_mf(yams::SolverCase<T> &solver_case)
+    auto apply_mf(SolverCase<T> &solver_case)
     {
-        auto &gi = solver_case.gi;
-        size_t ni = gi.g.nRows();
+        auto &gi = *solver_case.gi;
+        auto &g  = *gi.g;
+        size_t ni = g.nRows();
         if(solver_case.inlet.mode == MeridionalBC::INLET_VmMoy_Ts_Ps_Vu)
         {
             // std::fill(gi.g.begin(0),gi.g.end(0),solver_case.inlet.Vm_moy);
-            std::for_each(gi.g.begin(0),gi.g.end(0),
+            std::for_each(g.begin(0),g.end(0),
                 [Vm = solver_case.inlet.Vm_moy](auto &gp)
                 {
                     gp.Vm=Vm;
                 }
             );
-            solver_case.inlet.Mf = compute_massflow(gi.g, 0);
+            solver_case.inlet.Mf = compute_massflow(g, 0);
             std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
         }
         solver_case.mf.resize(ni);
@@ -403,11 +404,12 @@ namespace yams
 
     template <typename T>
     // auto init_values(GridInfo<T> &gi,const std::vector<T> &mf, T tol_rel_mf, T eps)
-     auto init_values(yams::SolverCase<T> &solver_case, T tol_rel_mf, T eps)
+     auto init_values(SolverCase<T> &solver_case, T tol_rel_mf, T eps)
     {
-        auto &gi   = solver_case.gi;
-        size_t ni = gi.g.nRows();
-        auto vmi  = gi.g(0, 0).Vm;
+        auto &gi   = *solver_case.gi;
+        auto &g    = *gi.g;
+        size_t ni = g.nRows();
+        auto vmi  = g(0, 0).Vm;
         for (auto i = 0; i < ni; i++)
         {
             compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps, false);
@@ -421,11 +423,13 @@ namespace yams
     }
 
     template <typename T>
-    auto curvature_solver(yams::SolverCase<T> &solver_case)
+    auto curvature_solver(SolverCase<T> &solver_case)
     {
-        auto &gi = solver_case.gi;
-        size_t ni = gi.g.nRows();
-        size_t nj = gi.g.nCols();
+        auto &gi = *solver_case.gi;
+        auto &g = *gi.g;
+        auto &g_metrics = *gi.g_metrics;
+        size_t ni = g.nRows();
+        size_t nj = g.nCols();
         if (ni < 3 && nj < 3)
         {
             throw std::length_error("Grid must have dimensions >= 3");
@@ -433,7 +437,7 @@ namespace yams
         size_t max_geom=solver_case.max_geom;
         auto eps = solver_case.eps;
         auto tol_rel_mf =solver_case.tol_rel_mf;
-        auto tol_pos = solver_case.tol_rel_pos * gi.g(0, nj - 1).l;
+        auto tol_pos = solver_case.tol_rel_pos * g(0, nj - 1).l;
 
         apply_mf(solver_case);
 
@@ -455,7 +459,7 @@ namespace yams
 
             for (auto i = i_0; i < ni; i++)
             {
-                vmi = gi.g(i, nj * gi.j_0 + 1).Vm;
+                vmi = g(i, nj * gi.j_0 + 1).Vm;
                 // compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps,true);
                 compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,true);
                 compute_gas_properties(gi,i);
@@ -468,11 +472,11 @@ namespace yams
             solver_case.log.delta_pos.push_back(std::vector<T>{});
             for (auto i = i_0; i < ni; i++) // TODO run in //
             {
-                compute_massflow_distribution(gi.g.begin(i), gi.g.end(i));
+                compute_massflow_distribution(g.begin(i), g.end(i));
                 if (i > 0 && count_geom < max_geom)
                 {
                     delta_pos = balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]);
-                    delta_pos /= gi.g(i,nj-1).l; // To get relative length
+                    delta_pos /= g(i,nj-1).l; // To get relative length
                     delta_pos_moy += delta_pos / (ni - 2.);
                     delta_pos_max = fmax(delta_pos_max,delta_pos);
                     solver_case.log.delta_pos.back().push_back(delta_pos);
@@ -481,7 +485,7 @@ namespace yams
             solver_case.log.delta_pos_max.push_back(delta_pos_max);
             solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
 
-            compute_grid_metrics(gi.g,gi.g_metrics,f_m,f_l);// TODO run in // 
+            compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
 
             // apply_bc(solver_case);
 

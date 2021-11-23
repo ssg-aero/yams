@@ -111,4 +111,11 @@ def test_grid_base_channel(channel1, state):
     gp = yams.MeridionalGridPoint()
     gp.Vm = 120.0
     gp.Vu =  30.0
-    gp.Pt = 
+    gp.Pt = 2e5
+    gp.Tt = 600.0
+
+    try:
+        gi = yams.GridInfo()
+        gi.g = g
+    except:
+        assert False

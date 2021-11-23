@@ -175,6 +175,8 @@ namespace yams
     using MeridionalGrid = Array2d<MeridionalGridPoint<T>>;
     template <typename T>
     using MeridionalGridX = ArrayX2d<MeridionalGridPoint<T>>;
+    template <typename T>
+    using Grid2dMetrics = Array2d<Grid2dMetricsPoint<T>>;
 
     template<typename T1,typename T2,template<typename> class S>
     auto copy(const S<T1> &a, S<T2> &b,size_t n) -> void

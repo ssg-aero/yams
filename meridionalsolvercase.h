@@ -7,8 +7,8 @@ namespace yams
 {
     template <typename T>
     struct GridInfo{
-        MeridionalGrid<T> &g;
-        Array2d<Grid2dMetricsPoint<T>>   &g_metrics;
+        std::shared_ptr< MeridionalGrid<T> > g;
+        std::shared_ptr< Array2d<Grid2dMetricsPoint<T>> >   g_metrics;
         T d_ksi;
         T d_eth;
         size_t ni;
@@ -75,7 +75,7 @@ namespace yams
     template <typename T>
     struct SolverCase
     {
-        GridInfo<T> &gi;
+        std::shared_ptr< GridInfo<T> > gi;
         std::vector<BladeInfo<T>> bld_info_lst;
         Inlet_BC<T> inlet;
         std::vector<T> mf;
