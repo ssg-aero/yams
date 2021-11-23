@@ -51,14 +51,21 @@ def channel1():
 
     return [ crv1, crv2, crv3]
 
-def test_mesh_base_channel(channel1):
+@pytest.mark.parametrize("state", [
+    {
+        "nu": 30,
+        "nv": 15,
+    },
+])
+
+def test_mesh_base_channel(channel1, state):
 
     crv_lst = channel1
     crv1, crv2, crv3 = crv_lst
     knots = crv_lst[1].knots()
 
-    nu = 30
-    nv = 15
+    nu = state['nu']
+    nv = state['nv']
 
     pts, ni, nj, n_iso_ksi, n_iso_eth = yams.mesh_channel(crv_lst, knots, nv, nu)
 
@@ -78,12 +85,19 @@ def test_mesh_base_channel(channel1):
             sgridActor,
         ])
 
-def test_grid_base_channel(channel1):
+@pytest.mark.parametrize("state", [
+    {
+        "nu": 30,
+        "nv": 15,
+    },
+])
+
+def test_grid_base_channel(channel1, state):
     crv_lst = channel1
     knots = crv_lst[1].knots()
 
-    nu = 30
-    nv = 15
+    nu = state['nu']
+    nv = state['nv']
 
     pts, ni, nj, n_iso_ksi, n_iso_eth = yams.mesh_channel(crv_lst, knots, nv, nu)
     sgrid = gbs.make_structuredgrid(pts, ni, nj)
@@ -93,3 +107,8 @@ def test_grid_base_channel(channel1):
     assert g(0,0).y == approx( crv_lst[0].begin()[1] )
     assert g(0,0).Vm == approx( 0.0 )
     assert g(0,0).Vu == approx( 0.0 )
+
+    gp = yams.MeridionalGridPoint()
+    gp.Vm = 120.0
+    gp.Vu =  30.0
+    gp.Pt = 
