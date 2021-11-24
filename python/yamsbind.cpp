@@ -194,10 +194,12 @@ PYBIND11_MODULE(yams, m)
     );
 
     m.def( "plot",
-        [](const MeridionalGrid<T> g, const std::string &value = "Vm", bool edges_on = false)
+        [](const MeridionalGrid<T> g, const std::string &value , bool edges_on)
         {
-            plot_vtkStructuredGrid(make_vtk_grid<T>(g), value.c_str(), true);
-        }
+            plot_vtkStructuredGrid(make_vtk_grid<T>(g), value.c_str(), edges_on);
+        },
+        "Plot grid results",
+        py::arg("g"), py::arg("value") = "Vm", py::arg("edges_on") = true
     );
 
     m.def( "plot_residual",&plot_residual<T>,py::arg("log"));
