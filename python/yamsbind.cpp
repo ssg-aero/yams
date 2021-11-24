@@ -97,7 +97,7 @@ PYBIND11_MODULE(yams, m)
 
     py::enum_<MeridionalBladeMode>(m, "MeridionalBladeMode", py::arithmetic())
     .value("DESIGN_BETA_OUT", MeridionalBladeMode::DESIGN_BETA_OUT)
-    .value("DESIGN_PHI", MeridionalBladeMode::DESIGN_PHI)
+    .value("DESIGN_PSI", MeridionalBladeMode::DESIGN_PSI)
     .value("DIRECT", MeridionalBladeMode::DIRECT)
     ;
 
@@ -111,7 +111,7 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("omg_",&BladeInfo<T>::omg_)
     .def_readwrite("mode",&BladeInfo<T>::mode)
     .def_readwrite("beta_out",&BladeInfo<T>::beta_out)
-    .def_readwrite("phi",&BladeInfo<T>::phi)
+    .def_readwrite("psi",&BladeInfo<T>::psi)
     ;
 
     py::enum_<MeridionalBC>(m, "MeridionalBC", py::arithmetic())

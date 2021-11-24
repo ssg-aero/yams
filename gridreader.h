@@ -177,12 +177,12 @@ namespace yams
                 info_.beta_out = gbs::BSCfunction<T>{gbs::interpolate(b_out, span, p)};
             }
             break;
-            case MeridionalBladeMode::DESIGN_PHI:
+            case MeridionalBladeMode::DESIGN_PSI:
             {
                 auto span = gbs::make_vec<T>(bld_info["span"]);
                 auto phi = gbs::make_vec<T>(bld_info["phi"]);
                 size_t p = std::min<size_t>(span.size() - 1, 5);
-                info_.phi = gbs::BSCfunction<T>{gbs::interpolate(phi, span, p)};
+                info_.psi = gbs::BSCfunction<T>{gbs::interpolate(phi, span, p)};
             }
             break;
             default:

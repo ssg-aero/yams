@@ -28,7 +28,7 @@ namespace yams
     enum class MeridionalBladeMode
     {
         DESIGN_BETA_OUT,
-        DESIGN_PHI,
+        DESIGN_PSI,
         DIRECT
     };
 
@@ -42,7 +42,7 @@ namespace yams
         T omg_    = 0.;
         MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
         std::function<T(T)> beta_out;
-        std::function<T(T)> phi;
+        std::function<T(T)> psi;
     };
 
     enum class MeridionalBC

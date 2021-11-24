@@ -157,8 +157,8 @@ def test_solve_base_stator(channel4,state, expected):
     blade_info.i1  = i1
     blade_info.i_s = int(ni/2.0)
     blade_info.i2  = i2
-    blade_info.mode= yams.MeridionalBladeMode.DESIGN_PHI
-    blade_info.phi = lambda l : (1-l)*1.2+0.8 * l
+    blade_info.mode= yams.MeridionalBladeMode.DESIGN_PSI
+    blade_info.psi = lambda l : (1-l)*1.2+0.8 * l
     blade_info.omg = state['rpm'] / 30 * pi
 
     solver_case = yams.make_solver_case(sgrid, [blade_info], lambda m, l : 0.)
@@ -170,7 +170,7 @@ def test_solve_base_stator(channel4,state, expected):
         l   = solver_case.gi.g(i2,j).l / solver_case.gi.g(i2,nj-1 ).l
         U   = solver_case.gi.g(i2,j).y * blade_info.omg
         phi = ( solver_case.gi.g(i2,j).Vu - solver_case.gi.g(i1,j).Vu ) / U
-        assert phi ==approx( blade_info.phi(l ) )
+        assert phi ==approx( blade_info.psi(l ) )
 
 
     if plot_on: 

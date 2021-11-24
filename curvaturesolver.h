@@ -224,12 +224,12 @@ namespace yams
                     }
                 }
             }
-            else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_PHI)
+            else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_PSI)
             {
                 auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
                 auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
                 auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
-                auto f_phi=solver_case.bld_info_lst[g(i, 0).iB].phi;
+                auto f_phi=solver_case.bld_info_lst[g(i, 0).iB].psi;
                 if(i == i1)
                 {
                     for (auto j = 0; j < nj; j++)
