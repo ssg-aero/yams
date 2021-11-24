@@ -48,8 +48,8 @@ namespace yams
     auto mesh_channel(const crv_vector<T> &iso_ksi, const crv_vector<T> &iso_eth, const std::vector<T> &ksi_i, const std::vector<T> &eth_j, size_t n_iso_ksi, size_t n_iso_eth)
     {
         const size_t dim = 2;
-        const size_t P = 2;
-        const size_t Q = 1;
+        const size_t P = 1;
+        const size_t Q = 2;
 
         return gbs::tfi_mesh_2d<T, 2, P, Q, true>(iso_ksi, iso_eth, ksi_i, eth_j, n_iso_ksi, n_iso_eth);
     }
@@ -70,7 +70,7 @@ namespace yams
 
         auto [ iso_ksi, eth_j ] = build_iso_ksi_curves<T>(iso_eth,ksi_i, max_deg);
 
-        return mesh_channel(iso_ksi, iso_eth, ksi_i, eth_j, n_iso_ksi, n_iso_eth);
+        return mesh_channel(iso_eth, iso_ksi, eth_j, ksi_i, n_iso_eth, n_iso_ksi);
     }
 
 

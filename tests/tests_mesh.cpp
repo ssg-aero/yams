@@ -76,12 +76,12 @@ TEST(tests_mesh, channel)
         tol);
     ASSERT_LT(
         gbs::distance(
-            crv2->begin(),
+            crv1->end(),
             pts[ni - 1]),
         tol);
     ASSERT_LT(
         gbs::distance(
-            crv1->end(),
+            crv2->begin(),
             pts[ni * (nj - 1)]),
         tol);
     ASSERT_LT(

@@ -50,7 +50,40 @@ def channel1():
     )
 
     return [ crv1, crv2, crv3]
-    
+
+@pytest.fixture
+def channel2():
+    """Fixture returning a simple channel"""
+    knots = [0.,0.33,0.66,1.0]
+    mult  = [3,1,1,3]
+
+    crv1 = gbs.BSCurve2d(
+        [
+            [0.0,0.0],
+            [0.2,0.0],
+            [0.5,0.25],
+            [0.8,0.3],
+            [1.0,0.3],
+        ],
+        knots,
+        mult,
+        2
+    )
+
+    crv2 = gbs.BSCurve2d(
+        [
+            [0.0,0.5],
+            [0.2,0.5],
+            [0.5,0.85],
+            [0.8,1.0],
+            [1.0,1.0],
+        ],
+        knots,
+        mult,
+        2
+    )
+
+    return [ crv1, crv2]  
 
 @pytest.mark.parametrize("state", [
     {
@@ -71,8 +104,8 @@ def test_mesh_base_channel(channel1, state):
     pts, ni, nj, n_iso_ksi, n_iso_eth = yams.mesh_channel(crv_lst, knots, nv, nu)
 
     assert gbs.dist(pts[0],crv1.begin()) == approx(0.)
-    assert gbs.dist(pts[ni-1],crv3.begin()) == approx(0.)
-    assert gbs.dist(pts[ni * (nj - 1)],crv1.end()) == approx(0.)
+    assert gbs.dist(pts[ni-1],crv1.end()) == approx(0.)
+    assert gbs.dist(pts[ni * (nj - 1)],crv3.begin()) == approx(0.)
     assert gbs.dist(pts[ni-1 + ni * (nj - 1)],crv3.end()) == approx(0.)
 
     if plot_on:
