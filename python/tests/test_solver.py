@@ -150,11 +150,14 @@ def test_solve_base_stator(channel4,state, expected):
     pts, ni, nj, n_iso_ksi, n_iso_eth = yams.mesh_channel(crv_lst, knots, nv, nu)
     sgrid = gbs.make_structuredgrid(pts, ni, nj)
 
-    blade_info = yams.BladeInfo()
-    blade_info.i1 = int(ni/3.0)
+    i1 = int(ni/3.0)
+    i2 = int(2.0*ni/3.0)
+
+    blade_info     = yams.BladeInfo()
+    blade_info.i1  = i1
     blade_info.i_s = int(ni/2.0)
-    blade_info.i2 = int(2*ni/3.0)
-    blade_info.mode = yams.MeridionalBladeMode.DESIGN_PHI
+    blade_info.i2  = i2
+    blade_info.mode= yams.MeridionalBladeMode.DESIGN_PHI
     blade_info.phi = lambda l : (1-l)*1.2+0.8 * l
     blade_info.omg = state['rpm'] / 30 * pi
 
@@ -162,6 +165,12 @@ def test_solve_base_stator(channel4,state, expected):
     config_solver(state, solver_case)
 
     yams.curvature_solver(solver_case)
+
+    for j in range(nj):
+        l   = solver_case.gi.g(i2,j).l / solver_case.gi.g(i2,nj-1 ).l
+        U   = solver_case.gi.g(i2,j).y * blade_info.omg
+        phi = ( solver_case.gi.g(i2,j).Vu - solver_case.gi.g(i1,j).Vu ) / U
+        assert phi ==approx( blade_info.phi(l ) )
 
 
     if plot_on: 

@@ -21,6 +21,8 @@ PYBIND11_MODULE(yams, m)
     .def(py::init<>())
     .def_readwrite("x", &MeridionalGridPoint<T>::x)
     .def_readwrite("y", &MeridionalGridPoint<T>::y)
+    .def_readwrite("m", &MeridionalGridPoint<T>::m)
+    .def_readwrite("l", &MeridionalGridPoint<T>::l)
     .def_readwrite("cur", &MeridionalGridPoint<T>::cur)
 
     .def_readwrite("Vm", &MeridionalGridPoint<T>::Vm)
