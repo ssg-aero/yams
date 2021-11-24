@@ -4,12 +4,13 @@ import pyams.yams as yams
 from pytest import approx
 import pytest
 import vtk
+from math import pi, sin
 plot_on = True
 
 @pytest.mark.parametrize("state", [
     {
         "nu": 30,
-        "nv": 15,
+        "nv": 21,
     },
 ])
 
@@ -27,11 +28,13 @@ def test_grid_metrics_base_channel(channel2, state):
     solver_case.gi = yams. make_grid_info(sgrid)
     solver_case.max_geom = 500
     solver_case.gi.RF = 0.05
+    solver_case.inlet.Ts = lambda l_rel : 300. + 30 * sin(l_rel * pi)
 
     yams.curvature_solver(solver_case)
 
     if plot_on: 
         yams.plot(solver_case.gi.g,"Vm",False)
+        yams.plot(solver_case.gi.g,"Ts",False)
         yams.plot(solver_case.gi.g,"cur",True)
         yams.plot_residual(solver_case.log)
 
