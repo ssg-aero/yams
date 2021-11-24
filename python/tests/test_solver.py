@@ -7,14 +7,17 @@ import vtk
 from math import pi, sin
 plot_on = True
 
-@pytest.mark.parametrize("state", [
-    {
+@pytest.mark.parametrize("state, expected", [
+    ({
         "nu": 30,
         "nv": 21,
     },
+    {
+        "ral":1.4
+    })
 ])
 
-def test_grid_metrics_base_channel(channel2, state):
+def test_grid_metrics_base_channel(channel2, state, expected):
     crv_lst = channel2
     knots = crv_lst[1].knots()
 
@@ -32,6 +35,9 @@ def test_grid_metrics_base_channel(channel2, state):
 
     yams.curvature_solver(solver_case)
 
+    assert solver_case.gi.g(0,0).Tt == approx( solver_case.gi.g(ni-1,0).Tt )
+    assert solver_case.gi.g(0,int(nj/2)).Vm > solver_case.gi.g(ni-1,int(nj/2)).Vm *expected["ral"]
+    assert solver_case.gi.g(0,int(nj/2)).Tt == approx( solver_case.gi.g(ni-1,int(nj/2)).Tt )
     if plot_on: 
         yams.plot(solver_case.gi.g,"Vm",False)
         yams.plot(solver_case.gi.g,"Ts",False)
