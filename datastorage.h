@@ -137,7 +137,7 @@ namespace yams
         T phi = 0.; // phi   = dz / dr
         T gam = 0.; // gamma = dr / dz 
         T eps = 0.; // atan2(rdth / dq_)
-        T bet = 0.; // atan2( Vu , Vm)
+        T bet = 0.; // atan2( Wu , Vm)
         T cur = 0.; // streamline curvature
         T cgp = 1.; // Cos( gamma + phi )
         T sgp = 0.; // Sin( gamma + phi )

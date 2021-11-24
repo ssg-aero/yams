@@ -185,4 +185,30 @@ namespace yams
         vtkSmartPointer<vtkStructuredGrid> sgrid {reader->GetOutput()};
         return make_grid_info<T>( sgrid );
     }
+
+    template <typename T, typename F>
+    auto make_solver_case(vtkStructuredGrid* sgrid, const std::vector<BladeInfo<T>> &bld_info_lst , const F &f_beta)
+    {
+        SolverCase<T> solver_case{};
+        solver_case.gi = make_grid_info<T>(sgrid);
+        size_t iB{};
+        auto &g = *(solver_case.gi->g);
+        for(const auto &bld_info : bld_info_lst)
+        {
+            solver_case.bld_info_lst.push_back(bld_info);
+
+            for( auto i{bld_info.i1} ; i <= bld_info.i2; i++  )
+            {
+                auto m = ( i - bld_info.i1 ) / T( bld_info.i2 - bld_info.i1 );
+                for( size_t j{}; j < solver_case.gi->nj; j++ )
+                {
+                    auto l = j / T(solver_case.gi->nj -1 );
+                    g(i,j).k = f_beta(m,l);
+                    g(i,j).iB = iB;
+                }
+            }
+            iB++;
+        }
+        return solver_case;
+    }
 } // namespace yams
