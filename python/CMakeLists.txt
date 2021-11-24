@@ -23,6 +23,7 @@ target_link_libraries(
         ${PROJECT_NAME} PRIVATE 
         ${VTK_LIBRARIES}
         TBB::tbb 
+        gbs-render
 )
 
 vtk_module_autoinit(

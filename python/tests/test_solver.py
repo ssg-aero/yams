@@ -1,5 +1,6 @@
-from test_mesh import channel1, channel2
+from test_mesh import channel1, channel2, channel3, channel4
 import pygbs.gbs as gbs
+from pygbs import vtkplot as vbs
 import pyams.yams as yams
 from pytest import approx
 import pytest
@@ -119,3 +120,53 @@ def test_solve_base_stator(channel2,state, expected):
         yams.plot(solver_case.gi.g,"Ts",True)
         yams.plot_residual(solver_case.log)
 
+@pytest.mark.parametrize("state, expected", [
+    ({
+        "nu": 30,
+        "nv": 21,
+        "Vm_moy":100.,
+        "Ts_min":300.,
+        "Ts_delta":30.,
+        "max_geom":500,
+        "relax_factor":0.05,
+        "k1":radians(0.),
+        "k2":radians(30.),
+        "rpm":5000,
+    },
+    {
+        "beta1":radians(0.),
+        "beta2":radians(30.),
+    })
+])
+
+
+def test_solve_base_stator(channel4,state, expected):
+    crv_lst = channel4
+    knots = crv_lst[1].knots()
+
+    nu = state['nu']
+    nv = state['nv']
+
+    pts, ni, nj, n_iso_ksi, n_iso_eth = yams.mesh_channel(crv_lst, knots, nv, nu)
+    sgrid = gbs.make_structuredgrid(pts, ni, nj)
+
+    blade_info = yams.BladeInfo()
+    blade_info.i1 = int(ni/3.0)
+    blade_info.i_s = int(ni/2.0)
+    blade_info.i2 = int(2*ni/3.0)
+    blade_info.mode = yams.MeridionalBladeMode.DESIGN_PHI
+    blade_info.phi = lambda l : (1-l)*1.2+0.8 * l
+    blade_info.omg = state['rpm'] / 30 * pi
+
+    solver_case = yams.make_solver_case(sgrid, [blade_info], lambda m, l : 0.)
+    config_solver(state, solver_case)
+
+    yams.curvature_solver(solver_case)
+
+
+    if plot_on: 
+        yams.plot(solver_case,"Pt",True)
+        yams.plot(solver_case,"alf",True)
+        yams.plot(solver_case,"Vm",True)
+        yams.plot(solver_case,"Tt",True)
+        yams.plot_residual(solver_case.log)

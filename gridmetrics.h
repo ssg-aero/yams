@@ -187,7 +187,7 @@ namespace yams
     }
 
     template <typename T, typename F>
-    auto make_solver_case(vtkStructuredGrid* sgrid, const std::vector<BladeInfo<T>> &bld_info_lst , const F &f_beta)
+    auto make_solver_case(vtkStructuredGrid* sgrid, const std::vector<BladeInfo<T>> &bld_info_lst , const F &f_k)
     {
         SolverCase<T> solver_case{};
         solver_case.gi = make_grid_info<T>(sgrid);
@@ -203,7 +203,7 @@ namespace yams
                 for( size_t j{}; j < solver_case.gi->nj; j++ )
                 {
                     auto l = j / T(solver_case.gi->nj -1 );
-                    g(i,j).k = f_beta(m,l);
+                    g(i,j).k = f_k(m,l);
                     g(i,j).iB = iB;
                 }
             }

@@ -3,6 +3,7 @@ from pygbs import vtkplot as vbs
 import pyams.yams as yams
 from pytest import approx
 import pytest
+from math import cos, sin, radians
 
 plot_on = True
 
@@ -84,6 +85,87 @@ def channel2():
     )
 
     return [ crv1, crv2]  
+
+@pytest.fixture
+def channel3():
+    """Fixture returning a simple channel"""
+    hub_start = (0.0,[0.0,0.1])
+    hub_end   = (1.0,[0.3,0.2])
+    hub_le    = (0.3,[0.1,0.15],0)
+    hub_te    = (0.6,[0.2,0.2],0)
+    hub_te_tg = (0.2,[0.01,0.0],1)
+    hub_end_tg= (0.3,[0.001,0.0],1)
+
+    shr_start = (0.0,[0.0,0.3])
+    shr_end   = (1.0,[0.3,0.3])
+    shr_le    = (0.3,[0.12,0.3],0)
+    shr_te    = (0.6,[0.17,0.3],0)
+    shr_te_tg = (0.2,[0.01,0.0],1)
+    shr_end_tg= (0.3,[0.001,0.0],1)
+
+    return [ 
+        gbs.interpolate(hub_start, hub_end, 
+            [
+                hub_le, 
+                hub_te, 
+                # hub_te_tg,
+                # hub_end_tg,
+            ], 
+        2), 
+        gbs.interpolate(shr_start, shr_end, 
+            [
+                shr_le, 
+                shr_te, 
+                # shr_te_tg,
+                # shr_end_tg,
+            ], 
+        2)    
+    ]  
+
+@pytest.fixture
+def channel4():
+    hub_constains = [
+        [
+            [0.,0.1],
+            [cos(radians(30)),sin(radians(30))],
+        ],
+        [
+            [0.1,0.15],
+            [cos(radians(30)),sin(radians(30))],
+        ],
+        [
+            [0.2,0.2],
+            [cos(radians(0)),sin(radians(0))],
+        ],
+        [
+            [0.3,0.2],
+            [cos(radians(0)),sin(radians(0))],
+        ],
+    ]
+    shr_constains = [
+        [
+            [0.,0.3],
+            [cos(radians(0)),sin(radians(0))],
+        ],
+        [
+            [0.11,0.3],
+            [cos(radians(0)),sin(radians(0))],
+        ],
+        [
+            [0.18,0.28],
+            [cos(radians(0)),sin(radians(0))],
+        ],
+        [
+            [0.3,0.28],
+            [cos(radians(0)),sin(radians(0))],
+        ],
+    ]
+
+    return [
+        gbs.interpolate_c1(hub_constains, [0.,0.1,0.2,0.3]),
+        gbs.interpolate_c1(shr_constains, [0.,0.1,0.2,0.3]),
+    ]
+
 
 @pytest.mark.parametrize("state", [
     {

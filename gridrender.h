@@ -1,4 +1,5 @@
 #pragma once
+#include <gbs-render/vtkcurvesrender.h>
 #include <vtkSmartPointer.h>
 #include <vtkStructuredGrid.h>
 #include <vtkDataSetMapper.h>
@@ -12,6 +13,8 @@
 #include <vtkPointData.h>
 #include <vtkScalarBarActor.h>
 #include <vtkLookupTable.h>
+#include <vtkTextProperty.h>
+#include <vtkProperty2D.h>
 
 namespace yams
 {
@@ -58,9 +61,8 @@ namespace yams
         structuredGrid->GetPointData()->AddArray(phi);
     }
 
-    inline void plot_vtkStructuredGrid(vtkStructuredGrid *structuredGrid,const char* name,bool edges_on=false)
+    void add_grid_to_renderer(vtkRenderer* renderer, vtkStructuredGrid *structuredGrid,const char* name,bool edges_on)
     {
-
         structuredGrid->GetPointData()->SetActiveScalars(name);
 
         // Create a mapper and actor
@@ -82,6 +84,27 @@ namespace yams
         if(edges_on)
             actor->GetProperty()->EdgeVisibilityOn();
 
+        // Add the actor to the scene
+        renderer->AddActor(actor);
+        vtkSmartPointer<vtkScalarBarActor> scalarBar =
+            vtkSmartPointer<vtkScalarBarActor>::New();
+        scalarBar->SetLookupTable(mapper->GetLookupTable());
+        scalarBar->SetTitle(name);
+        scalarBar->SetNumberOfLabels(4);
+        // scalarBar->GetTitleTextProperty()->SetColor(0.2, 0.2, 0.2);
+        scalarBar->GetTitleTextProperty()->SetFontSize(24);
+        // scalarBar->GetLabelTextProperty()->SetColor(0.2, 0.2, 0.2);
+        scalarBar->GetLabelTextProperty()->SetFontSize(16);
+        // scalarBar->SetDrawBackground(true);
+        // scalarBar->GetBackgroundProperty()->SetOpacity(1.);
+        // scalarBar->GetBackgroundProperty()->SetColor(0.3,0.3,0.3);
+        scalarBar->SetUnconstrainedFontSize(true);
+        renderer->AddActor(scalarBar);
+    }
+
+    inline void plot_vtkStructuredGrid(vtkStructuredGrid *structuredGrid,const char* name,bool edges_on=false)
+    {
+
         // Create a renderer, render window, and interactor
         vtkSmartPointer<vtkRenderer> renderer =
             vtkSmartPointer<vtkRenderer>::New();
@@ -94,16 +117,66 @@ namespace yams
                 vtkSmartPointer<vtkInteractorStyleTrackballCamera> style =
             vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New(); //like paraview
 
+        add_grid_to_renderer(renderer, structuredGrid, name, edges_on);
 
-        // Add the actor to the scene
-        renderer->AddActor(actor);
-        vtkSmartPointer<vtkScalarBarActor> scalarBar =
-            vtkSmartPointer<vtkScalarBarActor>::New();
-        scalarBar->SetLookupTable(mapper->GetLookupTable());
-        scalarBar->SetTitle(name);
-        scalarBar->SetNumberOfLabels(4);
-        renderer->AddActor(scalarBar);
-        renderer->SetBackground(.3, .6, .3); // Background color green
+        renderer->SetBackground(0.7, 0.7, 0.7); // Background color green
+
+        renderWindowInteractor->SetInteractorStyle(style);
+
+        // Render and interact
+        renderWindow->Render();
+        renderWindowInteractor->Start();
+    }
+
+    template<typename T>
+    void add_span_to_renderer(vtkRenderer* renderer,const GridInfo<T> &gi, size_t i, const std::array<double,3> &col, double width)
+    {
+        gbs::points_vector<T,3> pts(gi.nj);
+        const auto &g = *(gi.g);
+        std::transform(
+            g.begin(i),g.end(i),
+            pts.begin(),
+            [](const auto &gp){return gbs::point<T,3>{gp.x,gp.y,T(0.)};}
+        );
+        auto pts_ = gbs::make_vtkPoints(pts.begin(), pts.end());
+        std::array<double,3> col_{col};
+        auto actor = gbs::make_polyline_(pts_, col_ );
+        actor->GetProperty()->SetLineWidth(width);
+        renderer->AddActor( actor );
+    }  
+
+    template<typename T>
+    void add_blades_to_renderer(vtkRenderer* renderer,const SolverCase<T> &solver_case)
+    {
+
+        for( const auto &bld_info: solver_case.bld_info_lst)
+        {
+            add_span_to_renderer(renderer, *(solver_case.gi), bld_info.i1, {1., 0., 0.}, 2.5);
+            add_span_to_renderer(renderer, *(solver_case.gi), bld_info.i2, {0., 0., 1.}, 2.5);
+        }
+    }
+
+    template<typename T>
+    void plot_vtkStructuredGrid(const SolverCase<T> &solver_case,const char* name,bool edges_on=false)
+    {
+
+        // Create a renderer, render window, and interactor
+        vtkSmartPointer<vtkRenderer> renderer =
+            vtkSmartPointer<vtkRenderer>::New();
+        vtkSmartPointer<vtkRenderWindow> renderWindow =
+            vtkSmartPointer<vtkRenderWindow>::New();
+        renderWindow->AddRenderer(renderer);
+        vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
+            vtkSmartPointer<vtkRenderWindowInteractor>::New();
+        renderWindowInteractor->SetRenderWindow(renderWindow);
+                vtkSmartPointer<vtkInteractorStyleTrackballCamera> style =
+            vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New(); //like paraview
+
+        auto structuredGrid = make_vtk_grid<T>(*(solver_case.gi->g));
+        add_grid_to_renderer(renderer, structuredGrid, name, edges_on);
+        add_blades_to_renderer(renderer, solver_case);
+
+        renderer->SetBackground(0.7, 0.7, 0.7); // Background color green
 
         renderWindowInteractor->SetInteractorStyle(style);
 
