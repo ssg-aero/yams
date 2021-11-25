@@ -218,21 +218,21 @@ PYBIND11_MODULE(yams, m)
     );
 
     m.def( "plot",
-        [](const MeridionalGrid<T> &g, const std::string &value , bool edges_on)
+        [](const MeridionalGrid<T> &g, const std::string &value , bool edges_on, bool countour_on)
         {
-            plot_vtkStructuredGrid(make_vtk_grid<T>(g), value.c_str(), edges_on);
+            plot_vtkStructuredGrid(make_vtk_grid<T>(g), value.c_str(), edges_on, countour_on);
         },
         "Plot grid results",
-        py::arg("g"), py::arg("value") = "Vm", py::arg("edges_on") = true
+        py::arg("g"), py::arg("value") = "Vm", py::arg("edges_on") = false, py::arg("countour_on") = false
     );
 
     m.def( "plot",
-        [](const SolverCase<T> &solver_case, const std::string &value , bool edges_on)
+        [](const SolverCase<T> &solver_case, const std::string &value , bool edges_on, bool countour_on)
         {
-            plot_vtkStructuredGrid(solver_case, value.c_str(), edges_on);
+            plot_vtkStructuredGrid(solver_case, value.c_str(), edges_on, countour_on);
         },
         "Plot grid results",
-        py::arg("solver_case"), py::arg("value") = "Vm", py::arg("edges_on") = true
+        py::arg("solver_case"), py::arg("value") = "Vm", py::arg("edges_on") = false, py::arg("countour_on") = false
     );
 
     m.def( "plot_residual",&plot_residual<T>,py::arg("log"));

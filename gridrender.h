@@ -15,6 +15,8 @@
 #include <vtkLookupTable.h>
 #include <vtkTextProperty.h>
 #include <vtkProperty2D.h>
+#include <vtkContourFilter.h>
+#include <vtkPolyDataMapper.h>
 
 namespace yams
 {
@@ -61,7 +63,7 @@ namespace yams
         structuredGrid->GetPointData()->AddArray(phi);
     }
 
-    void add_grid_to_renderer(vtkRenderer* renderer, vtkStructuredGrid *structuredGrid,const char* name,bool edges_on)
+    void add_grid_to_renderer(vtkRenderer* renderer, vtkStructuredGrid *structuredGrid,const char* name,bool edges_on, bool countour_on)
     {
         structuredGrid->GetPointData()->SetActiveScalars(name);
 
@@ -78,14 +80,37 @@ namespace yams
         rainbowBlueRedLut->Build();
         mapper->SetLookupTable(rainbowBlueRedLut);
 
-        vtkSmartPointer<vtkActor> actor =
+        vtkSmartPointer<vtkActor> gridActor =
             vtkSmartPointer<vtkActor>::New();
-        actor->SetMapper(mapper);
+        gridActor->SetMapper(mapper);
         if(edges_on)
-            actor->GetProperty()->EdgeVisibilityOn();
-
+        {
+            gridActor->GetProperty()->EdgeVisibilityOn();
+            gridActor->GetProperty()->SetEdgeColor(0.3, 0.3, 0.3);
+        }
         // Add the actor to the scene
-        renderer->AddActor(actor);
+        renderer->AddActor(gridActor);
+        if (countour_on)
+        { // Add contour
+            vtkNew<vtkContourFilter> contourFilter;
+            contourFilter->SetInputData(structuredGrid);
+            double range[2];
+            structuredGrid->GetScalarRange(range);
+            contourFilter->GenerateValues(8, range[0], range[1]);
+            // Map the contours to graphical primitives
+            vtkNew<vtkPolyDataMapper> contourMapper;
+            contourMapper->SetInputConnection(contourFilter->GetOutputPort());
+            contourMapper->ScalarVisibilityOff();
+
+            // Create an actor for the contours
+            vtkNew<vtkActor> contourActor;
+            contourActor->SetMapper(contourMapper);
+            contourActor->GetProperty()->SetLineWidth(1.5);
+            contourActor->GetProperty()->SetColor(0., 0., 0.);
+            // contourActor->GetProperty()->SetOpacity(0.7);
+            renderer->AddActor(contourActor);
+        }
+
         vtkSmartPointer<vtkScalarBarActor> scalarBar =
             vtkSmartPointer<vtkScalarBarActor>::New();
         scalarBar->SetLookupTable(mapper->GetLookupTable());
@@ -102,7 +127,7 @@ namespace yams
         renderer->AddActor(scalarBar);
     }
 
-    inline void plot_vtkStructuredGrid(vtkStructuredGrid *structuredGrid,const char* name,bool edges_on=false)
+    inline void plot_vtkStructuredGrid(vtkStructuredGrid *structuredGrid,const char* name,bool edges_on = false, bool countour_on = false)
     {
 
         // Create a renderer, render window, and interactor
@@ -117,7 +142,7 @@ namespace yams
                 vtkSmartPointer<vtkInteractorStyleTrackballCamera> style =
             vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New(); //like paraview
 
-        add_grid_to_renderer(renderer, structuredGrid, name, edges_on);
+        add_grid_to_renderer(renderer, structuredGrid, name, edges_on,countour_on);
 
         renderer->SetBackground(0.7, 0.7, 0.7); // Background color green
 
@@ -157,7 +182,7 @@ namespace yams
     }
 
     template<typename T>
-    void plot_vtkStructuredGrid(const SolverCase<T> &solver_case,const char* name,bool edges_on=false)
+    void plot_vtkStructuredGrid(const SolverCase<T> &solver_case,const char* name,bool edges_on = false, bool countour_on = false)
     {
 
         // Create a renderer, render window, and interactor
@@ -173,7 +198,7 @@ namespace yams
             vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New(); //like paraview
 
         auto structuredGrid = make_vtk_grid<T>(*(solver_case.gi->g));
-        add_grid_to_renderer(renderer, structuredGrid, name, edges_on);
+        add_grid_to_renderer(renderer, structuredGrid, name, edges_on, countour_on);
         add_blades_to_renderer(renderer, solver_case);
 
         renderer->SetBackground(0.7, 0.7, 0.7); // Background color green

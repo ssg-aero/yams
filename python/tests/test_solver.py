@@ -51,7 +51,7 @@ def test_solve_base_channel(channel2, state, expected):
     assert solver_case.gi.g(0,int(nj/2)).Vm > solver_case.gi.g(ni-1,int(nj/2)).Vm *expected["ral"]
     assert solver_case.gi.g(0,int(nj/2)).Tt == approx( solver_case.gi.g(ni-1,int(nj/2)).Tt )
     if plot_on: 
-        yams.plot(solver_case.gi.g,"Vm",False)
+        yams.plot(solver_case.gi.g,"Vm",False,True)
         yams.plot(solver_case.gi.g,"Ts",False)
         yams.plot(solver_case.gi.g,"cur",True)
         yams.plot_residual(solver_case.log)
@@ -68,7 +68,7 @@ def test_solve_mixed_channel( ):
     yams.curvature_solver(solver_case)
 
     if plot_on: 
-        yams.plot(solver_case.gi.g,"Vm",False)
+        yams.plot(solver_case.gi.g,"Vm",True)
         yams.plot_residual(solver_case.log)
 
 @pytest.mark.parametrize("state, expected", [
@@ -140,7 +140,7 @@ def test_solve_base_stator(channel2,state, expected):
 ])
 
 
-def test_solve_base_stator(channel4,state, expected):
+def test_solve_base_rotor(channel4,state, expected):
     crv_lst = channel4
     knots = crv_lst[1].knots()
 
