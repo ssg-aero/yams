@@ -229,7 +229,7 @@ namespace yams
                 auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
                 auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
                 auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
-                auto f_phi=solver_case.bld_info_lst[g(i, 0).iB].psi;
+                auto f_psi=solver_case.bld_info_lst[g(i, 0).iB].psi;
                 if(i == i1)
                 {
                     for (auto j = 0; j < nj; j++)
@@ -247,7 +247,7 @@ namespace yams
                         g(i, j).omg = omg; // TODO rem omg from grid
                         auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
                         auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
-                        auto phi_out =f_phi(l_rel);
+                        auto phi_out =f_psi(l_rel);
                         g(i, j).Vu = g(i1, j).Vu + m_rel_loc * phi_out * g(i, j).y * omg;
                     }
                     integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
