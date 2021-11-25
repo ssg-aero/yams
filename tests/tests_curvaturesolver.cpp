@@ -292,7 +292,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .ni = ni,
         .nj = nj,
         .rho_cst=false,
-        .RF = 0.05,
+        .RF = 0.01,
     };
 
     SolverCase<T> solver_case{
@@ -303,7 +303,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
-            .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
+            .Ts   = [](auto l_rel){return 300. + 30. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
         },
         .max_geom = 1000
@@ -882,13 +882,13 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
             // plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             // plot_vtkStructuredGrid(structuredGrid,"Pt", true);
             // plot_vtkStructuredGrid(structuredGrid,"Tt", true);
-            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(solver_case,"Vm", true);
             // plot_vtkStructuredGrid(structuredGrid,"Vu", true);
             // plot_vtkStructuredGrid(structuredGrid,"V", true);
             // plot_vtkStructuredGrid(structuredGrid,"rho", true);
-            plot_vtkStructuredGrid(structuredGrid,"bet", true);
-            plot_vtkStructuredGrid(structuredGrid,"alf", true);
-            plot_vtkStructuredGrid(structuredGrid,"s", true);
+            plot_vtkStructuredGrid(solver_case,"bet", true);
+            plot_vtkStructuredGrid(solver_case,"alf", true);
+            plot_vtkStructuredGrid(solver_case,"s", true);
             // plot_vtkStructuredGrid(structuredGrid,"H", true);
             plot_residual(solver_case.log);
         }
