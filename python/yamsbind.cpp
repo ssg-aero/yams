@@ -194,22 +194,22 @@ PYBIND11_MODULE(yams, m)
     m.def("make_solver_case",
         py::overload_cast<
             vtkStructuredGrid* , 
-            const std::vector<BladeInfo<T>>&,
-            const std::function<T(T,T)>&
-        >(&make_solver_case<T,std::function<T(T,T)>>),
+            const std::vector< std::tuple< BladeInfo<T> , gbs::BSSfunction<T> > > &
+        >(&make_solver_case<T,gbs::BSSfunction<T>>),
         "Make solver case and init GridInfo metrics",
-        py::arg("sgrid"), py::arg("bld_info_lst"), py::arg("f_beta")
+        py::arg("sgrid"), py::arg("bld_info_lst")
     );
 
     m.def("make_solver_case",
         py::overload_cast<
             vtkStructuredGrid* , 
-            const std::vector<BladeInfo<T>>&,
-            const gbs::BSSfunction<T>&
-        >(&make_solver_case<T,gbs::BSSfunction<T>>),
+            const std::vector< std::tuple< BladeInfo<T> , std::function<T(T,T)> > > &
+        >(&make_solver_case<T,std::function<T(T,T)>>),
         "Make solver case and init GridInfo metrics",
-        py::arg("sgrid"), py::arg("bld_info_lst"), py::arg("f_beta")
+        py::arg("sgrid"), py::arg("bld_info_lst")
     );
+
+
 
     m.def("curvature_solver",
         &curvature_solver<T>,
@@ -235,6 +235,14 @@ PYBIND11_MODULE(yams, m)
         py::arg("solver_case"), py::arg("value") = "Vm", py::arg("edges_on") = false, py::arg("countour_on") = false
     );
 
+    m.def( "plot",
+        [](vtkStructuredGrid* sgrid, const std::string &value , bool edges_on, bool countour_on)
+        {
+            plot_vtkStructuredGrid(sgrid, value.c_str(), edges_on, countour_on);
+        },
+        "Plot grid results",
+        py::arg("g"), py::arg("value") = "Vm", py::arg("edges_on") = false, py::arg("countour_on") = false
+    );
     m.def( "plot_residual",&plot_residual<T>,py::arg("log"));
 
 }

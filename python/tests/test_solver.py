@@ -68,7 +68,7 @@ def test_solve_mixed_channel( ):
     yams.curvature_solver(solver_case)
 
     if plot_on: 
-        yams.plot(solver_case.gi.g,"Vm",True)
+        yams.plot(solver_case.gi.g,"Vm",True,True)
         yams.plot_residual(solver_case.log)
 
 @pytest.mark.parametrize("state, expected", [
@@ -105,7 +105,7 @@ def test_solve_base_stator(channel2,state, expected):
     blade_info.i2 = int(2*ni/3.0)
     blade_info.mode = yams.MeridionalBladeMode.DIRECT
 
-    solver_case = yams.make_solver_case(sgrid, [blade_info], lambda m, l : (1-m) * state['k1'] + m *state['k2'] )
+    solver_case = yams.make_solver_case(sgrid, [(blade_info, lambda m, l : (1-m) * state['k1'] + m *state['k2'] )])
     config_solver(state, solver_case)
 
     yams.curvature_solver(solver_case)
@@ -161,7 +161,7 @@ def test_solve_base_rotor(channel4,state, expected):
     blade_info.psi = lambda l : (1-l)*1.2+0.8 * l
     blade_info.omg = state['rpm'] / 30 * pi
 
-    solver_case = yams.make_solver_case(sgrid, [blade_info], lambda m, l : 0.)
+    solver_case = yams.make_solver_case(sgrid, [(blade_info, lambda m, l : 0.)])
     config_solver(state, solver_case)
 
     yams.curvature_solver(solver_case)

@@ -62,7 +62,7 @@ namespace yams
      * @param n_ksi 
      * @param n_eth 
      * @param max_deg 
-     * @return auto 
+     * @return auto [pts, nj, ni, n_iso_eth, n_iso_ksi]
      */
     template <typename T>
     auto mesh_channel(const crv_vector<T> &iso_eth, const std::vector<T> &ksi_i, size_t n_iso_ksi, size_t n_iso_eth, size_t max_deg = 3)
