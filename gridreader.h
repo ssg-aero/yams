@@ -127,6 +127,12 @@ namespace yams
                     { return gp.Cp; });
         add_value(g, structuredGrid, "ga", [](const auto &gp)
                     { return gp.ga; });
+        add_value(g, structuredGrid, "k", [](const auto &gp)
+                    { return gp.k; });
+        add_value(g, structuredGrid, "omg", [](const auto &gp)
+                    { return gp.omg; });
+        add_value(g, structuredGrid, "iB", [](const auto &gp)
+                    { return gp.iB; });
         return structuredGrid;
     }
 
