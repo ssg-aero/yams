@@ -30,7 +30,7 @@ requirements:
     - xtl
     - xtensor
     - xsimd
-    - gbs >=0.1.3
+    - gbs >=0.1.4
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
   run:
     # - python {{ python }}
