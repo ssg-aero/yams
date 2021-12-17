@@ -91,7 +91,7 @@ namespace yams
         auto tb = tan(gp.bet);
         auto ce = cos(gp.eps);
         auto G1 = ce * gp.cgp * gp.cur;
-        auto G2 = tb / gp.y * gp.Dphi_Dth;
+        auto G2 = gp.y > 0. ? tb / gp.y * gp.Dphi_Dth : 0.;
         return G1 + G2;
     };
 
@@ -100,7 +100,7 @@ namespace yams
         const auto &gp = g(i, j);
         auto se = sin(gp.eps);                                                    //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
         // return se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu); // simplification of cos beta with dS -> dm
-        return se / gp.y * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu); // simplification of cos beta with dS -> dm
+        return gp.y > 0. ? se / gp.y * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu) : 0.; // simplification of cos beta with dS -> dm
     };
 
     auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
@@ -115,7 +115,7 @@ namespace yams
         // auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
         auto K1 = ce * (D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
         // auto K2 = -gp.Vu / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
-        auto K2 = -gp.Vu / gp.y * ce * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
+        auto K2 = gp.y > 0. ?  -gp.Vu / gp.y * ce * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu) : 0.;
         // auto K3 = ce * gp.sgp * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
         auto K3 = ce * gp.sgp * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
         // auto K4 = (ce * cb * gp.sgp + se * sb) * gp.Ts * cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
