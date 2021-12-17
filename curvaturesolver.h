@@ -173,7 +173,7 @@ namespace yams
             {
                 if (i > 0)
                 {
-                    g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+                    g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
                 }
                 g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
             }
@@ -182,13 +182,16 @@ namespace yams
         }
         else
         {
+            auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
+            auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
+            auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
+            for (auto j = 0; j < nj; j++)
+                g(i, j).omg = omg;
+
             if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DIRECT)
             {
-                
-                auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
                 for (auto j = 0; j < nj; j++)
                 {
-                    g(i, j).omg = omg;
                     g(i, j).bet = g(i, j).k;
                 }
                 integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
@@ -199,15 +202,11 @@ namespace yams
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_BETA_OUT)
             {
-                auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
-                auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
-                auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
                 if(i == i1)
                 {
                     for (auto j = 0; j < nj; j++)
                     {
-                        g(i, j).omg = omg;
-                        g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+                        g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
                         g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
                     }
                     integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
@@ -216,7 +215,6 @@ namespace yams
                 {
                     for (auto j = 0; j < nj; j++)
                     {
-                        g(i, j).omg = omg;
                         auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
                         auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
                         auto bet_out = solver_case.bld_info_lst[g(i, j).iB].beta_out(l_rel);
@@ -232,16 +230,12 @@ namespace yams
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_PSI)
             {
-                auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
-                auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
-                auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
                 auto f_psi=solver_case.bld_info_lst[g(i, 0).iB].psi;
                 if(i == i1)
                 {
                     for (auto j = 0; j < nj; j++)
                     {
-                        g(i, j).omg = omg; // TODO rem omg from grid
-                        g(i, j).Vu = g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y;
+                        g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
                         g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
                     }
                     integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
@@ -250,7 +244,6 @@ namespace yams
                 {
                     for (auto j = 0; j < nj; j++)
                     {
-                        g(i, j).omg = omg; // TODO rem omg from grid
                         auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
                         auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
                         auto phi_out =f_psi(l_rel);
