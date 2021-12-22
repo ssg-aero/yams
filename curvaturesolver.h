@@ -416,6 +416,7 @@ namespace yams
     template <typename T, auto ExPo = std::execution::par>
     auto curvature_solver(SolverCase<T> &solver_case)
     {
+        // init values
         auto &gi = *solver_case.gi;
         auto &g = *gi.g;
         auto &g_metrics = *gi.g_metrics;
@@ -429,9 +430,6 @@ namespace yams
         auto eps = solver_case.eps;
         auto tol_rel_mf =solver_case.tol_rel_mf;
         auto tol_pos = solver_case.tol_rel_pos * g(0, nj - 1).l;
-
-        apply_mf(solver_case);
-
         T vmi;
         int count_geom = 0;
         auto converged = false;
@@ -441,59 +439,63 @@ namespace yams
         T delta_pos {};
         T delta_pos_moy {};
         std::vector<T> delta_pos_array(ni-i_0-1);
-
+        auto span_range = gbs::make_range<size_t>(i_0,ni-1);
+        // compute spans mass flow
+        apply_mf(solver_case);
+        // apply boundary conditions
         apply_bc(solver_case);
-
+        // innit values
         init_values(solver_case,tol_rel_mf, eps);
-
+        // run computation
         while (!converged && (count_geom < max_geom))
         {
+            // integrate radial eq equation and update gas properties
             for (auto i = i_0; i < ni; i++)
             {
                 vmi = g(i, nj * gi.j_0 + 1).Vm;
                 compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,true);
                 compute_gas_properties(gi,i);
             }
-
-            count_geom++;
-
-            solver_case.log.delta_pos.push_back(std::vector<T>{});
-
-           auto span_range = gbs::make_range<size_t>(i_0,ni-1);
-
+            if( !solver_case.relocate )
+            {
+                break;
+            }
+            // Compute mass flow distribution
            std::for_each(
                 ExPo,
                 span_range.begin(), span_range.end(),
                 [&](const auto &i){
                     compute_massflow_distribution(g.begin(i), g.end(i));
-                    }
+                }
            );
+           // relocate streams to balance mass flow
            std::transform(
                 ExPo,
                 std::next(span_range.begin()), span_range.end(),
                 delta_pos_array.begin(),
                 [&](const auto &i)
                 {
-                        return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
+                    return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );
-
-           delta_pos_moy = std::reduce(
-                ExPo,
-                delta_pos_array.begin(),delta_pos_array.end()
-           ) / delta_pos_array.size();
+            // compute residuals
+            delta_pos_moy = std::reduce(
+                    ExPo,
+                    delta_pos_array.begin(),delta_pos_array.end()
+            ) / delta_pos_array.size();
 
             delta_pos_max = *std::max_element(
                 delta_pos_array.begin(),delta_pos_array.end()
             );
-
+            // add residuals to logger
+            solver_case.log.delta_pos.push_back(delta_pos_array);
             solver_case.log.delta_pos_max.push_back(delta_pos_max);
             solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
-
+            // update metrics
             compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
-
+            // update convergence criteria
             converged = delta_pos_moy < tol_pos;
-
+            count_geom++;
         }
     }
 }

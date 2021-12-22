@@ -84,6 +84,7 @@ namespace yams
         T eps = 0.00001;
         T tol_rel_mf = 1e-4;
         T tol_rel_pos = 1e-5;
+        bool relocate = true;
     };
 
 }

@@ -150,6 +150,7 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("eps",&SolverCase<T>::eps)
     .def_readwrite("tol_rel_mf",&SolverCase<T>::tol_rel_mf)
     .def_readwrite("tol_rel_pos",&SolverCase<T>::tol_rel_pos)
+    .def_readwrite("relocate",&SolverCase<T>::relocate)
     .def("__copy__",  [](const  SolverCase<T> &self) {
         return  SolverCase<T>(self);
     })
