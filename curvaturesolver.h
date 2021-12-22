@@ -413,7 +413,7 @@ namespace yams
         }
     }
 
-    template <typename T>
+    template <typename T, auto ExPo = std::execution::par>
     auto curvature_solver(SolverCase<T> &solver_case)
     {
         auto &gi = *solver_case.gi;
@@ -437,6 +437,10 @@ namespace yams
         auto converged = false;
         auto i_0 = 0;
         solver_case.log.clear();
+        T delta_pos_max {};
+        T delta_pos {};
+        T delta_pos_moy {};
+        std::vector<T> delta_pos_array(ni-i_0-1);
 
         apply_bc(solver_case);
 
@@ -452,53 +456,30 @@ namespace yams
             }
 
             count_geom++;
-            // declaring these variable here speed up computation
+
             solver_case.log.delta_pos.push_back(std::vector<T>{});
-            T delta_pos_max {};
-            T delta_pos {};
-            T delta_pos_moy {};
-            /*
-            for (auto i = i_0; i < ni; i++) // TODO run in //
-            {
-                compute_massflow_distribution(g.begin(i), g.end(i));
-                if (i > 0 && count_geom < max_geom)
-                {
-                    delta_pos = balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]);
-                    delta_pos /= g(i,nj-1).l; // To get relative length
-                    delta_pos_moy += delta_pos / (ni - 2.);
-                    delta_pos_max = fmax(delta_pos_max,delta_pos);
-                    solver_case.log.delta_pos.back().push_back(delta_pos);
-                }
-            }
-            solver_case.log.delta_pos_max.push_back(delta_pos_max);
-            solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
 
-            compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
-
-            converged = delta_pos_moy < tol_pos;
-            */
-           std::vector<T> delta_pos_array(ni-i_0-1);
            auto span_range = gbs::make_range<size_t>(i_0,ni-1);
 
            std::for_each(
-                std::execution::par,
-               span_range.begin(), span_range.end(),
-               [&](const auto &i){
-                   compute_massflow_distribution(g.begin(i), g.end(i));
-                }
+                ExPo,
+                span_range.begin(), span_range.end(),
+                [&](const auto &i){
+                    compute_massflow_distribution(g.begin(i), g.end(i));
+                    }
            );
            std::transform(
-                std::execution::par,
-               std::next(span_range.begin()), span_range.end(),
-               delta_pos_array.begin(),
-               [&](const auto &i)
-               {
-                    return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
-               }
+                ExPo,
+                std::next(span_range.begin()), span_range.end(),
+                delta_pos_array.begin(),
+                [&](const auto &i)
+                {
+                        return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
+                }
            );
 
            delta_pos_moy = std::reduce(
-                std::execution::par,
+                ExPo,
                 delta_pos_array.begin(),delta_pos_array.end()
            ) / delta_pos_array.size();
 
