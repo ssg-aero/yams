@@ -285,21 +285,18 @@ namespace yams
         auto &g = *gi.g;
         auto nj = g.nCols();
         std::vector<T> q(nj);
-        // gbs::points_vector<T,1> q(nj);
+
         gbs::points_vector<T, 2> X(nj);
         auto l_tot = g(i, nj - 1).l;
         for (auto j = 0; j < nj; j++)
         {
             q[j] = g(i, j).q * g(0, nj - 1).q / g(i, nj - 1).q; // To perfectly match and then solve better
         }
-        // size_t p = fmax(fmin(3, nj), 1);
+
         auto [f_X, u] = compute_span_curve(g,i);
         auto f_Q = gbs::interpolate(q, u, f_X.degree());
 
-        // auto f_Q = gbs::BSCfunction( gbs::approx(q,2,fmax(nj / 3,3), u,true) );
-        // auto f_X =  gbs::approx(X,2,fmax(nj / 3,3), u,true);
-
-        auto delta_pos = 0.;
+        auto span_geom_residual = 0.;
         auto RF = gi.RF;
         auto tol_f = gi.tol_newtow_mf_f;
         auto tol_u = gi.tol_newtow_mf_u;
@@ -309,23 +306,21 @@ namespace yams
 
         for (auto j = 1; j < nj - 1; j++)
         {
-            // auto l = newton_solve<T>(f_Q, gbs::point<T,1>{g(0, j).q}, u[j]);
             auto [u1, u2] = f_Q.bounds();
             auto [l, delta, count] = newton_solve<T>(f_Q, g(0, j).q, u[j], u1, u2, tol_f, tol_u);
-            assert(l <= u2 && l >= u1);
+            
             auto X = f_X.value(l);
             auto dx = g(i, j).x - X[0];
             auto dy = g(i, j).y - X[1];
-            // std::cout << delta << " " << dx << " " << dy  << std::endl;
-            delta_pos = fmax(fmax(fabs(dx), fabs(dy)), delta_pos);
             g(i, j).x += RF * (X[0] - g(i, j).x);
             g(i, j).y += RF * (X[1] - g(i, j).y);
+            
+            span_geom_residual = fmax(fmax(fabs(dx), fabs(dy)), span_geom_residual);
         }
-        return delta_pos;
+        return span_geom_residual;
     }
 
     template <typename T>
-    // auto compute_vm_distribution(T mf, T vmi, size_t i,GridInfo<T> &gi, T tol_rel_mf, T eps, bool integrate)
     auto compute_vm_distribution(SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
     {
         auto mf     = solver_case.mf[i];
@@ -338,8 +333,7 @@ namespace yams
             mf_pre = eq_massflow(vmi - eps, solver_case, i, integrate);
             mf_ = eq_massflow(vmi, solver_case, i, integrate);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
-            // assert(vmi >= 0.);
-            vmi = fmin(fmax(0.1,vmi),360.);
+            vmi = fmin(fmax(0.1,vmi),360.); // TODO improve test
             err_mf = fabs(mf_ - mf) / mf;
             count++;
         }
@@ -387,7 +381,6 @@ namespace yams
         size_t ni = g.nRows();
         if(solver_case.inlet.mode == MeridionalBC::INLET_VmMoy_Ts_Ps_Vu)
         {
-            // std::fill(gi.g.begin(0),gi.g.end(0),solver_case.inlet.Vm_moy);
             std::for_each(g.begin(0),g.end(0),
                 [Vm = solver_case.inlet.Vm_moy](auto &gp)
                 {
@@ -402,8 +395,7 @@ namespace yams
     }  
 
     template <typename T>
-    // auto init_values(GridInfo<T> &gi,const std::vector<T> &mf, T tol_rel_mf, T eps)
-     auto init_values(SolverCase<T> &solver_case, T tol_rel_mf, T eps)
+    auto init_values(SolverCase<T> &solver_case, T tol_rel_mf, T eps)
     {
         auto &gi   = *solver_case.gi;
         auto &g    = *gi.g;
@@ -444,7 +436,6 @@ namespace yams
         int count_geom = 0;
         auto converged = false;
         auto i_0 = 0;
-
         solver_case.log.clear();
 
         apply_bc(solver_case);
@@ -453,22 +444,19 @@ namespace yams
 
         while (!converged && (count_geom < max_geom))
         {
-
-            // apply_bc(solver_case);
-
             for (auto i = i_0; i < ni; i++)
             {
                 vmi = g(i, nj * gi.j_0 + 1).Vm;
-                // compute_vm_distribution(solver_case.mf[i], vmi, i, gi, tol_rel_mf, eps,true);
                 compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,true);
                 compute_gas_properties(gi,i);
             }
 
             count_geom++;
+            // declaring these variable here speed up computation
+            solver_case.log.delta_pos.push_back(std::vector<T>{});
             T delta_pos_max {};
             T delta_pos {};
             T delta_pos_moy {};
-            solver_case.log.delta_pos.push_back(std::vector<T>{});
             for (auto i = i_0; i < ni; i++) // TODO run in //
             {
                 compute_massflow_distribution(g.begin(i), g.end(i));
