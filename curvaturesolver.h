@@ -457,6 +457,7 @@ namespace yams
             T delta_pos_max {};
             T delta_pos {};
             T delta_pos_moy {};
+            /*
             for (auto i = i_0; i < ni; i++) // TODO run in //
             {
                 compute_massflow_distribution(g.begin(i), g.end(i));
@@ -474,7 +475,41 @@ namespace yams
 
             compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
 
-            // apply_bc(solver_case);
+            converged = delta_pos_moy < tol_pos;
+            */
+           std::vector<T> delta_pos_array(ni-i_0-1);
+           auto span_range = gbs::make_range<size_t>(i_0,ni-1);
+
+           std::for_each(
+                std::execution::par,
+               span_range.begin(), span_range.end(),
+               [&](const auto &i){
+                   compute_massflow_distribution(g.begin(i), g.end(i));
+                }
+           );
+           std::transform(
+                std::execution::par,
+               std::next(span_range.begin()), span_range.end(),
+               delta_pos_array.begin(),
+               [&](const auto &i)
+               {
+                    return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
+               }
+           );
+
+           delta_pos_moy = std::reduce(
+                std::execution::par,
+                delta_pos_array.begin(),delta_pos_array.end()
+           ) / delta_pos_array.size();
+
+            delta_pos_max = *std::max_element(
+                delta_pos_array.begin(),delta_pos_array.end()
+            );
+
+            solver_case.log.delta_pos_max.push_back(delta_pos_max);
+            solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
+
+            compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
 
             converged = delta_pos_moy < tol_pos;
 
