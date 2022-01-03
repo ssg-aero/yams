@@ -184,9 +184,6 @@ namespace yams
         {
             auto i1 = solver_case.bld_info_lst[g(i, 0).iB].i1;
             auto i2 = solver_case.bld_info_lst[g(i, 0).iB].i2;
-            auto omg= solver_case.bld_info_lst[g(i, 0).iB].omg;
-            for (auto j = 0; j < nj; j++)
-                g(i, j).omg = omg;
 
             if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DIRECT)
             {
@@ -247,7 +244,7 @@ namespace yams
                         auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
                         auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
                         auto phi_out =f_psi(l_rel);
-                        g(i, j).Vu = g(i1, j).Vu + m_rel_loc * phi_out * g(i, j).y * omg;
+                        g(i, j).Vu = g(i1, j).Vu + m_rel_loc * phi_out * g(i, j).y * g(i, j).omg;
                     }
                     integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
                     for (auto j = 0; j < nj; j++)
@@ -413,6 +410,28 @@ namespace yams
         }
     }
 
+    template <typename T>
+    auto apply_rotation_speeds(SolverCase<T> &solver_case)
+    {
+        auto &gi   = *solver_case.gi;
+        auto &g    = *gi.g;
+        size_t nj = g.nCols();
+        for (const auto &bld_info : solver_case.bld_info_lst)
+        {
+            auto i1 = bld_info.i1;
+            auto i2 = bld_info.i2;
+            auto omg= bld_info.omg;
+            for (auto i = i1; i <= i2; i++)
+            {
+                for (auto j = 0; j < nj; j++)
+                {
+                    g(i, j).omg = omg;
+                }
+            }
+        }
+    }
+
+
     template <typename T, auto ExPo = std::execution::par>
     auto curvature_solver(SolverCase<T> &solver_case)
     {
@@ -446,6 +465,8 @@ namespace yams
         apply_bc(solver_case);
         // innit values
         init_values(solver_case,tol_rel_mf, eps);
+        // apply rotation sppeds
+        apply_rotation_speeds(solver_case);
         // run computation
         while (!converged && (count_geom < max_geom))
         {
