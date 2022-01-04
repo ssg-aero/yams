@@ -60,7 +60,7 @@ namespace yams
     }
     
     template <typename T>
-    inline auto compute_curvature(MeridionalGrid<T> &g)
+    inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = false)
     {
         size_t ni = g.nRows()-1;
         size_t nj = g.nCols();
@@ -74,8 +74,17 @@ namespace yams
         }
         for (auto j = 0; j < nj; j++)
         {
-            g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
-            g(ni, j).cur = 2. * g(ni - 1, j).cur - g(ni - 2, j).cur;
+            if( interpolate )
+            {
+                g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
+                g(ni, j).cur = 2. * g(ni - 1, j).cur - g(ni - 2, j).cur;
+            }
+            else
+            {
+                g(0, j).cur  =  D1_O1_i_fw(g, 0 , j, fphi, fm);
+                g(ni, j).cur =  D1_O1_i_bw(g, ni, j, fphi, fm);
+            }
+
         }
     }
 
