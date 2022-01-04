@@ -126,6 +126,7 @@ namespace yams
 
         if (i != 0) // except inlet
         {
+            // Compute totals values
             for (auto j = 0; j < nj; j++)
             {
                 const auto &g1 = g(i - 1, j);
@@ -142,6 +143,7 @@ namespace yams
             }
         }
 
+        // Compute static values
         for (auto j = 0; j < nj; j++)
         {
             auto &gp = g(i, j);
@@ -155,13 +157,119 @@ namespace yams
             // TODO update cp
             gp.ga = 1. / (1. - gi.R / gp.Cp);
             // Compute entropy rise
-            // TODO compute elemetary entropy rises from different losses and the compute Ps then Pt
+            // TODO compute elementary entropy rises from different losses and the compute Ps then Pt
             gp.s = std::log(pow(gp.Ts/gi.Tref,gp.Cp)/std::pow(gp.Ps/gi.Pref,gi.R)) ;
         }
     }
 
     template <typename T>
-    auto eq_massflow(T vmi, SolverCase<T> &solver_case, int i, bool integrate)
+    auto eq_massflow_no_blade(T vmi, GridInfo<T> &gi, int i, bool integrate) -> void
+    {
+
+        auto &g = *gi.g;
+        auto nj = g.nCols();
+        for (auto j = 0; j < nj; j++)
+        {
+            if (i > 0)
+            {
+                g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
+            }
+            g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
+        }
+
+        integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+    }
+
+    template <typename T>
+    auto eq_massflow_blade_direct(T vmi, GridInfo<T> &gi, int i, bool integrate) -> void
+    {
+        auto &g = *gi.g;
+        auto nj = g.nCols();
+        for (auto j = 0; j < nj; j++)
+        {
+            g(i, j).bet = g(i, j).k; // TODO add deviation model
+        }
+        integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
+        for (auto j = 0; j < nj; j++)
+        {
+            g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
+        }
+    }
+
+    template <typename T>
+    auto eq_massflow_blade_beta_out(T vmi, GridInfo<T> &gi, int i, int i1, int i2, const auto &bet_out, bool integrate) -> void
+    {
+        auto &g = *gi.g;
+        auto nj = g.nCols();
+        if(i == i1)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+        }
+        else
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
+                auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
+                auto bet_in  = g(i1, j).bet;
+                g(i, j).bet = bet_in *(1.-m_rel_loc) + bet_out(l_rel) * m_rel_loc;
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
+            }
+        }
+    }
+
+    template <typename T>
+    auto eq_massflow_blade_design_psi(T vmi, GridInfo<T> &gi, int i, int i1, int i2, const auto &f_psi, bool integrate) -> void
+    {
+        auto &g = *gi.g;
+        auto nj = g.nCols();
+
+        if(i == i1)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+        }
+        else
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
+                auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
+                auto phi_out =f_psi(l_rel);
+                g(i, j).Vu = g(i1, j).Vu + m_rel_loc * phi_out * g(i, j).y * g(i, j).omg;
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
+            }
+        }
+    }
+    /**
+     * @brief 
+     * 
+     * @tparam T 
+     * @param vmi : initial Vm value for integration, if no integration performed this value is the constant value on comptation plane
+     * @param solver_case 
+     * @param i : computation plane index
+     * @param integrate : activate use contant value for Vm or not
+     * @return T : Current massflow crossing computation plane
+     */
+    template <typename T>
+    auto eq_massflow(T vmi, SolverCase<T> &solver_case, int i, bool integrate) -> T
     {
         auto &gi= *solver_case.gi;
         auto &g = *gi.g;
@@ -169,16 +277,7 @@ namespace yams
         
         if (g(i, 0).iB == -1)
         {
-            for (auto j = 0; j < nj; j++)
-            {
-                if (i > 0)
-                {
-                    g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
-                }
-                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
-            }
-
-            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+            eq_massflow_no_blade(vmi, gi, i, integrate);
         }
         else
         {
@@ -187,71 +286,15 @@ namespace yams
 
             if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DIRECT)
             {
-                for (auto j = 0; j < nj; j++)
-                {
-                    g(i, j).bet = g(i, j).k;
-                }
-                integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
-                for (auto j = 0; j < nj; j++)
-                {
-                    g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
-                }
+                eq_massflow_blade_direct(vmi, gi, i, integrate);
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_BETA_OUT)
             {
-                if(i == i1)
-                {
-                    for (auto j = 0; j < nj; j++)
-                    {
-                        g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
-                        g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
-                    }
-                    integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
-                }
-                else
-                {
-                    for (auto j = 0; j < nj; j++)
-                    {
-                        auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
-                        auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
-                        auto bet_out = solver_case.bld_info_lst[g(i, j).iB].beta_out(l_rel);
-                        auto bet_in  = g(i1, j).bet;
-                        g(i, j).bet = bet_in *(1.-m_rel_loc) + bet_out * m_rel_loc;
-                    }
-                    integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
-                    for (auto j = 0; j < nj; j++)
-                    {
-                        g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
-                    }
-                }
+                eq_massflow_blade_beta_out(vmi, gi, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].beta_out, integrate);
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_PSI)
             {
-                auto f_psi=solver_case.bld_info_lst[g(i, 0).iB].psi;
-                if(i == i1)
-                {
-                    for (auto j = 0; j < nj; j++)
-                    {
-                        g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
-                        g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
-                    }
-                    integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
-                }
-                else
-                {
-                    for (auto j = 0; j < nj; j++)
-                    {
-                        auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
-                        auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
-                        auto phi_out =f_psi(l_rel);
-                        g(i, j).Vu = g(i1, j).Vu + m_rel_loc * phi_out * g(i, j).y * g(i, j).omg;
-                    }
-                    integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
-                    for (auto j = 0; j < nj; j++)
-                    {
-                        g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
-                    }
-                }
+                eq_massflow_blade_design_psi(vmi, gi, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].psi, integrate);
             }
         }
         // compute_gas_properties(gi,i);
