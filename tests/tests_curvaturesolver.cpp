@@ -220,6 +220,8 @@ TEST(tests_curvature_solver, vtk_static_blades1)
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
         .bld_info_lst {BladeInfo<T>{
+            .i1=52,
+            .i2=89,
             .mode=MeridionalBladeMode::DIRECT,
             }},
         .max_geom=1,
@@ -268,7 +270,7 @@ TEST(tests_curvature_solver, vtk_static_blades2)
     using namespace std::chrono;
 
     auto g = read_vtk_grid<T>(test_files_path+"in/test_003.vts");
-    auto Vm = 30.;
+    auto Vm = 20.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -292,14 +294,19 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .ni = ni,
         .nj = nj,
         .rho_cst=false,
-        .RF = 0.01,
+        .RF = 0.001,
     };
 
     SolverCase<T> solver_case{
         .gi = std::make_shared< GridInfo<T> >( gi ),
-        .bld_info_lst {BladeInfo<T>{
-            .mode=MeridionalBladeMode::DIRECT,
-            }},
+        .bld_info_lst {
+            BladeInfo<T>{
+            .i1=52,
+            .i2=90,
+            .mode=MeridionalBladeMode::DESIGN_BETA_OUT,
+            .beta_out=[](auto l_rel){return std::numbers::pi / 4.;}
+            }
+        },
         .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             .Ps   = [Ps](auto l_rel){return Ps;},
@@ -326,9 +333,12 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         if (TESTS_USE_PLOT)
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
+            plot_vtkStructuredGrid(structuredGrid,"Pt", false, true);
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
-            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true, true);
+            plot_vtkStructuredGrid(structuredGrid,"s", true, true);
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_vtkStructuredGrid(structuredGrid,"cur", true, true);
             plot_residual(solver_case.log);
         }
     }
