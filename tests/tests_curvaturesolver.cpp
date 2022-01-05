@@ -965,11 +965,23 @@ TEST(tests_curvature_solver, Vm_inlet)
         cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
+        auto l_tot = g(0, nj - 1).l;
+        std::for_each(
+            g.begin(0), g.end(0), 
+            [l_tot, &solver_case](auto &gp)
+            {
+                auto l_rel = gp.l / l_tot;
+                ASSERT_NEAR( gp.Vm, solver_case.inlet.Vm(l_rel), 1.e-6 );
+            }
+        );
+
+
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_sin.vts");
         if (TESTS_USE_PLOT)
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             plot_residual(solver_case.log);
         }
+
     }
 }
