@@ -907,3 +907,69 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
         }
     }
 }
+
+TEST(tests_curvature_solver, Vm_inlet)
+{
+    using T = double;
+    using namespace std::chrono;
+
+    auto g = read_vtk_grid<T>(test_files_path+"out/test_001.vts");
+    auto Vm = 10.;
+    auto dH = 1004. * 10.;
+    auto Pt = 133337.02;
+    auto Tt = 300.;
+    auto Ps = Pt - Vm*Vm / 2. / g(0,0).rho;
+    auto Ts = Tt - Vm*Vm / 2. / g(0,0).Cp;
+    size_t max_geom=500;
+    // init values
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; });
+    size_t ni = g.nRows();
+    size_t nj = g.nCols();
+    double ksi = 1. / (ni-1.);
+    double eth = 1. / (nj-1.);
+
+    Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
+    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
+
+    GridInfo<T> gi{
+        .g = std::make_shared< MeridionalGrid<T> >( g ),
+        .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
+        .d_ksi = ksi,
+        .d_eth = eth,
+        .ni = ni,
+        .nj = nj,
+        .RF = 0.03,
+    };
+
+    SolverCase<T> solver_case{
+        .gi = std::make_shared< GridInfo<T> >( gi ),
+        .inlet = InletBC<T>{
+            .mode = MeridionalBC::INLET_Vm_Ts_Ps_Vu,
+            .Ps   = [Ps](auto l_rel){return Ps;},
+            .Ts   = [Ts](auto l_rel){return Ts;},
+            .Vm   = [Vm](auto l_rel){return Vm + 0.5 * Vm * std::sin(std::numbers::pi);},
+        },
+        // .max_geom = 2
+        .mf_ref_span = ni - 1,
+    };
+    
+    {
+        // shadowing
+        auto &gi= *(solver_case.gi);
+        auto &g = *(solver_case.gi->g);
+
+        auto start = high_resolution_clock::now();
+        curvature_solver(solver_case);
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>(stop - start);
+        cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << endl;
+
+        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_sin.vts");
+        if (TESTS_USE_PLOT)
+        {
+            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_residual(solver_case.log);
+        }
+    }
+}

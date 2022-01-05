@@ -427,6 +427,24 @@ namespace yams
                               gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
                           });
         }
+        if(solver_case.inlet.mode == MeridionalBC::INLET_Vm_Ts_Ps_Vu)
+        {
+           std::for_each(g.begin(0), g.end(0), [l_tot, Tref, Pref, &inlet, &gi](auto &gp)
+                          {
+                            auto l_rel = gp.l / l_tot;
+                            gp.Vu = inlet.Vm(l_rel);
+                            gp.Vu = inlet.Vu(l_rel);
+                            gp.Ts = inlet.Ts(l_rel);
+                            gp.Ps = inlet.Ps(l_rel);
+                            if(!gi.rho_cst)
+                                gp.rho = gp.Ps / (gi.R) / gp.Ts;
+                            gp.Tt = gp.Ts + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. / gp.Cp;
+                            //   gp.Pt = gp.Ps + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. * gp.rho;
+                            gp.Pt = gp.Ps / std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
+                            gp.H = gp.Tt * gp.Cp;
+                            gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
+                          });
+        }
     }
 
     template <typename T>
@@ -435,12 +453,24 @@ namespace yams
         auto &gi = *solver_case.gi;
         auto &g  = *gi.g;
         size_t ni = g.nRows();
+        size_t nj = g.nCols();
         if(solver_case.inlet.mode == MeridionalBC::INLET_VmMoy_Ts_Ps_Vu)
         {
             std::for_each(g.begin(0),g.end(0),
                 [Vm = solver_case.inlet.Vm_moy](auto &gp)
                 {
                     gp.Vm=Vm;
+                }
+            );
+            solver_case.inlet.Mf = compute_massflow(g, 0);
+            std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
+        }
+        if(solver_case.inlet.mode == MeridionalBC::INLET_Vm_Ts_Ps_Vu)
+        {
+            std::for_each(g.begin(0),g.end(0),
+                [l_tot = g(0,nj-1).l,&solver_case](auto &gp)
+                {
+                    gp.Vm=solver_case.inlet.Vm(gp.l / l_tot );
                 }
             );
             solver_case.inlet.Mf = compute_massflow(g, 0);
@@ -511,13 +541,13 @@ namespace yams
         T vmi;
         int count_geom = 0;
         auto converged = false;
-        auto i_0 = 0;
+        // auto i_0 = 0;
         solver_case.log.clear();
         T delta_pos_max {};
         T delta_pos {};
         T delta_pos_moy {};
-        std::vector<T> delta_pos_array(ni-i_0);
-        auto span_range = gbs::make_range<size_t>(i_0,ni-1);
+        std::vector<T> delta_pos_array(ni);
+        auto span_range = gbs::make_range<size_t>(0,ni-1);
         // compute spans mass flow
         apply_mf(solver_case);
         // apply boundary conditions
@@ -530,10 +560,13 @@ namespace yams
         while (!converged && (count_geom < max_geom))
         {
             // integrate radial eq equation and update gas properties
-            for (auto i = i_0; i < ni; i++)
+            for (auto i = 0; i < ni; i++)
             {
-                vmi = g(i, nj * gi.j_0 + 1).Vm;
-                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,true);
+                if(solver_case.inlet.mode != MeridionalBC::INLET_Vm_Ts_Ps_Vu || i != 0)
+                {
+                    vmi = g(i, nj * gi.j_0 + 1).Vm;
+                    compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,true);
+                }
                 compute_gas_properties(gi,i);
             }
             if( !solver_case.relocate )
@@ -551,13 +584,11 @@ namespace yams
            // relocate streams to balance mass flow
            std::transform(
                 ExPo,
-                // std::next(span_range.begin()), 
                 span_range.begin(),
                 span_range.end(),
                 delta_pos_array.begin(),
                 [&](const auto &i)
                 {
-                    // return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                     return balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );

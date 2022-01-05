@@ -49,6 +49,7 @@ namespace yams
     {
         INLET_Mf_Ts_Ps_Vu,
         INLET_VmMoy_Ts_Ps_Vu,
+        INLET_Vm_Ts_Ps_Vu,
     };
 
     template <typename T>
@@ -56,6 +57,7 @@ namespace yams
         MeridionalBC mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu;
         std::function<T(T)> Ps = [](auto l_rel){return 1.01325e5;};
         std::function<T(T)> Ts = [](auto l_rel){return 300.;};
+        std::function<T(T)> Vm = [](auto l_rel){return 30.;};
         std::function<T(T)> Vu = [](auto l_rel){return 0.;};
         std::function<T(T)> Pt = [](auto l_rel){return 1.01325e5;};
         std::function<T(T)> Tt = [](auto l_rel){return 300.;};
