@@ -53,7 +53,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         .d_eth = eth,
         .ni = ni,
         .nj = nj,
-        .RF = 0.05
+        .RF = 0.03,
     };
 
     SolverCase<T> solver_case{
@@ -65,6 +65,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
             .Vm_moy=Vm
         },
         // .max_geom = 2
+        .mf_ref_span = ni / 2,
     };
     
     {
@@ -858,6 +859,8 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
             // .Vu   = [Vm](auto l_rel){return  Vm * 0.5 * (1.-l_rel) + Vm * 1.5 * l_rel;},
             .Vm_moy=Vm
         },
+        // .mf_uniform = true,
+        .mf_ref_span = ni / 2,
     };
 
     read_blade_info( (fname+"_bld.json").c_str(), solver_case );

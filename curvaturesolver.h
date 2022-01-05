@@ -90,7 +90,13 @@ namespace yams
         integrate_RK2_vm_sheet(i,gi,F,j_0-1,-1,-1);
     }
 
-
+    /**
+     * @brief Integrate mass-flow function over span (computation plane)
+     * 
+     * @tparam Iterator 
+     * @param begin 
+     * @param end 
+     */
     template <typename Iterator>
     void compute_massflow_distribution(Iterator begin, Iterator end)
     {
@@ -320,8 +326,15 @@ namespace yams
     }
 
     template <typename T>
-    auto balance_massflow(GridInfo<T> &gi, int i, T tol_mf)
+    // auto balance_massflow(GridInfo<T> &gi, int i, T tol_mf)
+    auto balance_massflow(SolverCase<T> &solver_case, int i, T tol_mf)
     {
+        auto i_ref = solver_case.mf_ref_span;
+        if(!solver_case.mf_uniform && i==i_ref)
+        {
+            return T{};
+        }
+        auto &gi= *solver_case.gi;
         auto &g = *gi.g;
         auto nj = g.nCols();
         std::vector<T> q(nj);
@@ -330,7 +343,8 @@ namespace yams
         auto l_tot = g(i, nj - 1).l;
         for (auto j = 0; j < nj; j++)
         {
-            q[j] = g(i, j).q * g(0, nj - 1).q / g(i, nj - 1).q; // To perfectly match and then solve better
+            // Use last cumulative mass flow rather than specified to perfectly match and then solve better
+            q[j] = g(i, j).q * g(0, nj - 1).q / g(i, nj - 1).q; 
         }
 
         auto [f_X, u] = compute_span_curve(g,i);
@@ -344,10 +358,12 @@ namespace yams
         // T B_ = fmin(8., 0.5 * 60. / g.nRows());
         // auto RF = eval_RF(g,i,B_);
 
-        for (auto j = 1; j < nj - 1; j++)
+        auto count = nj-1;
+        for (auto j = 1; j < count; j++)
         {
             auto [u1, u2] = f_Q.bounds();
-            auto [l, delta, count] = newton_solve<T>(f_Q, g(0, j).q, u[j], u1, u2, tol_f, tol_u);
+            auto q  = solver_case.mf_uniform ? (solver_case.inlet.Mf * j) / count : g(i_ref, j).q;
+            auto [l, delta, count] = newton_solve<T>(f_Q, q, u[j], u1, u2, tol_f, tol_u);
             
             auto X = f_X.value(l);
             auto dx = g(i, j).x - X[0];
@@ -500,7 +516,7 @@ namespace yams
         T delta_pos_max {};
         T delta_pos {};
         T delta_pos_moy {};
-        std::vector<T> delta_pos_array(ni-i_0-1);
+        std::vector<T> delta_pos_array(ni-i_0);
         auto span_range = gbs::make_range<size_t>(i_0,ni-1);
         // compute spans mass flow
         apply_mf(solver_case);
@@ -535,11 +551,14 @@ namespace yams
            // relocate streams to balance mass flow
            std::transform(
                 ExPo,
-                std::next(span_range.begin()), span_range.end(),
+                // std::next(span_range.begin()), 
+                span_range.begin(),
+                span_range.end(),
                 delta_pos_array.begin(),
                 [&](const auto &i)
                 {
-                    return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
+                    // return balance_massflow(gi, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
+                    return balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );
             // compute residuals

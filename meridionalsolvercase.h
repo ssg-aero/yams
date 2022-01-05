@@ -72,6 +72,7 @@ namespace yams
         void clear(){delta_pos.clear(),delta_pos_max.clear();delta_pos_moy.clear();}
     };
 
+    // enum class MassFlowDistrib
     template <typename T>
     struct SolverCase
     {
@@ -85,6 +86,8 @@ namespace yams
         T tol_rel_mf = 1e-4;
         T tol_rel_pos = 1e-5;
         bool relocate = true;
+        size_t mf_ref_span = 0;
+        bool mf_uniform = false;
     };
 
 }
