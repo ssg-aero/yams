@@ -233,6 +233,36 @@ namespace yams
         }
     }
 
+// Buggy
+    template <typename T>
+    auto eq_massflow_blade_alpha_out(T vmi, GridInfo<T> &gi, int i, int i1, int i2, const auto &alf_out, bool integrate) -> void
+    {
+        auto &g = *gi.g;
+        auto nj = g.nCols();
+        if(i == i1)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+        }
+        else
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                auto m_rel_loc = (g(i, j).m - g(i1, j).m) / (g(i2, j   ).m - g(i1, j).m);
+                auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
+                auto alpha_in = atan2(g(i1, j).Vu, g(i1, j).Vm);
+                auto alpha = alpha_in *(1.-m_rel_loc) + alf_out(l_rel) * m_rel_loc;
+                g(i, j).Vu = g(i, j).Vm * tan(alpha);                                  // <- lag from previous
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+        }
+    }
+
     template <typename T>
     auto eq_massflow_blade_design_psi(T vmi, GridInfo<T> &gi, int i, int i1, int i2, const auto &f_psi, bool integrate) -> void
     {
@@ -297,6 +327,10 @@ namespace yams
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_BETA_OUT)
             {
                 eq_massflow_blade_beta_out(vmi, gi, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].beta_out, integrate);
+            }
+            else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_ALPHA_OUT)
+            {
+                eq_massflow_blade_alpha_out(vmi, gi, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].alpha_out, integrate);
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_PSI)
             {
