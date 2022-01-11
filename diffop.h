@@ -241,6 +241,22 @@ namespace yams
         return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
     }
 
+    auto D1_O2_ct_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
+    {
+        auto v_ksi = yams::D1_O2_ksi_ct(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth_ct(g, i, j, fv_, d_eth);
+        auto gp_m = g_metrics(i, j);
+        return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
+    }
+
+    auto D1_O2_ct_dx2(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
+    {
+        auto v_ksi = yams::D1_O2_ksi_ct(g, i, j, fv_, d_ksi);
+        auto v_eth = yams::D1_O2_eth_ct(g, i, j, fv_, d_eth);
+        auto gp_m = g_metrics(i, j);
+        return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
+    }
+
     auto D1_O1_bw_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, auto d_ksi, auto d_eth, const auto &fv_)
     {
         auto v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
