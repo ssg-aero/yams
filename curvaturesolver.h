@@ -84,7 +84,7 @@ namespace yams
         }
 
         size_t nj = g.nCols();
-        int j_0 = nj * gi.j_0 + 1;
+        int j_0 = std::round((nj - 1 ) * gi.j_0);
         g(i, j_0).Vm = vmi;
         integrate_RK2_vm_sheet(i,gi,F,j_0+1,nj, 1);
         integrate_RK2_vm_sheet(i,gi,F,j_0-1,-1,-1);
