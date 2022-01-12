@@ -41,16 +41,17 @@ PYBIND11_MODULE(yams, m)
     py::class_< MeridionalGrid<T>, std::shared_ptr<MeridionalGrid<T>> >(m, "MeridionalGrid")
     .def(py::init<>())
     .def(py::init<size_t, size_t>())
-    // .def(
-    //     "__call__", 
-    //     py::overload_cast<size_t, size_t>(&Array2d<T>::operator(), py::const_), 
-    //     py::arg("i"), py::arg("j") 
-    // )
     .def(
         "__call__", 
+        // py::overload_cast<size_t, size_t>(&Array2d<T>::operator(), py::const_), 
         py::overload_cast<size_t, size_t>(&MeridionalGrid<T>::operator()), 
         py::arg("i"), py::arg("j") 
     )
+    // .def(
+    //     "__call__", 
+    //     py::overload_cast<std::intmax_t, std::intmax_t>(&MeridionalGrid<T>::operator()), 
+    //     py::arg("i"), py::arg("j") 
+    // )
     .def(
         "nCols",
         &MeridionalGrid<T>::nCols
@@ -93,10 +94,14 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("tol_newtow_mf_f", &GridInfo<T>::tol_newtow_mf_f)
     .def_readwrite("tol_newtow_mf_u", &GridInfo<T>::tol_newtow_mf_u)
     .def_readwrite("vm_distribution_max_count", &GridInfo<T>::vm_distribution_max_count)
+    .def_readwrite("ni", &GridInfo<T>::ni)
+    .def_readwrite("nj", &GridInfo<T>::nj)
+    .def_readwrite("j_0", &GridInfo<T>::j_0)
     ;
 
     py::enum_<MeridionalBladeMode>(m, "MeridionalBladeMode", py::arithmetic())
     .value("DESIGN_BETA_OUT", MeridionalBladeMode::DESIGN_BETA_OUT)
+    .value("DESIGN_ALPHA_OUT", MeridionalBladeMode::DESIGN_ALPHA_OUT)
     .value("DESIGN_PSI", MeridionalBladeMode::DESIGN_PSI)
     .value("DIRECT", MeridionalBladeMode::DIRECT)
     ;
@@ -111,6 +116,7 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("omg_",&BladeInfo<T>::omg_)
     .def_readwrite("mode",&BladeInfo<T>::mode)
     .def_readwrite("beta_out",&BladeInfo<T>::beta_out)
+    .def_readwrite("alpha_out",&BladeInfo<T>::alpha_out)
     .def_readwrite("psi",&BladeInfo<T>::psi)
     ;
 
@@ -153,6 +159,8 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("tol_rel_mf",&SolverCase<T>::tol_rel_mf)
     .def_readwrite("tol_rel_pos",&SolverCase<T>::tol_rel_pos)
     .def_readwrite("relocate",&SolverCase<T>::relocate)
+    .def_readwrite("mf_ref_span",&SolverCase<T>::mf_ref_span)
+    .def_readwrite("mf_uniform",&SolverCase<T>::mf_uniform)
     .def("__copy__",  [](const  SolverCase<T> &self) {
         return  SolverCase<T>(self);
     })
