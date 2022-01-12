@@ -42,7 +42,7 @@ def test_solve_base_channel(channel2, state, expected):
     sgrid = gbs.make_structuredgrid(pts, ni, nj)
 
     solver_case = yams.SolverCase()
-    solver_case.gi = yams. make_grid_info(sgrid)
+    solver_case.gi = yams.make_grid_info(sgrid)
     config_solver(state, solver_case)
 
     yams.curvature_solver(solver_case)

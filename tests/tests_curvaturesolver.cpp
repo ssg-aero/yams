@@ -21,7 +21,7 @@
 #endif
 
 #include <chrono>
-const bool TESTS_USE_PLOT = true;
+const bool TESTS_USE_PLOT = false;
 using namespace yams;
 TEST(tests_curvature_solver, vtk_no_blades)
 {

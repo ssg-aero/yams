@@ -390,3 +390,86 @@ TEST(tests_diff, D1_O2_test_001)
 
     std::cout << "err_max: " << err_max_x << " " << err_max_y << std::endl;
 }
+/*
+TEST(tests_diff, D1_O2_test_001_ghost)
+{
+    struct gp
+    {
+        double x;
+        double y;
+        double v;
+    };
+
+
+
+    Array2d<gp,1,1>   g;
+    vtkNew<vtkXMLStructuredGridReader> reader;
+    reader->SetFileName((test_files_path+"/out/test_001_250x21.vts").c_str());
+    // reader->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_250x21.vts");
+    reader->Update();
+    auto sgrid = reader->GetOutput();
+    auto points= sgrid->GetPoints();
+    auto dims  =sgrid->GetDimensions();
+    size_t ni = dims[0];
+    size_t nj = dims[1];
+    ASSERT_TRUE(nj != 0);
+    ASSERT_TRUE(ni != 0);
+    g.resize(ni-2,nj-2);
+    vtkIdType id {};
+    for(std::intmax_t j {-1} ; j <= nj ; j++)
+    {
+        for(std::intmax_t i {-1} ; i <= ni ; i++)
+        {
+            auto pt = points->GetPoint(id);
+            g(i,j).x = pt[0];
+            g(i,j).y = pt[1];
+            id++;
+        }
+    }
+    // yams::Array2d<double>(g,"../../../tbslib/tests/out/test_001_250x21.vts");
+        // yams::read_vtk_grid(g,"../../../tbslib/tests/out/test_002.vts");
+
+    auto f     = [](auto & gp){gp.v = gp.x * gp.y + gp.y * sin(gp.x);};
+    auto dfqdx = [](auto & gp){return gp.y + gp.y * cos(gp.x);};
+    auto dfqdy = [](auto & gp){return gp.x + sin(gp.x);};
+
+    std::for_each(
+        g.begin(),
+        g.end(),
+        f
+    );
+
+    ni = g.nRows();
+    nj = g.nCols();
+    Array2d<yams::Grid2dMetricsPoint<double>>   gp_metrics(ni,nj);
+    double ksi = 1. / (ni-1.);
+    double eth = 1. / (nj-1.);
+    double err_max_x = 0.;
+    double err_max_y = 0.;
+    auto fx = [&g](const auto &gp) { return gp.x; };
+    auto fy = [&g](const auto &gp) { return gp.y; };
+    auto fv = [&g](const auto &gp) { return gp.v; };
+    yams::compute_metrics(g,fx,fy,gp_metrics);
+
+    for (auto j = 0; j < nj; j++)
+    {
+        for (auto i = 0; i < ni; i++)
+        {
+            auto v_x = yams::D1_O2_dx1(g,gp_metrics,i,j,ksi,eth,fv);
+            auto v_y = yams::D1_O2_dx2(g,gp_metrics,i,j,ksi,eth,fv);
+            err_max_x = fmax(v_x - dfqdx(g(i, j)), err_max_x);
+            err_max_y = fmax(v_y - dfqdy(g(i, j)), err_max_y);
+            ASSERT_NEAR(
+                v_x,
+                dfqdx(g(i, j)),
+                1e-2);
+            ASSERT_NEAR(
+                v_x,
+                dfqdx(g(i, j)),
+                1e-2);
+        }
+    }
+
+    std::cout << "err_max: " << err_max_x << " " << err_max_y << std::endl;
+}
+*/
