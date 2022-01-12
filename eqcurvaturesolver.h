@@ -16,7 +16,7 @@ namespace yams
 
     auto f_mf = [](const auto &gp)
     {
-        return gp.Vm * gp.rho * cos(gp.phi + gp.gam) * 2 * std::numbers::pi * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
+        return gp.Vm * gp.rho * cos(gp.phi + gp.gam) * ( 2 * std::numbers::pi - gp.th_ ) * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
     };
 
     auto f_I = [](const auto &gp)

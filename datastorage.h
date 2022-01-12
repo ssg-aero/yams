@@ -134,6 +134,7 @@ namespace yams
         T m   = 0.; 
         int iB= -1;
         T k   = 0.;
+        T th_ = 0.;
         T phi = 0.; // phi   = dz / dr
         T gam = 0.; // gamma = dr / dz 
         T eps = 0.; // atan2(rdth / dq_)
