@@ -117,6 +117,7 @@ namespace yams
             return D1_O2_j_ct(g,i,j,Y,X);
         }
     }
+    //////////////// with metrics   ///////////////////
     template <typename T, typename fX,typename L>
     auto D1_O1_ksi_bw(T &g, size_t i, size_t j, const fX &X, L d_ksi)
     {
@@ -305,67 +306,67 @@ namespace yams
         return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
     }
 
-    template <typename T>
-    auto D1_O2_so_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, T d_ksi, T d_eth, const auto &fv_)
-    {
-        T v_ksi, v_eth;
-        if (i == 0)
-        {
-            v_ksi = 0.;
-        }
-        else if (i == 1)
-        {
-            v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
-        }
-        else
-        {
-            v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
-        }
-        if (j == 0)
-        {
-            v_eth = 0.;
-        }
-        else if (j == 1)
-        {
-            v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
-        }
-        else
-        {
-            v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
-        }
-        auto gp_m = g_metrics(i, j);
-        return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
-    }
+    // template <typename T>
+    // auto D1_O2_so_dx1(const auto &g,const auto &g_metrics,size_t i, size_t j, T d_ksi, T d_eth, const auto &fv_)
+    // {
+    //     T v_ksi, v_eth;
+    //     if (i == 0)
+    //     {
+    //         v_ksi = 0.;
+    //     }
+    //     else if (i == 1)
+    //     {
+    //         v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
+    //     }
+    //     else
+    //     {
+    //         v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
+    //     }
+    //     if (j == 0)
+    //     {
+    //         v_eth = 0.;
+    //     }
+    //     else if (j == 1)
+    //     {
+    //         v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
+    //     }
+    //     else
+    //     {
+    //         v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
+    //     }
+    //     auto gp_m = g_metrics(i, j);
+    //     return gp_m.J * gp_m.x2_eth * v_ksi - gp_m.J * gp_m.x2_ksi * v_eth;
+    // }
 
-    template <typename T>
-    auto D1_O2_so_dx2(const auto &g,const auto &g_metrics,size_t i, size_t j, T d_ksi, T d_eth, const auto &fv_)
-    {
-        T v_ksi, v_eth;
-        if (i == 0)
-        {
-            v_ksi = 0.;
-        }
-        else if (i == 1)
-        {
-            v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
-        }
-        else
-        {
-            v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
-        }
-        if (j == 0)
-        {
-            v_eth = 0.;
-        }
-        else if (j == 1)
-        {
-            v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
-        }
-        else
-        {
-            v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
-        }
-        auto gp_m = g_metrics(i, j);
-        return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
-    }
+    // template <typename T>
+    // auto D1_O2_so_dx2(const auto &g,const auto &g_metrics,size_t i, size_t j, T d_ksi, T d_eth, const auto &fv_)
+    // {
+    //     T v_ksi, v_eth;
+    //     if (i == 0)
+    //     {
+    //         v_ksi = 0.;
+    //     }
+    //     else if (i == 1)
+    //     {
+    //         v_ksi = yams::D1_O1_ksi_bw(g, i, j, fv_, d_ksi);
+    //     }
+    //     else
+    //     {
+    //         v_ksi = yams::D1_O2_ksi_bw(g, i, j, fv_, d_ksi);
+    //     }
+    //     if (j == 0)
+    //     {
+    //         v_eth = 0.;
+    //     }
+    //     else if (j == 1)
+    //     {
+    //         v_eth = yams::D1_O1_eth_bw(g, i, j, fv_, d_eth);
+    //     }
+    //     else
+    //     {
+    //         v_eth = yams::D1_O2_eth_bw(g, i, j, fv_, d_eth);
+    //     }
+    //     auto gp_m = g_metrics(i, j);
+    //     return -gp_m.J * gp_m.x1_eth * v_ksi + gp_m.J * gp_m.x1_ksi * v_eth;
+    // }
 }
