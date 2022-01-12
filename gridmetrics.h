@@ -3,6 +3,8 @@
 #include <meridionalsolvercase.h>
 #include <vtkStructuredGrid.h>
 #include <vtkXMLStructuredGridReader.h>
+#include <gridreader.h>
+#include <diffop.h>
 namespace yams
 {
     template <typename T>
@@ -126,28 +128,28 @@ namespace yams
     //     }
     // }
     
-    // template <typename T>
-    // inline auto compute_curvature(MeridionalGrid<T> &g,const Array2d<Grid2dMetricsPoint<T>> &g_metrics)
-    // {
-    //     size_t ni = g.nRows();
-    //     size_t nj = g.nCols();
-    //     T d_ksi = 1. / (ni - 1.);
-    //     T d_eth = 1. / (nj - 1.);
+    template <typename T>
+    inline auto compute_curvature(MeridionalGrid<T> &g,const Array2d<Grid2dMetricsPoint<T>> &g_metrics)
+    {
+        size_t ni = g.nRows();
+        size_t nj = g.nCols();
+        T d_ksi = 1. / (ni - 1.);
+        T d_eth = 1. / (nj - 1.);
 
-    //     for (auto i = 1; i < ni-1; i++)
-    //     {
-    //         for (auto j = 0; j < nj; j++)
-    //         {
-    //             // g(i,j).cur = D1_O2_i(g, i, j, fphi, fm);// TODO check why Aungier put -DphiDm
-    //             g(i,j).cur = D1_O2_dx1(g,g_metrics, i, j, d_ksi, d_eth, fphi);// TODO check why Aungier put -DphiDm
-    //         }
-    //     }
-    //     for (auto j = 0; j < nj; j++) // extrapolate on bounds
-    //     {
-    //         g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
-    //         g(ni-1, j).cur = 2. * g(ni - 2, j).cur - g(ni - 3, j).cur;
-    //     }
-    // }
+        for (auto i = 1; i < ni-1; i++)
+        {
+            for (auto j = 0; j < nj; j++)
+            {
+                // g(i,j).cur = D1_O2_i(g, i, j, fphi, fm);// TODO check why Aungier put -DphiDm
+                g(i,j).cur = D1_O2_dx1(g,g_metrics, i, j, d_ksi, d_eth, fphi);// TODO check why Aungier put -DphiDm
+            }
+        }
+        for (auto j = 0; j < nj; j++) // extrapolate on bounds
+        {
+            g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
+            g(ni-1, j).cur = 2. * g(ni - 2, j).cur - g(ni - 3, j).cur;
+        }
+    }
 
     template <typename T>
     inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
