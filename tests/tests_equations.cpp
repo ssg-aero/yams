@@ -1015,37 +1015,37 @@ TEST(tests_gridreader, vtk_no_blades_2)
     Array2d<Grid2dMetricsPoint<T>>   g_metrics(ni,nj);
     compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in //
 
-    auto K_ = [&](size_t i, size_t j)
-    {
-        const auto gp = g(i, j);
-        auto beta = atan2(gp.Vu, gp.Vm);
-        assert(abs(beta) < std::numbers::pi / 2.);
-        auto tg_part = 0.;
-        if (gp.y > 0.)
-        {
-            tg_part = -gp.Vu / gp.y;
-            tg_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu);
+    // auto K_ = [&](size_t i, size_t j)
+    // {
+    //     const auto gp = g(i, j);
+    //     auto beta = atan2(gp.Vu, gp.Vm);
+    //     assert(abs(beta) < std::numbers::pi / 2.);
+    //     auto tg_part = 0.;
+    //     if (gp.y > 0.)
+    //     {
+    //         tg_part = -gp.Vu / gp.y;
+    //         tg_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu);
 
-        }
-        assert(tg_part == tg_part);
-        auto m_part = 0.;
-        if (i > 0)
-        {
-            m_part = sin(gp.gam + gp.phi) / cos(beta);
-                        T v_ksi, v_eth;
-            m_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu) / cos(beta);
+    //     }
+    //     assert(tg_part == tg_part);
+    //     auto m_part = 0.;
+    //     if (i > 0)
+    //     {
+    //         m_part = sin(gp.gam + gp.phi) / cos(beta);
+    //                     T v_ksi, v_eth;
+    //         m_part *= D1_O2_so_dx2(g,g_metrics,i,j,ksi,eth,f_rVu) / cos(beta);
 
-        }
-        assert(m_part == m_part);
-        return tg_part + m_part;
-    };
+    //     }
+    //     assert(m_part == m_part);
+    //     return tg_part + m_part;
+    // };
 
-    auto eq_vu_ = [&](const auto &g, size_t i, size_t j)
-    {
-        const auto gp = g(i, j);
-        const auto Vm = gp.Vm;
-        return G(gp) * Vm * Vm + J(gp) * Vm + K_(i, j);
-    };
+    // auto eq_vu_ = [&](const auto &g, size_t i, size_t j)
+    // {
+    //     const auto gp = g(i, j);
+    //     const auto Vm = gp.Vm;
+    //     return G(gp) * Vm * Vm + J(gp) * Vm + K_(i, j);
+    // };
 
     if(ni<3 && nj <3)
     {
@@ -1067,7 +1067,7 @@ TEST(tests_gridreader, vtk_no_blades_2)
         {
             if(g(i,0).iB==-1)
             {
-                compute_vm_distribution(mf, vmi, i, g, eq_vu_, tol_rel_mf, eps);
+                compute_vm_distribution(mf, vmi, i, g, eq_vu, tol_rel_mf, eps);
             }
             else
             {
