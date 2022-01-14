@@ -73,6 +73,13 @@ namespace yams
         return mesh_channel(iso_eth, iso_ksi, eth_j, ksi_i, n_iso_eth, n_iso_ksi);
     }
 
+    template <typename T>
+    auto mesh_channel(const crv_vector<T> &iso_eth, const std::vector<T> &ksi_i, const std::vector<T> &eth_j, size_t n_iso_ksi, size_t n_iso_eth, size_t max_deg = 3)
+    {
 
+        auto [ iso_ksi, eth_j_ ] = build_iso_ksi_curves<T>(iso_eth,ksi_i, max_deg);
+
+        return mesh_channel(iso_eth, iso_ksi, eth_j, ksi_i, n_iso_eth, n_iso_ksi);
+    }
 
 }
