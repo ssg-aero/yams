@@ -73,9 +73,6 @@ find_package(
         RenderingFreeType
         IOXML
         ChartsCore
-        CommonColor
-        CommonCore
-        CommonDataModel
         InteractionStyle
         RenderingContext2D
         RenderingContextOpenGL2
