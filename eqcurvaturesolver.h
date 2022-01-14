@@ -106,7 +106,7 @@ namespace yams
     auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
-        auto beta = atan2(gp.Vu, gp.Vm);
+        auto beta = abs(gp.Vm) > 1e-4 ? atan2(gp.Vu, gp.Vm) : 0.;
         assert(abs(beta) < std::numbers::pi / 2.);
         auto cb = cos(beta);
         auto ce = cos(gp.eps);
