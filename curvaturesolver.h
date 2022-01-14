@@ -497,7 +497,7 @@ namespace yams
                 }
             );
             solver_case.inlet.Mf = compute_massflow(g, 0);
-            std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
+            // std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
         }
         if(solver_case.inlet.mode == MeridionalBC::INLET_Vm_Ts_Ps_Vu)
         {
@@ -508,7 +508,11 @@ namespace yams
                 }
             );
             solver_case.inlet.Mf = compute_massflow(g, 0);
-            std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
+            // std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
+        }
+        if(solver_case.inlet.mode == MeridionalBC::CON)
+        {
+            solver_case.inlet.Mf = compute_massflow(g, 0);
         }
         solver_case.mf.resize(ni);
         std::fill(solver_case.mf.begin(),solver_case.mf.end(),solver_case.inlet.Mf); // Todo add leakage and reintroduction
@@ -521,12 +525,15 @@ namespace yams
         auto &g    = *gi.g;
         size_t ni = g.nRows();
         auto vmi  = g(0, 0).Vm;
-        for (auto i = 0; i < ni; i++)
+        size_t i0 = ( solver_case.inlet.mode != MeridionalBC::INLET_Vm_Ts_Ps_Vu 
+                        && 
+                    solver_case.inlet.mode != MeridionalBC::CON) ? 1 : 0;
+        for (auto i = i0; i < ni; i++)
         {
             compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps, false);
             compute_gas_properties(gi, i);
         }
-        for (auto i = 0; i < ni; i++)
+        for (auto i = i0; i < ni; i++)
         {
             compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps, false);
             compute_gas_properties(gi, i);
