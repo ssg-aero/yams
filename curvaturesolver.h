@@ -187,18 +187,29 @@ namespace yams
     }
 
     template <typename T>
-    auto eq_massflow_blade_direct(T vmi, GridInfo<T> &gi, int i, bool integrate) -> void
+    auto eq_massflow_blade_direct(T vmi, GridInfo<T> &gi, int i, int i1, bool integrate) -> void
     {
         auto &g = *gi.g;
         auto nj = g.nCols();
-        for (auto j = 0; j < nj; j++)
+        if(i == i1)
         {
-            g(i, j).bet = g(i, j).k; // TODO add deviation model
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
         }
-        integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
-        for (auto j = 0; j < nj; j++)
-        {
-            g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg; // <- lag from previous
+        else{
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).bet = g(i, j).k; // TODO add deviation model
+            }
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg;
+            }
         }
     }
 
@@ -322,7 +333,7 @@ namespace yams
 
             if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DIRECT)
             {
-                eq_massflow_blade_direct(vmi, gi, i, integrate);
+                eq_massflow_blade_direct(vmi, gi, i, i1, integrate);
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_BETA_OUT)
             {
