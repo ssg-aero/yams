@@ -465,6 +465,82 @@ namespace yams
         }
     }
 
+    template <typename T, auto ExPo = std::execution::par>
+    auto compute_vm_distribution2(SolverCase<T> &solver_case, T tol_rel_mf, T eps, bool integrate)
+    {
+        auto &gi = *solver_case.gi;
+        auto &g = *gi.g;
+        size_t ni = g.nRows();
+        size_t nj = g.nCols();
+
+        gbs::VectorX<T> vmi(ni), vmi_1(ni), vmi_2(ni), F(ni);
+        auto indexes = gbs::make_range<size_t>(0, ni - 1);
+
+        std::transform(
+            ExPo,
+            indexes.begin(), indexes.end(),
+            vmi.begin(),
+            [nj, &g, &gi] (size_t i)
+            {
+                return g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
+            }
+        );
+
+        gbs::MatrixX<T> J(ni, ni);
+        T err{};
+        size_t count{};
+        do{
+            for(size_t i{}; i < ni; i++)
+            {
+                std::copy(
+                    ExPo,
+                    vmi.begin(), vmi.end(),vmi_1.begin()
+                );
+                std::copy(
+                    ExPo,
+                    vmi.begin(), vmi.end(),vmi_2.begin()
+                );
+                vmi_1(i) -= eps * 0.5;
+                vmi_2(i) += eps * 0.5;
+                // for(size_t j{}; j < ni; j++)
+                std::for_each(
+                    ExPo,
+                    indexes.begin(), indexes.end(),
+                    [&](size_t j)
+                        {
+                            auto F2 = eq_massflow(vmi_2(j), solver_case, j, true) - solver_case.mf[j];
+                            auto F1 = eq_massflow(vmi_1(j), solver_case, j, true) - solver_case.mf[j];
+                            J(i,j) = ( F2 - F1 ) / eps;
+                        }
+                );
+            }
+
+            // auto J_inv = J.partialPivLu();
+            auto J_inv = J.llt();
+            
+
+            for(size_t i{}; i < ni; i++)
+            {
+                F(i) = eq_massflow(vmi(i), solver_case, i, true) - solver_case.mf[i];
+            }
+
+            auto delta = J_inv.solve(F);
+            err = std::sqrt(delta.squaredNorm());
+            vmi -= delta;
+            // std::cout << delta << std::endl << std::endl << err << std::endl;
+
+            for(size_t i{}; i < ni; i++)
+            {
+                eq_massflow(vmi(i), solver_case, i, true);
+                int j_0 = std::round((nj - 1 ) * gi.j_0);
+                g(i, j_0).Vm = vmi(i);
+                compute_gas_properties(gi,i);
+            }
+            count++;
+        // std::cout << "Count: " << count << " err: " << err << std::endl;
+        } while (err>1e-6  && count < 200);
+    }
+
     template <typename T>
     auto apply_bc(SolverCase<T> &solver_case)
     {
