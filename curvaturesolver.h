@@ -434,6 +434,27 @@ namespace yams
     }
 
     template <typename T>
+    auto compute_vm_distribution(SolverCase<T> &solver_case, T tol_rel_mf, T eps, bool integrate)
+    {
+        auto &gi = *solver_case.gi;
+        auto &g = *gi.g;
+        // auto &g_metrics = *gi.g_metrics;
+        size_t ni = g.nRows();
+        size_t nj = g.nCols();
+        T vmi{};
+        for (auto i = 0; i < ni; i++)
+        {
+            if( ( solver_case.inlet.mode != MeridionalBC::INLET_Vm_Ts_Ps_Vu && solver_case.inlet.mode != MeridionalBC::CON )
+                    || i != 0 )
+            {
+                vmi = g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
+                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate);
+            }
+            compute_gas_properties(gi,i);
+        }
+    }
+
+    template <typename T>
     auto apply_bc(SolverCase<T> &solver_case)
     {
         auto &gi = *solver_case.gi;
@@ -561,27 +582,6 @@ namespace yams
         }
     }
 
-    template <typename T>
-    auto compute_vm_distribution(SolverCase<T> &solver_case, T tol_rel_mf, T eps, bool integrate)
-    {
-        auto &gi = *solver_case.gi;
-        auto &g = *gi.g;
-        // auto &g_metrics = *gi.g_metrics;
-        size_t ni = g.nRows();
-        size_t nj = g.nCols();
-        T vmi{};
-        for (auto i = 0; i < ni; i++)
-        {
-            if( ( solver_case.inlet.mode != MeridionalBC::INLET_Vm_Ts_Ps_Vu && solver_case.inlet.mode != MeridionalBC::CON )
-                    || i != 0 )
-            {
-                vmi = g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
-                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate);
-            }
-            compute_gas_properties(gi,i);
-        }
-    }
-
     template <typename T, auto ExPo = std::execution::par>
     auto curvature_solver(SolverCase<T> &solver_case)
     {
@@ -620,6 +620,7 @@ namespace yams
         // run computation
         while (!converged && (count_geom < max_geom))
         {
+            // integrate radial eq equation and update gas properties
             compute_vm_distribution(solver_case, tol_rel_mf, eps, true );
             if( !solver_case.relocate )
             {

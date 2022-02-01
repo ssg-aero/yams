@@ -133,6 +133,10 @@ namespace yams
                     { return gp.omg; });
         add_value(g, structuredGrid, "iB", [](const auto &gp)
                     { return gp.iB; });
+        add_value(g, structuredGrid, "cgp", [](const auto &gp)
+                    { return gp.cgp; });
+        add_value(g, structuredGrid, "sgp", [](const auto &gp)
+                    { return gp.sgp; });
         return structuredGrid;
     }
 
