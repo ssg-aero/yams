@@ -2,10 +2,14 @@
 #include <diffop.h>
 #include <gridsbuilders.h>
 #include <gridreader.h>
-
+#include <gridmetrics.h>
+#include <gridrender.h>
+#include <meshtools.h>
+#include <gbs-render/vtkgridrender.h>
 using namespace yams;
 
 const double PI = acos(-1.);
+const bool PLOT_ON = true;
 #ifdef _WIN32
     const std::string test_files_path = "C:/Users/sebastien/workspace/tbslib/tests/";
 #else
@@ -473,3 +477,185 @@ TEST(tests_diff, D1_O2_test_001_ghost)
     std::cout << "err_max: " << err_max_x << " " << err_max_y << std::endl;
 }
 */
+
+TEST(tests_diff, D1_O2_cir)
+{
+    using T = double;
+    size_t ni = 5000;
+    size_t nj = 1500;
+    T d_ksi = 1. / (ni - 1.);
+    T d_eth = 1. / (nj - 1.);
+    MeridionalGrid<T> g(ni,nj);
+    Array2d<Grid2dMetricsPoint<T>> g_metrics(ni,nj);
+    auto r1 =  1.;
+    auto r2 =  2.;
+    auto t1 = std::numbers::pi_v<T>;
+    auto t2 = std::numbers::pi_v<T> * 2.;
+    make_circular_grid(r1,r2,t1,t2,{0.,3.},g);
+    compute_abscissas(g);
+    compute_metrics(g,[](const auto & gp){return gp.m;},[](const auto & gp){return gp.l;},g_metrics);
+    compute_angles(g);
+
+    auto  f_Vm    = [](const auto &gp){return sin(gp.m)*gp.l + cos(gp.l)*gp.m;};
+    auto df_Vm_dm = [](const auto &gp){return  cos(gp.m)*gp.l + cos(gp.l);};
+    auto df_Vm_dl = [](const auto &gp){return -sin(gp.l)*gp.m + sin(gp.m);};
+    std::for_each(
+        g.begin(), g.end(),
+        [&f_Vm](auto &gp){gp.Vm = f_Vm(gp);}
+    );
+
+    for(size_t i{}; i < ni; i++)
+    {
+        for(size_t j{}; j < nj; j++)
+        {
+            auto df_Vm_dm_ = D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, [](const auto &gp)
+                                       { return gp.Vm; });
+            auto df_Vm_dl_ = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, [](const auto &gp)
+                                      { return gp.Vm; }); 
+            if (PLOT_ON)
+            {
+                g(i, j).Vu = df_Vm_dm_; // use variable only for storage
+                g(i, j).H  = df_Vm_dl_;
+            }
+            ASSERT_NEAR(df_Vm_dm_, df_Vm_dm(g(i, j)), 1e-5);
+            ASSERT_NEAR(df_Vm_dl_, df_Vm_dl(g(i, j)), 1e-5);
+        }
+    }
+    if (PLOT_ON)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "m", [](const auto &gp)
+                  { return gp.m; });
+        add_value(g, structuredGrid, "l", [](const auto &gp)
+                  { return gp.l; });
+        add_value(g, structuredGrid, "Vm", [](const auto &gp)
+                  { return gp.Vm; });
+        add_value(g, structuredGrid, "dVm_dm", [&df_Vm_dm](const auto &gp)
+                  { return df_Vm_dm(gp); });
+        add_value(g, structuredGrid, "dVm_dl", [&df_Vm_dl](const auto &gp)
+                  { return df_Vm_dl(gp); });
+        add_value(g, structuredGrid, "dVm_dm_err", [&](const auto &gp)
+                  { return df_Vm_dm(gp) - gp.Vu; });
+        add_value(g, structuredGrid, "dVm_dl_err", [&](const auto &gp)
+                  { return df_Vm_dl(gp) - gp.H; });
+        plot_vtkStructuredGrid(structuredGrid, "Vm", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dm", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dl", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dm_err", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dl_err", false);
+    }
+}
+
+TEST(tests_diff, D1_O2_bump)
+{
+    using T = double;
+    std::vector<std::array<T,2>> poles1{
+            {0.0,0.0},
+            {1.0*std::numbers::pi_v<T>,0.0},
+        };
+    std::vector<std::array<T,2>> poles3{
+            {0.0,0.5*std::numbers::pi_v<T>},
+            {1.0*std::numbers::pi_v<T>,0.5*std::numbers::pi_v<T>},
+        };
+    std::vector<std::array<T,2>> poles2{
+            {0.0,1.0*std::numbers::pi_v<T>},
+            {0.1*std::numbers::pi_v<T>,1.0*std::numbers::pi_v<T>},
+            {0.4*std::numbers::pi_v<T>,0.7*std::numbers::pi_v<T>},
+            {0.6*std::numbers::pi_v<T>,0.7*std::numbers::pi_v<T>},
+            {0.9*std::numbers::pi_v<T>,1.0*std::numbers::pi_v<T>},
+            {1.0*std::numbers::pi_v<T>,1.0*std::numbers::pi_v<T>},
+        };
+    std::vector<T> knots1{0.,1.};
+    std::vector<size_t> mult1{2,2};
+    size_t deg1{1};
+    std::vector<T> knots2{0.,0.5,1.};
+    std::vector<size_t> mult2{5,1,5};
+    size_t deg2{4};
+
+    auto crv1 = std::make_shared<gbs::BSCurve<T,2>>(
+        poles1,
+        knots1,
+        mult1,
+        deg1
+    );
+    auto crv3 = std::make_shared<gbs::BSCurve<T,2>>(
+        poles3,
+        knots1,
+        mult1,
+        deg1
+    );
+    auto crv2 = std::make_shared<gbs::BSCurve<T,2>>(
+        poles2,
+        knots2,
+        mult2,
+        deg2
+    );
+    size_t nu{300};
+    size_t nv{150};
+    yams::crv_vector<T> crv_lst{crv1, crv3, crv2};
+    auto [pts, ni, nj, n_iso_eth, n_iso_ksi] = mesh_channel<T>(crv_lst, knots1, nv, nu);
+    T d_ksi = 1. / (ni - 1.);
+    T d_eth = 1. / (nj - 1.);
+    auto sgrid = gbs::make_structuredgrid(pts, ni, nj);
+    SolverCase<T> solver_case;
+    solver_case.gi = make_grid_info<T>(sgrid);
+
+    auto &g = *(solver_case.gi->g);
+    auto &g_metrics = *(solver_case.gi->g_metrics);
+
+    auto  f_Vm    = [](const auto &gp){return sin(gp.m)*gp.l + cos(gp.l)*gp.m;};
+    auto df_Vm_dm = [](const auto &gp){return  cos(gp.m)*gp.l + cos(gp.l);};
+    auto df_Vm_dl = [](const auto &gp){return -sin(gp.l)*gp.m + sin(gp.m);};
+    std::for_each(
+        g.begin(), g.end(),
+        [&f_Vm](auto &gp){gp.Vm = f_Vm(gp);}
+    );
+
+    for(size_t i{}; i < ni; i++)
+    {
+        for(size_t j{}; j < nj; j++)
+        {
+            auto df_Vm_dm_ = D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, [](const auto &gp)
+                                       { return gp.Vm; });
+            auto df_Vm_dl_ = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, [](const auto &gp)
+                                      { return gp.Vm; }); 
+            if (PLOT_ON)
+            {
+                g(i, j).Vu = df_Vm_dm_; // use variable only for storage
+                g(i, j).H  = df_Vm_dl_;
+            }
+            ASSERT_NEAR(df_Vm_dm_, df_Vm_dm(g(i, j)), 1e-3);
+            ASSERT_NEAR(df_Vm_dl_, df_Vm_dl(g(i, j)), 1e-3);
+        }
+    }
+
+    if(PLOT_ON)
+    {
+        auto structuredGrid = make_vtkStructuredGrid(g);
+        add_value(g, structuredGrid, "m", [](const auto &gp)
+                  { return gp.m; });
+        add_value(g, structuredGrid, "l", [](const auto &gp)
+                  { return gp.l; });
+        add_value(g, structuredGrid, "Vm", [](const auto &gp)
+                  { return gp.Vm; });
+        add_value(g, structuredGrid, "dVm_dm", [&df_Vm_dm](const auto &gp)
+                  { return df_Vm_dm(gp); });
+        add_value(g, structuredGrid, "dVm_dl", [&df_Vm_dl](const auto &gp)
+                  { return df_Vm_dl(gp); });
+        add_value(g, structuredGrid, "dVm_dm_err", [&](const auto &gp)
+                  { return df_Vm_dm(gp) - gp.Vu; });
+        add_value(g, structuredGrid, "dVm_dl_err", [&](const auto &gp)
+                  { return df_Vm_dl(gp) - gp.H; });
+        plot_vtkStructuredGrid(structuredGrid, "Vm", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dm", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dl", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dm_err", false);
+        plot_vtkStructuredGrid(structuredGrid, "dVm_dl_err", false);
+        auto sgrid_actor = gbs::make_structuredgrid_actor(pts, ni, nj);
+        gbs::plot(
+            crv_lst
+            , sgrid_actor
+        );
+    }
+
+}
