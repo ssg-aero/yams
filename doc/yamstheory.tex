@@ -1,11 +1,137 @@
 \documentclass{report}
+\usepackage{mathtools }
+\usepackage{amsmath}
+% \usepackage[thinc]{esdiff}
 \begin{document}
     \title{Yams}
     \author{SSG Aero S.A.S.}
     \date{Jully 2021}
     \maketitle
     \chapter{Equation set used}
-    The sofware use the equation set as defined in \cite{Novak77}
+    \section{Original set}
+
+        The equation sets is derived from the set proposed by \cite{Novak77} who proposed an equation for design and an equation for analysis in a three dimensional context.
+        Analysis mode:
+        \begin{equation}
+            \frac{\partial}{\partial q} \left(\frac{1}{2}V_m^2\right) = 
+            D\left(q\right) V_m^2 + E\left(q\right) V_m + F\left(q\right)
+            \label{eq:analysis_general}
+        \end{equation}
+        With:
+        \begin{equation}
+            \begin{multlined}
+                D\left(q\right) = \cos ^2 \beta \times \\ \left[
+                    \cos \epsilon \cos\left(\gamma+\phi\right)\left(\frac{1}{r_m}+\frac{\tan \beta}{r}\frac{\partial \phi}{\partial \theta}\right)
+                    -\frac{\beta}{r}\frac{\partial r \tan \beta}{\partial q}
+                    +\frac{\sin \epsilon}{r \cos \beta} \frac{\partial r \tan \beta}{\partial S}
+                    \right]
+            \end{multlined}
+        \end{equation}
+        \begin{equation}
+            E \left(q\right) = 2 \widetilde{\omega} \cos^2 \beta \left(\sin \epsilon \sin \phi - \cos \gamma \cos \epsilon \tan \beta\right)
+        \end{equation}
+        \begin{equation}
+            \begin{multlined}
+                F \left(q\right) = \cos ^2 \beta \left(\frac{\partial I}{\partial q} - t \frac{\partial \overline{S} }{\partial q} \right)
+                + \left[
+                    \cos \epsilon \cos \beta \sin \left( \gamma + \phi \right) + \sin \epsilon \sin \beta 
+                    \right] 
+                \\ \times \left[
+                    \frac{d}{dS} \left(\frac{1}{2}V_m^2\right)  + \cos^2 \beta \left(f \frac{d\overline{S}}{dS}\right)
+                \right]
+            \end{multlined}
+        \end{equation}
+        Design mode:
+        \begin{equation}
+            \frac{\partial}{\partial q}\left(\frac{1}{2}V_m^2\right) = G \left(q\right) V_m^2 + J \left(q\right) V_m + K \left(q\right)
+        \end{equation}
+        With:
+        \begin{equation}
+            G\left(q\right) = \cos \epsilon \cos \left(\gamma + \phi\right) \frac{1}{r_m}+\frac{\tan \beta}{r} \frac{\partial \phi}{\partial \theta}
+        \end{equation}
+        \begin{equation}
+            J \left(q\right) = \frac{\sin \epsilon}{r \cos \beta} \frac{d}{dS}\left(rV_{\theta}\right)
+        \end{equation}
+        \begin{equation}
+            \begin{multlined}
+                K \left(q\right) = \frac{\partial H}{\partial q} - t \frac{\partial \overline{S}}{\partial q} - \frac{V_{\theta}}{r} \frac{rV_{\theta}}{\partial q} + 
+                \frac{\cos \epsilon \sin \left(\gamma + \phi\right)}{\cos \beta} \frac{\partial \frac{1}{2}V_m^2}{\partial S} \\
+                + \left(\cos \epsilon \cos \beta \sin \left(\gamma + \phi \right) +  \sin \epsilon \sin \beta \right) t \frac{\partial \overline{S}}{\partial S}
+            \end{multlined}
+        \end{equation}
+        \(D\left(q\right)\), \(E\left(q\right)\), \(F\left(q\right)\) are supposed independent from \(V_m\). The gradients from \(F\left(q\right)\) is computed from previous iteration.
+        \begin{flalign}
+            I = H - \widetilde{\omega}V_{\theta} &&
+        \end{flalign}
+        \begin{flalign} 
+            \gamma = \tan^{-1} \left(dz/dr\right) \mbox{On computing station} &&
+        \end{flalign}
+        \begin{flalign}
+            \phi = \tan^{-1} \left(dr/dz\right) \mbox{On stream line} &&
+        \end{flalign}
+        \section{Simplification for axisymmetric meridional flow}
+        The previous set of equation was designed to take into account the tangential variation of parameters and to solve the equation on severals meridional planes. Here with the assumption of meridional flow whe can make some assumptions.
+        \begin{flalign}
+            \frac{d}{dS} = \cos \beta \frac{d}{dm} &&
+        \end{flalign}
+        \begin{flalign}
+            \frac{\partial}{\partial q} = \cos \epsilon \frac{d}{d\overline{q}} &&
+        \end{flalign}
+        \begin{flalign}
+            \frac{d}{d \theta} = 0 &&
+        \end{flalign}
+
+        Analysis mode:
+        \begin{equation}
+            \frac{\partial}{\partial \overline{q}} \left(\frac{1}{2}V_m^2\right) = 
+            \overline{D}\left(\overline{q}\right) V_m^2 + \overline{E}\left(\overline{q}\right) V_m + \overline{F}\left(\overline{q}\right)
+            \label{eq:analysis}
+        \end{equation}
+        With:
+        \begin{equation}
+            \begin{multlined}
+                \overline{D}\left(\overline{q}\right) = \cos ^2 \beta \left[
+                   \cos \left(\gamma+\phi\right)\left(\frac{1}{r_m}\right)
+                    -\frac{\beta}{r}\frac{\partial r \tan \beta}{\partial \overline{q}}
+                    +\frac{\tan \epsilon}{r} \frac{\partial r \tan \beta}{\partial m}
+                    \right]
+            \end{multlined}
+        \end{equation}
+        \begin{equation}
+            \overline{E} \left(\overline{q}\right) = 2 \widetilde{\omega} \cos^2 \beta \left(\tan \epsilon \sin \phi - \cos \gamma \tan \beta\right)
+        \end{equation}
+        \begin{equation}
+            \begin{multlined}
+                \overline{F} \left(\overline{q}\right) = \cos ^2 \beta \left(\frac{\partial I}{\partial \overline{q}} - t \frac{\partial \overline{S} }{\partial \overline{q}} \right)
+                + \left[
+                    \cos \beta \sin \left( \gamma + \phi \right) + \tan \epsilon \sin \beta 
+                    \right] 
+                \\ \times \left[
+                    \cos \beta \frac{d}{dm} \left(\frac{1}{2}V_m^2\right)  + \cos^3 \beta \left(f \frac{d\overline{S}}{dm}\right)
+                \right]
+            \end{multlined}
+        \end{equation}
+        Design mode:
+        \begin{equation}
+            \frac{\partial}{\partial \overline{q}} \left(\frac{1}{2}V_m^2\right) = \overline{G} \left(\overline{q}\right) V_m^2 + \overline{J} \left(\overline{q}\right) V_m + \overline{K} \left(\overline{q}\right)
+        \end{equation}
+        With:
+        \begin{equation}
+            \overline{G}\left(\overline{q}\right) = \cos \left(\gamma + \phi\right) \frac{1}{r_m}
+        \end{equation}
+        \begin{equation}
+            \overline{J} \left(\overline{q}\right) = \frac{\tan \epsilon}{r} \frac{d}{dm}\left(rV_{\theta}\right)
+        \end{equation}
+        \begin{equation}
+            \begin{multlined}
+                \overline{K} \left(\overline{q}\right) = \frac{\partial H}{\partial \overline{q}} - t \frac{\partial \overline{S}}{\partial \overline{q}} - \frac{V_{\theta}}{r} \frac{rV_{\theta}}{\partial \overline{q}} + 
+                \sin \left(\gamma + \phi\right) \cos \beta \frac{\partial \frac{1}{2}V_m^2}{\partial m} \\
+                + \left(\cos^2 \beta \sin \left(\gamma + \phi \right) +  \tan \epsilon \sin \beta \cos \beta \right) t \frac{\partial \overline{S}}{\partial m}
+            \end{multlined}
+        \end{equation}
+    \chapter{Integration of \(V_m\)}
+    
+    The software use the equation set as defined in \cite{Novak77}
     \bibliographystyle{unsrt}
     \bibliography{yams}
 \end{document}
