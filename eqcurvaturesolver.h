@@ -16,7 +16,8 @@ namespace yams
 
     auto f_mf = [](const auto &gp)
     {
-        return gp.Vm * gp.rho * cos(gp.phi + gp.gam) * ( 2 * std::numbers::pi - gp.th_ ) * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
+        // return gp.Vm * gp.rho * cos(gp.phi + gp.gam) * ( 2 * std::numbers::pi - gp.th_ ) * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
+        return gp.Vm * gp.rho * gp.cgp * ( 2 * std::numbers::pi - gp.th_ ) * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
     };
 
     auto f_I = [](const auto &gp)
@@ -37,45 +38,49 @@ namespace yams
     { return gp.Vm / sqrt(gp.ga * c_r * gp.Ts); };
     auto f_Vm = [](const auto &gp)
     { return gp.Vm; };
+    auto f_Wu = [](const auto &gp)
+    { return gp.Vu - gp.omg * gp.y; };
+    auto f_rWu = [](const auto &gp)
+    { return f_Wu(gp) * gp.y; };
+
 
     auto D = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
-        auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
+        auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improves speed
         auto tb = tan(gp.bet);
         auto ce = cos(gp.eps);
-        auto se = sin(gp.eps);
-        auto D1 = gp.y > 0. ?  gp.cgp * ce * (gp.cur + tb / gp.y * gp.Dphi_Dth) : 0.;
-        // auto D2 = gp.y > 0. ? -tb / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
-        auto D2 = gp.y > 0. ? -tb / gp.y * ce * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
-        // auto D3 = gp.y > 0. ?  se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
-        auto D3 = gp.y > 0. ?  se / gp.y * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta) : 0.;
+        auto te = tan(gp.eps);
+        auto drtb_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta);
+
+        auto D1 = gp.cgp * gp.cur;
+        auto D2 = gp.y > 0. ? -tb / gp.y * drtb_dl : 0.;
+        auto D3 = gp.y > 0. ?  te / gp.y * gp.drtb_dm  : 0.;
         return cb * cb * (D1 + D2 + D3);
     };
 
     auto E = [](const auto &gp)
     {
-        auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
-        auto ce = cos(gp.eps);
-        auto se = sin(gp.eps);
+        auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improves speed
+        auto te = tan(gp.eps);
         auto sp = sin(gp.phi);
         auto cg = cos(gp.gam);
         auto tb = tan(gp.bet);
-        return 2. * gp.omg * cb * cb * (se * sp - cg * ce * tb);
+        return 2. * gp.omg * cb * cb * (te * sp - cg * tb);
     };
 
     auto F = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
-        auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
+        auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improves speed
         auto sb = sin(gp.bet);
-        auto ce = cos(gp.eps);
-        auto se = sin(gp.eps);
-        // auto F1 = ce * cb * cb * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
-        auto F1 = ce * cb * cb * (D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I) - gp.Ts * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
-        auto F2 = ce * cb * gp.sgp + se * sb;
-        // auto F3 = cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2) + cb * cb * cb * gp.Ts * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
-        auto F3 = cb * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2) + cb * cb * cb * gp.Ts * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        auto te = tan(gp.eps);
+        auto dI_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I);
+        auto dS_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+
+        auto F1 = cb * cb * (dI_dl - gp.Ts *dS_dl) ;
+        auto F2 = cb * gp.sgp + te * sb;
+        auto F3 = cb * ( gp.dsqVm_dm_2 +  cb * cb * gp.Ts * gp.ds_dm );
         return F1 + F2 * F3;
     };
 
@@ -88,19 +93,14 @@ namespace yams
 
     auto G = [](const auto &gp)
     {
-        auto tb = tan(gp.bet);
-        auto ce = cos(gp.eps);
-        auto G1 = ce * gp.cgp * gp.cur;
-        auto G2 = gp.y > 0. ? tb / gp.y * gp.Dphi_Dth : 0.;
-        return G1 + G2;
+        return gp.cgp * gp.cur;
     };
 
     auto J = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
-        auto se = sin(gp.eps);                                                    //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improve speed
-        // return se / gp.y * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu); // simplification of cos beta with dS -> dm
-        return gp.y > 0. ? se / gp.y * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_rVu) : 0.; // simplification of cos beta with dS -> dm
+        auto te = tan(gp.eps);
+        return gp.y > 0. ? te / gp.y * gp.drVu_dm : 0.;
     };
 
     auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
@@ -109,26 +109,26 @@ namespace yams
         auto beta = abs(gp.Vm) > 1e-4 ? atan2(gp.Vu, gp.Vm) : 0.;
         assert(abs(beta) < std::numbers::pi / 2.);
         auto cb = cos(beta);
-        auto ce = cos(gp.eps);
         auto sb = sin(beta);
-        auto se = sin(gp.eps);
-        // auto K1 = ce * (D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
-        auto K1 = ce * (D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H) - gp.Ts * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_));
-        // auto K2 = -gp.Vu / gp.y * ce * D1_O2_so_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
-        auto K2 = gp.y > 0. ?  -gp.Vu / gp.y * ce * D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu) : 0.;
-        // auto K3 = ce * gp.sgp * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
-        auto K3 = ce * gp.sgp * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_sqVmq2); // simplification of cos beta with dS -> dm
-        // auto K4 = (ce * cb * gp.sgp + se * sb) * gp.Ts * cb * D1_O2_so_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
-        auto K4 = (ce * cb * gp.sgp + se * sb) * gp.Ts * cb * D1_O2_dx1(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
-        // auto K4 = 0.;
-        return K1 + K2 + K3 + K4;
+        auto te = tan(gp.eps);
+        auto sgp= gp.sgp;
+        
+        // -> compute gradients in a separate subrotine for vectorization
+        auto dH_qdl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H); 
+        auto dS_qdl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        auto drVu_dl= D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
 
+        auto K1 = ( dH_qdl - gp.Ts * dS_qdl );
+        auto K2 = gp.y > 0. ?  -gp.Vu / gp.y * drVu_dl : 0.;
+        auto K3 = sgp * gp.dsqVm_dm_2; 
+        auto K4 = (cb * sgp + te * sb) * gp.Ts * cb * gp.ds_dm;
+        return K1 + K2 + K3 + K4;
     };
 
     auto eq_vu = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
-        const auto Vm = gp.Vm;
+        auto Vm = gp.Vm;
         return G(gp) * Vm * Vm + J(g, g_metrics, i, j, d_ksi, d_eth) * Vm + K(g, g_metrics, i, j, d_ksi, d_eth);
     };
 
