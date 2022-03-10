@@ -6,6 +6,7 @@
 
 // const bool use_meridional_grad = false;
 const bool use_meridional_grad = true;
+const bool verbose = false;
 
 namespace yams
 {
@@ -437,9 +438,13 @@ namespace yams
             err_mf = fabs(mf_ - mf) / mf;
             count++;
         }
-        if(count==max_count && err_mf <= tol_rel_mf)
+        if(count==max_count && err_mf > tol_rel_mf)
         {
-            std::cout << "Warning span: " << i << " did not converged." << std::endl;
+            std::cout << "Warning span: " << i << " did not converged after "<< count << " err_mf: " << err_mf  << std::endl;
+        }
+        if(integrate && verbose)
+        {
+            std::cout << " i: " << i << " count: " << count << " err_mf: " << err_mf << std::endl;
         }
     }
 
