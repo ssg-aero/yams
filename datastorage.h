@@ -140,11 +140,16 @@ namespace yams
         T eps = 0.; // atan2(rdth / dq_)
         T bet = 0.; // atan2( Wu , Vm)
         T cur = 0.; // streamline curvature
-        T cgp = 1.; // Cos( gamma + phi )
+        T cgp = 1.; // Cos( gamma + phi ) much alike to orthogonality
         T sgp = 0.; // Sin( gamma + phi )
-        T Dphi_Dth =0.;
+        // T Dphi_Dth =0.;
 
         T Vm  = 0.;
+        // T Vm_pre  = 0.;
+        T dsqVm_dm_2 = 0.;
+        T ds_dm = 0.;
+        T drtb_dm =0.; // d(r * tan(beta)) / dm
+        T drVu_dm = 0.;
         T Vu  = 0.;
         T rho = 1.225;
         T Pt  = 1.e5;

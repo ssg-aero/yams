@@ -4,6 +4,8 @@
 #include <gridmetrics.h>
 #include <gbs/bscinterp.h>
 
+// const bool use_meridional_grad = false;
+const bool use_meridional_grad = true;
 
 namespace yams
 {
@@ -708,7 +710,38 @@ namespace yams
         while (!converged && (count_geom < max_geom))
         {
             // integrate radial eq equation and update gas properties
-            compute_vm_distribution(solver_case, tol_rel_mf, eps, true );
+            size_t grad_count{};
+            size_t max_grd_count = use_meridional_grad ? 10 : 1;
+            while(grad_count < max_grd_count) // TODO add criteria
+            {
+                compute_vm_distribution(solver_case, tol_rel_mf, eps, true, 0 );
+                if(use_meridional_grad)
+                {
+                    std::for_each( // update meridional gradients
+                        ExPo,
+                        span_range.begin(), span_range.end(),
+                        [&](const auto &i){
+                            for (size_t j{}; j < nj; j++)
+                            {
+                                if(i==0 || i == ni-1)
+                                {
+                                    g(i, j).dsqVm_dm_2 = 0.;
+                                    g(i, j).ds_dm      = 0.;
+                                }
+                                else
+                                {
+                                    g(i, j).dsqVm_dm_2 = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_sqVmq2);
+                                    g(i, j).ds_dm      = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_S_);
+                                    g(i,j).drtb_dm     = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rTanBeta);
+                                    g(i,j).drVu_dm     = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rVu);
+                                }
+                            }
+                        }
+                    );
+                }
+                
+                grad_count++;
+            }
             if( !solver_case.relocate )
             {
                 break;
