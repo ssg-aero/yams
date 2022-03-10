@@ -21,13 +21,14 @@
 #endif
 
 #include <chrono>
-const bool TESTS_USE_PLOT = false;
 using namespace yams;
+const bool TESTS_USE_PLOT = true;
 TEST(tests_curvature_solver, vtk_no_blades)
 {
     using T = double;
     using namespace std::chrono;
 
+    // auto g = read_vtk_grid<T>(test_files_path+"out/test_001_250x21.vts");
     auto g = read_vtk_grid<T>(test_files_path+"out/test_001.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
@@ -72,6 +73,11 @@ TEST(tests_curvature_solver, vtk_no_blades)
         // shadowing
         auto &gi= *(solver_case.gi);
         auto &g = *(solver_case.gi->g);
+        if(use_meridional_grad)
+        {
+            solver_case.gi->RF /= 10.;
+            solver_case.max_geom = 1000;
+        }
 
         auto start = high_resolution_clock::now();
         curvature_solver(solver_case);
@@ -87,7 +93,6 @@ TEST(tests_curvature_solver, vtk_no_blades)
             plot_residual(solver_case.log);
         }
     }
-// return;
     {
         // shadowing
         auto &gi= *(solver_case.gi);
@@ -108,8 +113,6 @@ TEST(tests_curvature_solver, vtk_no_blades)
             plot_residual(solver_case.log);
         }
     }
-
-
 
     {
         // shadowing
@@ -165,14 +168,13 @@ TEST(tests_curvature_solver, vtk_no_blades)
 
 
         gi.rho_cst = false;
-        // solver_case.max_geom=1;
-        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; });
+        // solver_case.relocate = false;
+        solver_case.max_geom = 1000;
+        solver_case.gi->RF /= 1.;
+        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; gp.omg_=0.1;});
         solver_case.inlet.Vu = [Vm](auto l_rel){return 0.5*Vm;};
         solver_case.inlet.Ps = [](auto l_rel){return 1.6432411e5;};
         solver_case.inlet.Ts = [](auto l_rel){return 300. * (1. - l_rel) + 310 * l_rel;};
-        // auto r1 = g(0,0).y;
-        // auto r2 = g(0,nj-1).y;
-        // std::for_each(g.begin(0), g.end(0), [r1,r2](auto &gp) {gp.Tt = 300. * (gp.y - r2) /(r1 -r2) - 310. * (gp.y - r1) /(r1 -r2);gp.H = gp.Tt * gp.Cp - 1004. * 288.;});
 
         auto start = high_resolution_clock::now();
         curvature_solver(solver_case);
@@ -184,7 +186,8 @@ TEST(tests_curvature_solver, vtk_no_blades)
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
         if (TESTS_USE_PLOT)
         {
-            plot_vtkStructuredGrid(structuredGrid,"Ts", true);
+            plot_vtkStructuredGrid(structuredGrid,"Ts", true, true);
+            plot_vtkStructuredGrid(structuredGrid,"s", true, true);
             plot_residual(solver_case.log);
         }
     }
@@ -215,7 +218,8 @@ TEST(tests_curvature_solver, vtk_static_blades1)
         .d_ksi = ksi,
         .d_eth = eth,
         .ni = ni,
-        .nj = nj
+        .nj = nj,
+        .RF = 0.001,
     };
 
     SolverCase<T> solver_case{
@@ -225,7 +229,7 @@ TEST(tests_curvature_solver, vtk_static_blades1)
             .i2=89,
             .mode=MeridionalBladeMode::DIRECT,
             }},
-        .max_geom=1,
+            .relocate = false,
         };
 
     {        // shadowing
@@ -253,14 +257,17 @@ TEST(tests_curvature_solver, vtk_static_blades1)
             auto res = Vm / Vmi;
             auto res_analytic = std::pow( ri / r, std::pow( std::sin(alp), 2 ) );
             auto err_pc = (res - res_analytic) / res_analytic * 100.;
-            ASSERT_LT(err_pc,1.);
-            std::cout << res << " " << res_analytic << " " << err_pc << "%" << std::endl;
+            if(!solver_case.relocate)
+            {
+                ASSERT_LT(err_pc, 1.);
+                std::cout << res << " " << res_analytic << " " << err_pc << "%" << std::endl;
+            }
         }
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_002.vts");
         if (TESTS_USE_PLOT)
         {
-            plot_vtkStructuredGrid(structuredGrid,"Vm", true);
+            plot_vtkStructuredGrid(structuredGrid,"Vm", false, true);
         }
     }
 }
@@ -302,8 +309,8 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         .gi = std::make_shared< GridInfo<T> >( gi ),
         .bld_info_lst {
             BladeInfo<T>{
-            .i1=52,
-            .i2=90,
+            .i1=16,
+            .i2=28,
             .mode=MeridionalBladeMode::DESIGN_BETA_OUT,
             .beta_out=[](auto l_rel){return std::numbers::pi / 4.;}
             }
@@ -314,7 +321,8 @@ TEST(tests_curvature_solver, vtk_static_blades2)
             .Ts   = [](auto l_rel){return 300. + 30. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
         },
-        .max_geom = 1000
+        .max_geom = 1000,
+        // .relocate = false
     };
 
     {        // shadowing
@@ -358,7 +366,7 @@ TEST(tests_curvature_solver, vtk_static_blades3)
     // init values
     size_t ni = g.nRows();
     size_t nj = g.nCols();
-    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; /*gp.iB=-1;*/  if(gp.iB!=-1) gp.omg_=0.1; });
+    std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt;gp.Pt=133337.02; /*gp.iB=-1;*/  if(gp.iB!=-1) gp.omg_=0.0; });
     // std::cout << PropsSI("Dmolar","T",298,"P",1e5,"REFPROP::Propane[0.5]&Ethane[0.5]") << std::endl;
 
     double ksi = 1. / (ni-1.);
@@ -385,17 +393,17 @@ TEST(tests_curvature_solver, vtk_static_blades3)
             }},
         .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
-            .Ps   = [Ps](auto l_rel){return Ps;},
-            .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
+            // .Ps   = [Ps](auto l_rel){return Ps;},
+            // .Ts   = [](auto l_rel){return 300. + 50. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
         },
         .max_geom = 1000,
+        // .relocate = false,
     };
 
     {        // shadowing
         auto &gi= *(solver_case.gi);
         auto &g = *(solver_case.gi->g);
-
 
         auto start = high_resolution_clock::now();
         curvature_solver(solver_case);
@@ -412,6 +420,8 @@ TEST(tests_curvature_solver, vtk_static_blades3)
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_vtkStructuredGrid(structuredGrid,"bet", true);
+            plot_vtkStructuredGrid(structuredGrid,"k", true);
             plot_residual(solver_case.log);
         }
     }
@@ -457,13 +467,15 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
             .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
             .Vm_moy=Vm
         },
-        .max_geom = 2000
+        .max_geom = 2000,
+        // .relocate = false
     };
 
     {        // shadowing
         auto &gi= *(solver_case.gi);
         auto &g = *(solver_case.gi->g);
-
+        gi.vm_distribution_max_count = 5000;
+        gi.RF /= 100;
 
         auto start = high_resolution_clock::now();
         curvature_solver(solver_case);
@@ -480,6 +492,8 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_vtkStructuredGrid(structuredGrid,"cgp", false, true);
+            plot_vtkStructuredGrid(structuredGrid,"sgp", false, true);
             plot_residual(solver_case.log);
         }
     }
@@ -560,7 +574,7 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
     using namespace std::chrono;
 
     auto g = read_vtk_grid<T>(test_files_path+"in/test_007.vts");
-    auto Vm = 30.;
+    auto Vm = 150.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -591,12 +605,13 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
         .inlet = InletBC<T>{
             .mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu,
             // .Ps   = [Ps](auto l_rel){return 1e5+0.1e5*l_rel;}, //TODO investigate this mess
-            .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
-            .Vu   = [Vm](auto l_rel){return  Vm * 0.8 * (1.-l_rel) + Vm * 1.2 * l_rel;},
+            // .Ts   = [](auto l_rel){return 300. +50. * std::sin( l_rel * std::numbers::pi );},
+            // .Vu   = [Vm](auto l_rel){return  Vm * 0.8 * (1.-l_rel) + Vm * 1.2 * l_rel;},
             .Vm_moy=Vm
         },
         .max_geom = 5000,
         .tol_rel_pos = 2e-5,
+        // .relocate =false
     };
 
 
@@ -623,6 +638,10 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
             plot_vtkStructuredGrid(structuredGrid,"rho", true);
             plot_vtkStructuredGrid(structuredGrid,"s", true);
             plot_vtkStructuredGrid(structuredGrid,"H", true);
+            plot_vtkStructuredGrid(structuredGrid,"cgp", true);
+            plot_vtkStructuredGrid(structuredGrid,"sgp", true);
+            plot_vtkStructuredGrid(structuredGrid,"gam", true);
+            plot_vtkStructuredGrid(structuredGrid,"phi", true);
             plot_residual(solver_case.log);
         }
     }
