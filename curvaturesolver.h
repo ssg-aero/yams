@@ -373,7 +373,6 @@ namespace yams
     }
 
     template <typename T>
-    // auto balance_massflow(GridInfo<T> &gi, int i, T tol_mf)
     auto balance_massflow(SolverCase<T> &solver_case, int i, T tol_mf)
     {
         auto i_ref = solver_case.mf_ref_span;
@@ -385,8 +384,6 @@ namespace yams
         auto &g = *gi.g;
         auto nj = g.nCols();
         std::vector<T> q(nj);
-
-        gbs::points_vector<T, 2> X(nj);
         auto l_tot = g(i, nj - 1).l;
         for (auto j = 0; j < nj; j++)
         {
@@ -406,9 +403,9 @@ namespace yams
         // auto RF = eval_RF(g,i,B_);
 
         auto count = nj-1;
+        auto [u1, u2] = f_Q.bounds();
         for (auto j = 1; j < count; j++)
         {
-            auto [u1, u2] = f_Q.bounds();
             auto q  = solver_case.mf_uniform ? (solver_case.inlet.Mf * j) / count : g(i_ref, j).q;
             auto [l, delta, count] = newton_solve<T>(f_Q, q, u[j], u1, u2, tol_f, tol_u);
             
