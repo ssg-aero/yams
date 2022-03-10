@@ -4,6 +4,7 @@
 #include <meshtools.h>
 #include <gridreader.h>
 #include <meridionalsolvercase.h>
+#include <solvercasetools.h>
 #include <gridmetrics.h>
 #include <eqcurvaturesolver.h>
 #include <gridrender.h>
@@ -36,6 +37,9 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("iB", &MeridionalGridPoint<T>::iB)
     .def_readwrite("k", &MeridionalGridPoint<T>::k)
     .def_readwrite("bet", &MeridionalGridPoint<T>::bet)
+    .def_readwrite("omg", &MeridionalGridPoint<T>::omg)
+    .def_readwrite("gam", &MeridionalGridPoint<T>::gam)
+    .def_readwrite("phi", &MeridionalGridPoint<T>::phi)
     ;
 
     py::class_< MeridionalGrid<T>, std::shared_ptr<MeridionalGrid<T>> >(m, "MeridionalGrid")
@@ -226,9 +230,14 @@ PYBIND11_MODULE(yams, m)
 
 
     m.def("curvature_solver",
-        &curvature_solver<T>,
+        py::overload_cast<SolverCase<T> &>( &curvature_solver<T> ),
         "Solve case with curvature solver",
         py::arg( "solver_case" )
+    );
+    m.def("curvature_solver",
+        py::overload_cast<SolverCaseSet<T> &>( &curvature_solver<T> ),
+        "Solve case with curvature solver",
+        py::arg( "set" )
     );
 
     m.def( "plot",
@@ -257,6 +266,9 @@ PYBIND11_MODULE(yams, m)
         "Plot grid results",
         py::arg("g"), py::arg("value") = "Vm", py::arg("edges_on") = false, py::arg("countour_on") = false
     );
+
     m.def( "plot_residual",&plot_residual<T>,py::arg("log"));
+
+    m.def( "switch_to_direct",&switch_to_direct<T>,py::arg("solver_case"));
 
 }
