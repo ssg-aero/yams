@@ -175,18 +175,63 @@ namespace yams
         auto interpolateCurvature() -> void
         {
             auto [ to_begin, to_end, from_begin, from_end ] = getIterators(m_left->gi->ni - 2, 1);
-            std::vector<T> cur(size());
+            // std::vector<T> cur(size());
+            // std::transform(
+            //     from_begin, from_end,
+            //     to_begin,
+            //     cur.begin(),
+            //     [](const auto &gp_left, const auto &gp_right)
+            //     {
+            //         return (gp_left.cur+gp_right.cur) / 2;
+            //     }
+            // );
+
+            std::vector<MeridionalGridPoint<T>> cur(size());
             std::transform(
                 from_begin, from_end,
                 to_begin,
                 cur.begin(),
                 [](const auto &gp_left, const auto &gp_right)
                 {
-                    return (gp_left.cur+gp_right.cur) / 2;
+                    auto gp{gp_left };
+                    gp.cur= (gp_left.cur+gp_right.cur) / 2;
+                    gp.gam= (gp_left.gam+gp_right.gam) / 2;
+                    gp.phi= (gp_left.phi+gp_right.phi) / 2;
+                    return gp;
                 }
             );
 
             auto [ to_right_begin, to_right_end, to_left_begin, to_left_end ] = getIterators(m_left->gi->ni - 1, 0);
+
+            std::transform(
+                cur.begin(),
+                cur.end(),
+                to_right_begin,
+                to_right_begin,
+                [](const auto &gp_, const auto &gp_orig )
+                {
+                    auto gp{gp_orig };
+                    gp.cur = gp_.cur;
+                    gp.gam = gp_.gam;
+                    gp.phi = gp_.phi;
+                    return gp;
+                }
+            );
+
+            std::transform(
+                cur.begin(),
+                cur.end(),
+                to_left_begin,
+                to_left_begin,
+                [](const auto &gp_, const auto &gp_orig )
+                {
+                    auto gp{gp_orig };
+                    gp.cur = gp_.cur;
+                    gp.gam = gp_.gam;
+                    gp.phi = gp_.phi;
+                    return gp;
+                }
+            );
 
             // std::transform(
             //     cur.begin(),
@@ -201,18 +246,18 @@ namespace yams
             //     }
             // );
 
-            std::transform(
-                cur.begin(),
-                cur.end(),
-                to_left_begin,
-                to_left_begin,
-                [](auto cur, const auto &gp )
-                {
-                    auto gp_{gp};
-                    gp_.cur = cur;
-                    return gp_;
-                }
-            );
+            // std::transform(
+            //     cur.begin(),
+            //     cur.end(),
+            //     to_left_begin,
+            //     to_left_begin,
+            //     [](auto cur, const auto &gp )
+            //     {
+            //         auto gp_{gp};
+            //         gp_.cur = cur;
+            //         return gp_;
+            //     }
+            // );
 
         }
 
@@ -279,5 +324,40 @@ namespace yams
         
     };
 
+
+    template <typename T>
+    class SolverCaseBiPass
+    {
+        std::shared_ptr<SolverCase<T> > m_prim;
+        std::shared_ptr<SolverCase<T> > m_sec;
+        SolverCase<T> m_inlet;
+        size_t m_i_bip;
+        void computeInletGrid(){
+            auto ni = m_i_bip + 1;
+            auto nj_prim =  m_prim->gi->nj;
+            auto nj_sec  =  m_sec->gi->nj;
+            auto nj = nj_prim + nj_prim - 1;
+            gbs::points_vector<T,2> pts(ni*nj);
+            for(size_t i{}; i <= m_i_bip; i++)
+            {
+                
+            }
+        }
+        public:
+        // InletBC<T> inlet;
+        auto & primary(){return *m_prim;}
+        auto & secondary(){return *m_sec;}
+        auto & inlet(){return m_inlet;}
+        auto iBip(){return m_i_bip;}
+        T BPR = 2.;
+        SolverCaseBiPass(
+            const std::shared_ptr< SolverCase<T> > &prim, 
+            const std::shared_ptr< SolverCase<T> > &sec, size_t iBip
+        ) : m_prim{prim}, m_sec{sec}, m_i_bip{iBip} 
+        {
+            computeInletGrid();
+        }
+
+    };
 
 }
