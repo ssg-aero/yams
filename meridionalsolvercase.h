@@ -22,7 +22,7 @@ namespace yams
         T RF = 0.01;
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
-        size_t vm_distribution_max_count =100;
+        size_t vm_distribution_max_count =200;
     };
 
     enum class MeridionalBladeMode
@@ -40,7 +40,7 @@ namespace yams
         int is = -1; 
         int i2 = -1;
         T omg     = 0.;
-        T omg_    = 0.;
+        std::function<T(T)> omg_;
         MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
         std::function<T(T)> beta_out;
         std::function<T(T)> alpha_out;
@@ -79,7 +79,8 @@ namespace yams
 
     // enum class MassFlowDistrib
     template <typename T>
-    struct SolverCase
+    struct 
+    SolverCase
     {
         std::shared_ptr< GridInfo<T> > gi;
         std::vector<BladeInfo<T>> bld_info_lst;
@@ -87,7 +88,7 @@ namespace yams
         std::vector<T> mf;
         SolverLog<T> log;
         size_t max_geom = 200;
-        T eps = 0.00001;
+        T eps = 0.001;
         T tol_rel_mf = 1e-4;
         T tol_rel_pos = 1e-5;
         bool relocate = true;
