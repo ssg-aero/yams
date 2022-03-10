@@ -49,7 +49,7 @@ namespace yams
     {
         const size_t dim = 2;
         const size_t P = 1;
-        const size_t Q = 2;
+        const size_t Q = 1;
 
         return gbs::tfi_mesh_2d<T, 2, P, Q, true>(iso_ksi, iso_eth, ksi_i, eth_j, n_iso_ksi, n_iso_eth);
     }
