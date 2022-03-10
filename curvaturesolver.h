@@ -449,7 +449,7 @@ namespace yams
     }
 
     template <typename T>
-    auto compute_vm_distribution(SolverCase<T> &solver_case, T tol_rel_mf, T eps, bool integrate)
+    auto compute_vm_distribution(SolverCase<T> &solver_case, T tol_rel_mf, T eps, bool integrate, size_t i0)
     {
         auto &gi = *solver_case.gi;
         auto &g = *gi.g;
@@ -457,7 +457,7 @@ namespace yams
         size_t ni = g.nRows();
         size_t nj = g.nCols();
         T vmi{};
-        for (auto i = 0; i < ni; i++)
+        for (auto i = i0; i < ni; i++)
         {
             if( ( solver_case.inlet.mode != MeridionalBC::INLET_Vm_Ts_Ps_Vu && solver_case.inlet.mode != MeridionalBC::CON )
                     || i != 0 )
