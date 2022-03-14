@@ -4,8 +4,8 @@
 #include <gridmetrics.h>
 #include <gbs/bscinterp.h>
 
-// const bool use_meridional_grad = false;
-const bool use_meridional_grad = true;
+const bool use_meridional_grad = false;
+// const bool use_meridional_grad = true;
 const bool verbose = false;
 
 namespace yams
