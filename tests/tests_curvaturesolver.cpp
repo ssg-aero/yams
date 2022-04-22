@@ -73,7 +73,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         // shadowing
         auto &gi= *(solver_case.gi);
         auto &g = *(solver_case.gi->g);
-        if(use_meridional_grad)
+        if(solver_case.use_meridional_grad)
         {
             solver_case.gi->RF /= 10.;
             solver_case.max_geom = 1000;

@@ -4,7 +4,7 @@
 #include <gridmetrics.h>
 #include <gbs/bscinterp.h>
 
-const bool use_meridional_grad = false;
+// const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;
 const bool verbose = false;
 
@@ -850,11 +850,11 @@ namespace yams
         {
             // integrate radial eq equation and update gas properties
             size_t grad_count{};
-            size_t max_grd_count = use_meridional_grad ? 10 : 1;
+            size_t max_grd_count = solver_case.use_meridional_grad ? 10 : 1;
             while(grad_count < max_grd_count) // TODO add criteria
             {
                 compute_vm_distribution(solver_case, tol_rel_mf, eps, true, 0 );
-                if(use_meridional_grad)
+                if(solver_case.use_meridional_grad)
                 {
                     std::for_each( // update meridional gradients
                         ExPo,

@@ -94,6 +94,7 @@ namespace yams
         bool relocate = true;
         size_t mf_ref_span = 0;
         bool mf_uniform = false;
+        bool use_meridional_grad=false;
     };
 
     template <typename T>
