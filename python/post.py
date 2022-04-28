@@ -1,4 +1,4 @@
-from os import X_OK
+from math import sqrt
 import pyams.yams as yams
 import plotly.graph_objects as go
 import uuid
@@ -25,7 +25,7 @@ def add_span_to_plotly_fig(fig, g: yams.MeridionalGrid, i:int, value_name:str = 
         go.Scatter(x=x, y=y, name=f'{value_name} i = {i}') 
     )
 
-def add_mg_to_plotly_fig(fig, g: yams.MeridionalGrid, value_name:str = 'Vm', zmin =None, zmax=None, scale = 1.):
+def add_mg_to_plotly_fig(fig, g: yams.MeridionalGrid, value_name:str = 'Vm', zmin =None, zmax=None, scale = 1., rg = 287.04):
     
     nj = g.nCols()
     ni = g.nRows()
@@ -50,6 +50,12 @@ def add_mg_to_plotly_fig(fig, g: yams.MeridionalGrid, value_name:str = 'Vm', zmi
             except AttributeError as e:
                 if value_name == 'alf':
                     z.append(atan2(gp.Vu,gp.Vm)*scale)
+                if value_name == 'M':
+                    z.append(sqrt(gp.Vm*gp.Vm+gp.Vu*gp.Vu)/sqrt(gp.gam*rg*gp.Ts)*scale)
+                if value_name == 'Mm':
+                    z.append(gp.Vm/sqrt(gp.gam*rg*gp.Ts)*scale)
+                if value_name == 'Mu':
+                    z.append(gp.Vu/sqrt(gp.gam*rg*gp.Ts)*scale)
                 else:
                     raise e
 
@@ -124,7 +130,7 @@ def grid_plotly_fig(g: yams.MeridionalGrid, value_name:str = 'Vm', width=1500, h
 def case_plotly_fig(solver_case: yams.SolverCase, value_name:str = 'Vm', width=1500, height=1000, scale = 1.):
     fig = go.Figure( )
     g = solver_case.gi.g
-    add_mg_to_plotly_fig(fig, solver_case.gi.g, value_name, scale= scale)
+    add_mg_to_plotly_fig(fig, solver_case.gi.g, value_name, scale= scale, rg =solver_case.gi.R)
     
     nj = solver_case.gi.nj
 
