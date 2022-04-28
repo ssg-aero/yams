@@ -128,8 +128,9 @@ namespace yams
     }
 
     template <typename T>
-    auto compute_gas_properties(GridInfo<T> &gi, int i)
+    auto compute_gas_properties(SolverCase<T> &solver_case, int i)
     {
+        auto &gi = *solver_case.gi;
         auto &g = *gi.g;
         auto nj = g.nCols();
 
@@ -147,8 +148,21 @@ namespace yams
 
                 g2.Tt = g1.Tt + (g2.H - g1.H) / ( 0.5 * ( g1.Cp + g2.Cp) );
                 auto ga = 0.5 * (g1.ga + g2.ga);
-                auto P2is = g1.Pt * std::pow(g2.Tt / g1.Tt, ga / (ga - 1));
-                g2.Pt = P2is - 0.5 * g2.rho * g2.omg_ * f_sqW(g2); // using rho from previous
+                // if(g2.iB<0)
+                // {
+                    auto P2is = g1.Pt * std::pow(g2.Tt / g1.Tt, ga / (ga - 1));
+                    g2.Pt = P2is - 0.5 * g1.rho * g1.omg_ * f_sqW(g1);
+                // }
+                // else
+                // {
+                //     auto i1    = solver_case.bld_info_lst[g2.iB].i1;
+                //     T omg_;
+                //     if( solver_case.bld_info_lst[g2.iB].omg_ ) // losses defined
+                //         omg_ = solver_case.bld_info_lst[g2.iB].omg_(g2.l/g(i,nj-1).l);
+                //     const auto &g_le = g(i1, j);
+                //     auto P2is = g1.Pt * std::pow(g2.Tt / g_le.Tt, ga / (ga - 1));
+                //     g2.Pt = P2is - 0.5 * g_le.rho * omg_ * f_sqW(g_le);
+                // }
             }
         }
 
@@ -207,8 +221,10 @@ namespace yams
             for (auto j = 0; j < nj; j++)
             {
                 g(i, j).bet = g(i, j).k; // TODO add deviation model
+                // g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg;
             }
             integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
+            // integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
             for (auto j = 0; j < nj; j++)
             {
                 g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg;
@@ -575,7 +591,7 @@ namespace yams
                 vmi = g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
                 compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate);
             }
-            compute_gas_properties(gi,i);
+            compute_gas_properties(solver_case,i);
         }
     }
 
@@ -649,7 +665,7 @@ namespace yams
                 eq_massflow(vmi(i), solver_case, i, true);
                 int j_0 = std::round((nj - 1 ) * gi.j_0);
                 g(i, j_0).Vm = vmi(i);
-                compute_gas_properties(gi,i);
+                compute_gas_properties(solver_case,i);
             }
             count++;
         } while (err>1e-6  && count < 500);
@@ -1040,12 +1056,12 @@ namespace yams
         for (auto i = 0; i < ni; i++)
         {
             compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps, false);
-            compute_gas_properties(gi, i);
+            compute_gas_properties(solver_case, i);
         }
         for (auto i = 0; i < ni; i++)
         {
             compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps, false);
-            compute_gas_properties(gi, i);
+            compute_gas_properties(solver_case, i);
         }
     }
 
@@ -1107,7 +1123,7 @@ namespace yams
                             auto vmi = g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
                             compute_vm_distribution(*solver_case, vmi, i, tol_rel_mf, eps,true);
                         }
-                        compute_gas_properties(gi,i);
+                        // compute_gas_properties<T>(solver_case,i);
                     }
                     if( !solver_case->relocate )
                     {
