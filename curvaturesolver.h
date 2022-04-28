@@ -909,6 +909,8 @@ namespace yams
                     return balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );
+           // update blades info
+           apply_blade_info(solver_case);
             // compute residuals
             delta_pos_moy = std::reduce(
                     ExPo,

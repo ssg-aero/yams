@@ -192,4 +192,52 @@ namespace yams
         }
         return solver_case;
     }
+
+    template <typename T>
+    auto apply_blade_info(SolverCase<T> &solver_case)
+    {
+        auto nj = solver_case.gi->nj;
+        auto &g = *(solver_case.gi->g);
+        size_t iB{};
+        for(const auto &bld_info : solver_case.bld_info_lst)
+        {
+            for( auto i{bld_info.i1} ; i <= bld_info.i2; i++  )
+            {
+                for( size_t j{}; j < nj; j++ )
+                {
+                    auto u = ( g(i,j).m - g(bld_info.i1,j).m ) / ( g(bld_info.i2,j).m - g(bld_info.i1,j).m );
+                    auto v = ( g(i,j).l - g(i,0).l ) / ( g(i,nj-1).l - g(i,0).l );
+                    if(bld_info.k)
+                        g(i,j).k = bld_info.k(u,v);
+                    if(bld_info.tb)
+                    {
+                        auto r  = g(i, j).y;
+                        auto tb_= bld_info.z_ * bld_info.k(u, v) / std::cos( g(i,j).k ); // projected total thickness
+                        g(i, j).th_ = tb_ / r; // effective tangential span
+                    }
+                    if(bld_info.eps)
+                    {
+                        g(i, j).eps = bld_info.eps(u, v);
+                    }
+                    g(i,j).iB = iB;
+                }
+            }
+            iB++;
+        }
+    }
+
+    template <typename T>
+    auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< BladeInfo<T> > &bld_info_lst )
+    {
+        SolverCase<T> solver_case{};
+        solver_case.gi = make_grid_info<T>(sgrid);
+        size_t iB{};
+        auto &g = *(solver_case.gi->g);
+        for(const auto &bld_info : bld_info_lst)
+        {
+            solver_case.bld_info_lst.push_back(bld_info);
+        }
+        apply_blade_info(solver_case);
+        return solver_case;
+    }
 } // namespace yams

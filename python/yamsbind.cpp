@@ -40,6 +40,9 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("omg", &MeridionalGridPoint<T>::omg)
     .def_readwrite("gam", &MeridionalGridPoint<T>::gam)
     .def_readwrite("phi", &MeridionalGridPoint<T>::phi)
+    .def_readwrite("H", &MeridionalGridPoint<T>::H)
+    .def_readwrite("I", &MeridionalGridPoint<T>::I)
+    .def_readwrite("s", &MeridionalGridPoint<T>::s)
     ;
 
     py::class_< MeridionalGrid<T>, std::shared_ptr<MeridionalGrid<T>> >(m, "MeridionalGrid")
@@ -117,11 +120,15 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("i_s",&BladeInfo<T>::is)
     .def_readwrite("i2",&BladeInfo<T>::i2)
     .def_readwrite("omg",&BladeInfo<T>::omg)
+    .def_readwrite("z_",&BladeInfo<T>::z_)
     .def_readwrite("omg_",&BladeInfo<T>::omg_)
     .def_readwrite("mode",&BladeInfo<T>::mode)
     .def_readwrite("beta_out",&BladeInfo<T>::beta_out)
     .def_readwrite("alpha_out",&BladeInfo<T>::alpha_out)
     .def_readwrite("psi",&BladeInfo<T>::psi)
+    .def_readwrite("k",&BladeInfo<T>::k)
+    .def_readwrite("tb",&BladeInfo<T>::tb)
+    .def_readwrite("eps",&BladeInfo<T>::eps)
     ;
 
     py::enum_<MeridionalBC>(m, "MeridionalBC", py::arithmetic())
@@ -208,6 +215,15 @@ PYBIND11_MODULE(yams, m)
         py::overload_cast<const std::string&>(&make_grid_info<T>),
         "Make and init GridInfo metrics",
         py::arg( "fname" )
+    );
+
+    m.def("make_solver_case",
+        py::overload_cast<
+            vtkStructuredGrid* , 
+            const std::vector< BladeInfo<T> > &
+        >(&make_solver_case<T>),
+        "Make solver case and init GridInfo metrics",
+        py::arg("sgrid"), py::arg("bld_info_lst")
     );
 
     m.def("make_solver_case",

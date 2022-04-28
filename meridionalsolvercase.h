@@ -40,11 +40,15 @@ namespace yams
         int is = -1; 
         int i2 = -1;
         T omg     = 0.;
+        size_t z_{2};
         std::function<T(T)> omg_;
         MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
         std::function<T(T)> beta_out;
         std::function<T(T)> alpha_out;
         std::function<T(T)> psi;
+        std::function<T(T,T)> k;
+        std::function<T(T,T)> tb;
+        std::function<T(T,T)> eps;
     };
 
     enum class MeridionalBC
