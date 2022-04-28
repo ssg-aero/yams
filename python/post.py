@@ -50,11 +50,11 @@ def add_mg_to_plotly_fig(fig, g: yams.MeridionalGrid, value_name:str = 'Vm', zmi
             except AttributeError as e:
                 if value_name == 'alf':
                     z.append(atan2(gp.Vu,gp.Vm)*scale)
-                if value_name == 'M':
-                    z.append(sqrt(gp.Vm*gp.Vm+gp.Vu*gp.Vu)/sqrt(gp.gam*rg*gp.Ts)*scale)
-                if value_name == 'Mm':
+                elif value_name == 'M':
+                    z.append(sqrt(gp.Vm*gp.Vm+gp.Vu*gp.Vu)/sqrt(gp.ga*rg*gp.Ts)*scale)
+                elif value_name == 'Mm':
                     z.append(gp.Vm/sqrt(gp.gam*rg*gp.Ts)*scale)
-                if value_name == 'Mu':
+                elif value_name == 'Mu':
                     z.append(gp.Vu/sqrt(gp.gam*rg*gp.Ts)*scale)
                 else:
                     raise e
