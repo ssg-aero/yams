@@ -212,7 +212,7 @@ namespace yams
                     if(bld_info.tb)
                     {
                         auto r  = g(i, j).y;
-                        auto tb_= bld_info.z_ * bld_info.k(u, v) / std::cos( g(i,j).k ); // projected total thickness
+                        auto tb_= bld_info.z_ * bld_info.tb(u, v) / std::cos( g(i,j).k ); // projected total thickness
                         g(i, j).th_ = tb_ / r; // effective tangential span
                     }
                     if(bld_info.eps)
