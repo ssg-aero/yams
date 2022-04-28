@@ -42,6 +42,8 @@ namespace yams
         T omg     = 0.;
         size_t z_{2};
         std::function<T(T)> omg_;
+        std::function<T(T)> dev;
+        std::function<T(T)> mu;
         MeridionalBladeMode mode = MeridionalBladeMode::DIRECT;
         std::function<T(T)> beta_out;
         std::function<T(T)> alpha_out;

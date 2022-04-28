@@ -157,7 +157,7 @@ namespace yams
                 {
                     auto i1    = solver_case.bld_info_lst[g2.iB].i1;
                     auto i2    = solver_case.bld_info_lst[g2.iB].i2;
-                    if(i>i1)
+                    if(i>i1) // apply losses
                     {
                         T omg_{};
                         const auto &g_le = g(i1, j);
@@ -217,8 +217,9 @@ namespace yams
     }
 
     template <typename T>
-    auto eq_massflow_blade_direct(T vmi, GridInfo<T> &gi, int i, int i1, bool integrate) -> void
+    auto eq_massflow_blade_direct(T vmi, SolverCase<T> &solver_case, int i, int i1, int i2, bool integrate) -> void
     {
+        auto &gi=*(solver_case.gi);
         auto &g = *gi.g;
         auto nj = g.nCols();
         if(i == i1)
@@ -233,11 +234,25 @@ namespace yams
         else{
             for (auto j = 0; j < nj; j++)
             {
-                g(i, j).bet = g(i, j).k; // TODO add deviation model
-                // g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg;
+                // apply deviation
+                auto iB = g(i, j).iB;
+                T dev{};
+                if(iB>=0)
+                {
+                    auto bld_info = solver_case.bld_info_lst[iB];
+                    if(bld_info.dev)
+                    {
+                        dev = bld_info.dev(g(i, j).l / g(i, nj - 1).l);
+                        dev *= (g(i, j).m - g(i1, j).m) / (g(i2, j).m - g(i1, j).m);
+                    }
+                }
+                if(g(i, j).omg>0.)
+                {
+                    dev = -dev;
+                }
+                g(i, j).bet = g(i, j).k + dev; 
             }
             integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
-            // integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
             for (auto j = 0; j < nj; j++)
             {
                 g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg;
@@ -365,7 +380,7 @@ namespace yams
 
             if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DIRECT)
             {
-                eq_massflow_blade_direct(vmi, gi, i, i1, integrate);
+                eq_massflow_blade_direct(vmi,solver_case, i, i1, i2, integrate);
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_BETA_OUT)
             {
