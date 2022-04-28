@@ -148,21 +148,34 @@ namespace yams
 
                 g2.Tt = g1.Tt + (g2.H - g1.H) / ( 0.5 * ( g1.Cp + g2.Cp) );
                 auto ga = 0.5 * (g1.ga + g2.ga);
-                // if(g2.iB<0)
-                // {
+                if(g2.iB<0)
+                {
                     auto P2is = g1.Pt * std::pow(g2.Tt / g1.Tt, ga / (ga - 1));
                     g2.Pt = P2is - 0.5 * g1.rho * g1.omg_ * f_sqW(g1);
-                // }
-                // else
-                // {
-                //     auto i1    = solver_case.bld_info_lst[g2.iB].i1;
-                //     T omg_;
-                //     if( solver_case.bld_info_lst[g2.iB].omg_ ) // losses defined
-                //         omg_ = solver_case.bld_info_lst[g2.iB].omg_(g2.l/g(i,nj-1).l);
-                //     const auto &g_le = g(i1, j);
-                //     auto P2is = g1.Pt * std::pow(g2.Tt / g_le.Tt, ga / (ga - 1));
-                //     g2.Pt = P2is - 0.5 * g_le.rho * omg_ * f_sqW(g_le);
-                // }
+                }
+                else
+                {
+                    auto i1    = solver_case.bld_info_lst[g2.iB].i1;
+                    auto i2    = solver_case.bld_info_lst[g2.iB].i2;
+                    if(i>i1)
+                    {
+                        T omg_{};
+                        const auto &g_le = g(i1, j);
+                        const auto &g_te = g(i2, j);
+                        if (solver_case.bld_info_lst[g2.iB].omg_) // losses defined
+                        {
+                            omg_ = solver_case.bld_info_lst[g2.iB].omg_(g_le.l / g(i1, nj - 1).l);
+                            omg_ *= (g2.m - g_le.m) / (g_te.m - g_le.m);
+                        }
+                        auto P2is = g_le.Pt * std::pow(g2.Tt / g_le.Tt, ga / (ga - 1));
+                        g2.Pt = P2is - 0.5 * g_le.rho * omg_ * f_sqW(g_le);
+                    }
+                    else
+                    {
+                        auto P2is = g1.Pt * std::pow(g2.Tt / g1.Tt, ga / (ga - 1));
+                        g2.Pt = P2is - 0.5 * g1.rho * g1.omg_ * f_sqW(g1);
+                    }
+                }
             }
         }
 
