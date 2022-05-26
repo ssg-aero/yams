@@ -3,6 +3,8 @@
 #include <meridionalsolvercase.h>
 #include <gridmetrics.h>
 #include <gbs/bscinterp.h>
+#include <gbs/bscapprox.h>
+#include <meshtools.h>
 
 // const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;
@@ -67,10 +69,12 @@ namespace yams
 
             auto Fjm= F(g,g_metrics, i, j - j_stp,gi.d_ksi,gi.d_eth); assert(Fjm==Fjm);
             auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
+            // auto sqVmq2_1 = sqVmq2 + Fjm * dl;
             g(i, j).Vm = sqrt(2. * sqVmq2_1);
             
             auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth); assert(Fj==Fj);
             auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
+            // auto sqVmq2_2 = sqVmq2 + Fj * dl; 
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
         }
     }
@@ -198,10 +202,39 @@ namespace yams
         }
     }
 
-    template <typename T>
-    auto eq_massflow_no_blade(T vmi, GridInfo<T> &gi, int i, bool integrate) -> void
+    template<typename T>
+    void eval_span_grad(SolverCase<T> &solver_case, int i)
     {
+        auto &gi=*(solver_case.gi);
+        auto &g_metrics = *gi.g_metrics;
+        auto &g = *gi.g;
+        auto nj = gi.nj;
+        int j_0 = std::round((nj - 1 ) * gi.j_0);
 
+        for (size_t j{}; j < nj; j++)
+        {
+            g(i, j).dH_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_H); 
+            g(i, j).dI_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_I); 
+            g(i, j).dS_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_S_);
+            g(i, j).drVu_dl= D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rVu);
+            g(i, j).drTb_dl= D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rTanBeta);
+        }
+        // for (int j{j_0+1}; j < nj; j++)
+        // {
+        //     g(i, j).drVu_dl= ( g(i, j).y * g(i, j).Vu - g(i, j-1).y * g(i, j-1).Vu ) / ( g(i, j).l - g(i, j-1).l );
+        //     g(i, j).drTb_dl= ( g(i, j).y * tan(g(i, j).bet) - g(i, j-1).y * tan(g(i, j-1).bet) ) / ( g(i, j).l - g(i, j-1).l );
+        // }
+        // for (int j{j_0-1}; j >= 0; j--)
+        // {
+        //     g(i, j).drVu_dl= ( g(i, j+1).y * g(i, j+1).Vu - g(i, j).y * g(i, j).Vu ) / ( g(i, j+1).l - g(i, j).l );
+        //     g(i, j).drTb_dl= ( g(i, j+1).y * tan(g(i, j+1).bet) - g(i, j).y * tan(g(i, j).bet) ) / ( g(i, j+1).l - g(i, j).l );
+        // }
+    }
+
+    template <typename T>
+    auto eq_massflow_no_blade(T vmi, SolverCase<T> &solver_case, int i, bool integrate) -> void
+    {
+        auto &gi=*(solver_case.gi);
         auto &g = *gi.g;
         auto nj = g.nCols();
         for (auto j = 0; j < nj; j++)
@@ -211,6 +244,8 @@ namespace yams
                 g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
             }
             g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
+            compute_gas_properties(solver_case,i); // needed for span grad
+            eval_span_grad(solver_case,i);
         }
 
         integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
@@ -229,6 +264,8 @@ namespace yams
                 g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
                 g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
             }
+            compute_gas_properties(solver_case,i); // needed for span grad
+            eval_span_grad(solver_case,i);
             integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
         }
         else{
@@ -252,6 +289,8 @@ namespace yams
                 }
                 g(i, j).bet = g(i, j).k + dev; 
             }
+            compute_gas_properties(solver_case,i); // needed for span grad
+            eval_span_grad(solver_case,i);
             integrate_RK2_vm_sheet(vmi, i, gi, eq_bet, integrate);
             for (auto j = 0; j < nj; j++)
             {
@@ -261,8 +300,9 @@ namespace yams
     }
 
     template <typename T>
-    auto eq_massflow_blade_beta_out(T vmi, GridInfo<T> &gi, int i, int i1, int i2, const auto &bet_out, bool integrate) -> void
+    auto eq_massflow_blade_beta_out(T vmi, SolverCase<T> &solver_case, int i, int i1, int i2, const auto &bet_out, bool integrate) -> void
     {
+        auto &gi=*(solver_case.gi);
         auto &g = *gi.g;
         auto nj = g.nCols();
         if(i == i1)
@@ -293,8 +333,9 @@ namespace yams
 
 // Buggy
     template <typename T>
-    auto eq_massflow_blade_alpha_out(T vmi, GridInfo<T> &gi, int i, int i1, int i2, const auto &alf_out, bool integrate) -> void
+    auto eq_massflow_blade_alpha_out(T vmi, SolverCase<T> &solver_case, int i, int i1, int i2, const auto &alf_out, bool integrate) -> void
     {
+        auto &gi=*(solver_case.gi);
         auto &g = *gi.g;
         auto nj = g.nCols();
         if(i == i1)
@@ -322,8 +363,9 @@ namespace yams
     }
 
     template <typename T>
-    auto eq_massflow_blade_design_psi(T vmi, GridInfo<T> &gi, int i, int i1, int i2, const auto &f_psi, bool integrate) -> void
+    auto eq_massflow_blade_design_psi(T vmi, SolverCase<T> &solver_case, int i, int i1, int i2, const auto &f_psi, bool integrate) -> void
     {
+        auto &gi=*(solver_case.gi);
         auto &g = *gi.g;
         auto nj = g.nCols();
 
@@ -334,6 +376,7 @@ namespace yams
                 g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
                 g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
             }
+            compute_gas_properties(solver_case,i); // needed for span grad
             integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
         }
         else
@@ -344,12 +387,14 @@ namespace yams
                 auto l_rel     = (g(i, j).l - g(i , 0).l) / (g(i , nj-1).l - g(i , 0).l);
                 auto phi_out =f_psi(l_rel);
                 g(i, j).Vu = g(i1, j).Vu + m_rel_loc * phi_out * g(i, j).y * g(i, j).omg;
-            }
-            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
-            for (auto j = 0; j < nj; j++)
-            {
                 g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
             }
+            compute_gas_properties(solver_case,i);// needed for span grad
+            integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
+            // for (auto j = 0; j < nj; j++)
+            // {
+            //     g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
+            // }
         }
     }
     /**
@@ -371,7 +416,7 @@ namespace yams
         
         if (g(i, 0).iB == -1)
         {
-            eq_massflow_no_blade(vmi, gi, i, integrate);
+            eq_massflow_no_blade(vmi, solver_case, i, integrate);
         }
         else
         {
@@ -384,15 +429,15 @@ namespace yams
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_BETA_OUT)
             {
-                eq_massflow_blade_beta_out(vmi, gi, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].beta_out, integrate);
+                eq_massflow_blade_beta_out(vmi, solver_case, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].beta_out, integrate);
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_ALPHA_OUT)
             {
-                eq_massflow_blade_alpha_out(vmi, gi, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].alpha_out, integrate);
+                eq_massflow_blade_alpha_out(vmi, solver_case, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].alpha_out, integrate);
             }
             else if(solver_case.bld_info_lst[g(i, 0).iB].mode == MeridionalBladeMode::DESIGN_PSI)
             {
-                eq_massflow_blade_design_psi(vmi, gi, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].psi, integrate);
+                eq_massflow_blade_design_psi(vmi, solver_case, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].psi, integrate);
             }
         }
         // compute_gas_properties(gi,i);
@@ -414,8 +459,60 @@ namespace yams
             u[j]    = gp.l / l_tot;
         }
         size_t p = fmax(fmin(3, nj), 1);
-        return std::make_tuple( gbs::interpolate(X, u, p), u );
+        return std::make_tuple( gbs::interpolate(X, u, 1), u );
+        // return std::make_tuple( gbs::approx(X, u, p, true), u );
     }
+
+    // template <typename T, typename _Func>
+    // inline auto streamsheet_value_vector(const MeridionalGrid<T> &g, size_t i, _Func f)
+    // {
+    //     std::vector<T> vec(g.nCols());
+    //     std::transform(
+    //         std::execution::par,
+    //         g.begin(i),
+    //         g.end(i),
+    //         vec.begin(),
+    //         [&f](const auto &gp) { return f(gp); });
+    //         return vec;
+    // }
+
+    // template <typename T, typename _Func>
+    // inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, _Func f)
+    // {
+    //     auto vec = streamsheet_value_vector(g,i,f);
+    //     return *std::max_element(
+    //         std::execution::par,
+    //         vec.begin(),
+    //         vec.end());
+    // }
+
+    // template <typename T, typename _Func>
+    // inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, size_t stride, _Func f)
+    // {
+    //     auto vec = streamsheet_value_vector(g,i,stride,f);
+    //     return *std::max_element(
+    //         std::execution::par,
+    //         vec.begin(),
+    //         vec.end());
+    // }
+
+    // template <typename T>
+    // inline auto eval_RF(const MeridionalGrid<T> &g, int i, T B_)
+    // {
+
+    //     T dm_max = 0.;
+    //     if (i > 0)
+    //     {
+    //         dm_max = find_streamsheet_max(g, i, -1, f_m);
+    //     }
+    //     if (i < g.nRows() - 1)
+    //     {
+    //         dm_max = fmax(dm_max, find_streamsheet_max(g, i + 1, -1, f_m));
+    //     }
+    //     auto Mm = fmax(0.95, find_streamsheet_max(g, i, f_Mm));
+    //     auto l = (*(std::next(g.end(i), -1))).l;
+    //     return 1. / (1. + (1 - Mm * Mm) * l * l / (B_ * dm_max * dm_max) );
+    // }
 
     template <typename T>
     auto balance_massflow(SolverCase<T> &solver_case, int i, T tol_mf)
@@ -619,7 +716,7 @@ namespace yams
                 vmi = g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
                 compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate);
             }
-            compute_gas_properties(solver_case,i);
+            // compute_gas_properties(solver_case,i);
         }
     }
 
@@ -875,7 +972,7 @@ namespace yams
         int count_geom = 0;
         auto converged = false;
         // auto i_0 = 0;
-        solver_case.log.clear();
+        // solver_case.log.clear();
         T delta_pos_max {};
         T delta_pos {};
         T delta_pos_moy {};
@@ -887,7 +984,7 @@ namespace yams
         apply_bc(solver_case);
         // innit values
         init_values(solver_case,tol_rel_mf, eps);
-        // apply rotation sppeds
+        // apply rotation speeds
         apply_rotation_speeds(solver_case);
         // run computation
         while (!converged && (count_geom < max_geom))
@@ -898,6 +995,7 @@ namespace yams
             while(grad_count < max_grd_count) // TODO add criteria
             {
                 compute_vm_distribution(solver_case, tol_rel_mf, eps, true, 0 );
+                // compute_vm_distribution2(solver_case, tol_rel_mf, eps, true);
                 if(solver_case.use_meridional_grad)
                 {
                     std::for_each( // update meridional gradients
@@ -922,7 +1020,6 @@ namespace yams
                         }
                     );
                 }
-                
                 grad_count++;
             }
             // compute_vm_distribution2(solver_case, tol_rel_mf, eps, true);
@@ -955,6 +1052,38 @@ namespace yams
            );
            // update blades info
            apply_blade_info(solver_case);
+           // smooth mesh
+        //    {
+        //        gbs::points_vector<T, 2> pts(ni * nj);
+        //        std::transform(
+        //            g.begin(), g.end(), pts.begin(),
+        //            [](const auto &gp)
+        //            { return gbs::point<T, 2>{gp.x, gp.y}; });
+        //        std::vector<size_t> n_span_per_bloc;
+        //        if (solver_case.bld_info_lst.size())
+        //        {
+        //            n_span_per_bloc.push_back(solver_case.bld_info_lst.front().i1 + 1);
+        //            for (const auto &bld_info : solver_case.bld_info_lst)
+        //            {
+        //                n_span_per_bloc.push_back(bld_info.i2 - bld_info.i1 + 1);
+        //            }
+        //            n_span_per_bloc.push_back(ni-solver_case.bld_info_lst.back().i2);
+        //        }
+        //     //    smooth_mesh(pts, nj, n_span_per_bloc, 3);
+        //         for( size_t i{1}; i < n_span_per_bloc.size(); i++)
+        //         {
+        //             gbs::elliptic_structured_smoothing(pts,nj,n_span_per_bloc[i-1],n_span_per_bloc[i],0,nj-1,30,1e-5);
+        //         }
+        //        std::transform(
+        //            pts.begin(), pts.end(), g.begin(), g.begin(),
+        //            [](const auto &pt, const auto &gp)
+        //            {
+        //                auto gp_{gp};
+        //                gp_.x = pt[0];
+        //                gp_.y = pt[1];
+        //                return gp_;
+        //            });
+        //    }
             // compute residuals
             delta_pos_moy = std::reduce(
                     ExPo,

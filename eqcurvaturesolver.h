@@ -51,7 +51,8 @@ namespace yams
         auto tb = tan(gp.bet);
         auto ce = cos(gp.eps);
         auto te = tan(gp.eps);
-        auto drtb_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta);
+        // auto drtb_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rTanBeta);
+        auto drtb_dl = g(i, j).drTb_dl;
 
         auto D1 = gp.cgp * gp.cur;
         auto D2 = gp.y > 0. ? -tb / gp.y * drtb_dl : 0.;
@@ -75,20 +76,16 @@ namespace yams
         auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improves speed
         auto sb = sin(gp.bet);
         auto te = tan(gp.eps);
-        auto dI_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I);
-        auto dS_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        auto ce = cos(gp.eps);
+        // auto dI_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_I);
+        // auto dS_dl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        auto dI_dl = gp.dI_dl; 
+        auto dS_dl = gp.dS_dl;
 
-        auto F1 = cb * cb * (dI_dl - gp.Ts *dS_dl) ;
+        auto F1 = cb * cb * (dI_dl - gp.Ts *dS_dl) / ce;
         auto F2 = cb * gp.sgp + te * sb;
         auto F3 = cb * ( gp.dsqVm_dm_2 +  cb * cb * gp.Ts * gp.ds_dm );
         return F1 + F2 * F3;
-    };
-
-    auto eq_bet = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
-    {
-        const auto &gp = g(i, j);
-        const auto Vm = gp.Vm;
-        return D(g, g_metrics, i, j, d_ksi, d_eth) * Vm * Vm + E(gp) * Vm + F(g, g_metrics, i, j, d_ksi, d_eth);
     };
 
     auto G = [](const auto &gp)
@@ -106,17 +103,22 @@ namespace yams
     auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
-        auto beta = abs(gp.Vm) > 1e-4 ? atan2(gp.Vu, gp.Vm) : 0.;
-        assert(abs(beta) < std::numbers::pi / 2.);
+        auto beta = abs(gp.Vm) > 1e-1 ? atan2(gp.Vu, gp.Vm) : std::numbers::pi / 2.;
+        // auto beta = abs(gp.Vm) > 1e-4 ? atan2(gp.Vu, gp.Vm) : 0.;
+        // assert(abs(beta) < std::numbers::pi / 2.);
         auto cb = cos(beta);
         auto sb = sin(beta);
         auto te = tan(gp.eps);
         auto sgp= gp.sgp;
         
-        // -> compute gradients in a separate subrotine for vectorization
-        auto dH_qdl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H); 
-        auto dS_qdl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
-        auto drVu_dl= D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
+        // -> compute gradients in a separate subroutine for vectorization
+        // auto dH_qdl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_H); 
+        // // auto dH_qdl = 0;
+        // auto dS_qdl = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_S_);
+        // auto drVu_dl= D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, f_rVu);
+        auto dH_qdl = gp.dH_dl; 
+        auto dS_qdl = gp.dS_dl;
+        auto drVu_dl= gp.drVu_dl;
 
         auto K1 = ( dH_qdl - gp.Ts * dS_qdl );
         auto K2 = gp.y > 0. ?  -gp.Vu / gp.y * drVu_dl : 0.;
@@ -125,11 +127,44 @@ namespace yams
         return K1 + K2 + K3 + K4;
     };
 
+    auto eq_bet = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    {
+        const auto &gp = g(i, j);
+        const auto Vm = gp.Vm;
+        return D(g, g_metrics, i, j, d_ksi, d_eth) * Vm * Vm + E(gp) * Vm + F(g, g_metrics, i, j, d_ksi, d_eth);
+    };
+
     auto eq_vu = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
         auto Vm = gp.Vm;
         return G(gp) * Vm * Vm + J(g, g_metrics, i, j, d_ksi, d_eth) * Vm + K(g, g_metrics, i, j, d_ksi, d_eth);
     };
+
+    // auto eq_vu = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    // {
+    //     const auto &gp = g(i, j);
+    //     auto cgp= gp.cgp;
+    //     auto sgp= gp.sgp;
+    //     auto cg = cos(gp.gam);
+    //     auto Vm = gp.Vm;
+    //     auto Vu = gp.Vu;
+    //     auto Wu = Vu - gp.omg * gp.y;
+    //     auto cu = gp.cur;
+
+    //     auto K2 = gp.y > 0. ?  gp.Vu / gp.y * gp.drVu_dl : 0.;
+
+    //     auto beta = abs(gp.Vm) > 1e-1 ? atan2(gp.Vu, gp.Vm) : std::numbers::pi / 2.;
+    //     auto cb = cos(beta);
+
+    //     return 
+    //         sgp * gp.dsqVm_dm_2 
+    //         + cgp * cu * Vm * Vm 
+    //         - K2 
+    //         + gp.dI_dl 
+    //         - gp.Ts * gp.dS_dl 
+    //         - 2 * gp.omg * Wu * cg 
+    //         + sgp * cb * cb * gp.Ts * gp.ds_dm; 
+    // };
 
 }

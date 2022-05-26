@@ -128,10 +128,10 @@ namespace yams
     template <typename T>
     struct MeridionalGridPoint
     {
-        T x   = 0.;
-        T y   = 0.;
-        T l   = 0.;
-        T m   = 0.; 
+        T x   = 0.; // z
+        T y   = 0.; // r
+        T l   = 0.; // span abs curv
+        T m   = 0.; // stream abs curv
         int iB= -1;
         T k   = 0.;
         T th_ = 0.;
@@ -150,6 +150,11 @@ namespace yams
         T ds_dm = 0.;
         T drtb_dm =0.; // d(r * tan(beta)) / dm
         T drVu_dm = 0.;
+        T dH_dl =0.;
+        T dI_dl =0.;
+        T dS_dl =0.;
+        T drVu_dl = 0.;
+        T drTb_dl = 0.;
         T Vu  = 0.;
         T rho = 1.225;
         T Pt  = 1.e5;
