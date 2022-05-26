@@ -83,6 +83,9 @@ find_package(
         Python
         WrappingPythonCore
 )
+# NLopt
+find_package(NLopt REQUIRED)
+
 if(LINUX)
     # add_definitions(-D__TBB_show_deprecation_message_task_H))
     find_package(TBB REQUIRED)
@@ -102,7 +105,7 @@ add_executable(
 )
 target_link_libraries(
     yams 
-    ${NLOPT_LIBRARIES}
+    NLopt::nlopt
     ${VTK_LIBRARIES}
     xtensor 
     xtensor::optimize 
