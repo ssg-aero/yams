@@ -22,7 +22,7 @@ foreach(file_name ${SRC_LIST})
                             xtensor::optimize 
                             xtensor::use_xsimd
                             ${VTK_LIBRARIES}
-                            nlopt
+                            NLopt::nlopt
                             gbs-render
                             iges
                             TBB::tbb

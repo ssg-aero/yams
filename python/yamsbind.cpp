@@ -9,6 +9,7 @@
 #include <eqcurvaturesolver.h>
 #include <gridrender.h>
 #include <curvaturesolver.h>
+#include <curvaturesolver2.h>
 #include <plots.h>
 #include <vtk_bind.h>
 namespace py = pybind11;
@@ -41,6 +42,7 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("th_", &MeridionalGridPoint<T>::th_)
     .def_readwrite("bet", &MeridionalGridPoint<T>::bet)
     .def_readwrite("omg", &MeridionalGridPoint<T>::omg)
+    .def_readwrite("omg_", &MeridionalGridPoint<T>::omg_)
     .def_readwrite("gam", &MeridionalGridPoint<T>::gam)
     .def_readwrite("phi", &MeridionalGridPoint<T>::phi)
     .def_readwrite("H", &MeridionalGridPoint<T>::H)
@@ -56,7 +58,8 @@ PYBIND11_MODULE(yams, m)
         "__call__", 
         // py::overload_cast<size_t, size_t>(&Array2d<T>::operator(), py::const_), 
         py::overload_cast<size_t, size_t>(&MeridionalGrid<T>::operator()), 
-        py::arg("i"), py::arg("j") 
+        py::arg("i"), py::arg("j"),
+        py::return_value_policy::reference
     )
     // .def(
     //     "__call__", 
@@ -108,6 +111,8 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("vm_distribution_max_count", &GridInfo<T>::vm_distribution_max_count)
     .def_readwrite("ni", &GridInfo<T>::ni)
     .def_readwrite("nj", &GridInfo<T>::nj)
+    .def_readwrite("d_ksi", &GridInfo<T>::d_ksi)
+    .def_readwrite("d_eth", &GridInfo<T>::d_eth)
     .def_readwrite("j_0", &GridInfo<T>::j_0)
     ;
 
@@ -194,6 +199,40 @@ PYBIND11_MODULE(yams, m)
         py::arg("iso_eth"), py::arg("ksi_i"), py::arg("n_iso_ksi"), py::arg("n_iso_eth"), py::arg("max_deg") = 3
     );
 
+    m.def( "mesh_channel",
+        py::overload_cast<
+            const crv_vector<T> &, 
+            const std::vector<gbs::points_vector<T,2>> &,
+            // const std::vector<std::vector<std::array<T,2>>> &,
+            size_t, 
+            size_t, 
+            T,
+            size_t>
+        (&mesh_channel<T>),
+        "Mesh channel defined by a set of stream line curves and hard points",
+        py::arg("master_streams"), 
+        py::arg("hard_points"), 
+        py::arg("n_streams"), 
+        py::arg("n_spans"), 
+        py::arg("tol"), 
+        py::arg("max_deg") = 3
+    );
+
+    m.def("smooth_mesh",
+        py::overload_cast<
+            gbs::points_vector<T,2> &,
+            size_t,
+            const std::vector<size_t> &,
+            size_t,
+            T>(&smooth_mesh<T>),
+            "Smooth mesh blocs",
+            py::arg("pts"),
+            py::arg("n_streams"),
+            py::arg("n_span_per_bloc"),
+            py::arg("max_it") = 100,
+            py::arg("tol") = 1.e-5
+    );
+
     m.def( "read_vtk_grid",
         py::overload_cast<const std::string&>( &read_vtk_grid<T> ),
         "Read Channel Grid containing meridional mesh and blades informations",
@@ -263,6 +302,36 @@ PYBIND11_MODULE(yams, m)
         "Solve case with curvature solver",
         py::arg( "set" )
     );
+    m.def("curvature_solver2",
+        py::overload_cast<SolverCase<T> &>( &curvature_solver2<T> ),
+        "Solve case with curvature solver",
+        py::arg( "solver_case" )
+    );
+    m.def("eq_vu",
+        [](const MeridionalGrid<T> &g, const Grid2dMetrics<T> &g_metrics, size_t i, size_t j, T d_ksi, T d_eth)
+        {
+            return eq_vu(g,g_metrics, i,j,d_ksi,d_eth);
+        }
+    );
+    m.def("G",
+        [](const MeridionalGridPoint<T> &gp)
+        {
+            return G(gp);
+        }
+    );
+    m.def("eq_bet",
+        [](const MeridionalGrid<T> &g, const Grid2dMetrics<T> &g_metrics, size_t i, size_t j, T d_ksi, T d_eth)
+        {
+            return eq_bet(g,g_metrics, i,j,d_ksi,d_eth);
+        }
+    );
+    m.def("D",
+        [](const MeridionalGrid<T> &g, const Grid2dMetrics<T> &g_metrics, size_t i, size_t j, T d_ksi, T d_eth)
+        {
+            return D(g,g_metrics, i,j,d_ksi,d_eth);
+        }
+    );
+
 
     m.def( "plot",
         [](const MeridionalGrid<T> &g, const std::string &value , bool edges_on, bool countour_on)
