@@ -56,6 +56,33 @@ namespace yams
                 drqdl = D1_O2_j(g, i, j, fr, fl);
                 dzqdl = D1_O2_j(g, i, j, fz, fl);
                 g(i,j).gam = atan2(dzqdl, drqdl); // Span line angle
+                // if(i==0)
+                // {
+                //     g(i,j).phi = atan2( (g(i+1,j).y-g(i,j).y) , (g(i+1,j).x-g(i,j).x) );
+                // }
+                // else if(i==ni-1)
+                // {
+                //     g(i,j).phi = atan2( (g(i,j).y-g(i-1,j).y) , (g(i,j).x-g(i-1,j).x) );
+                // }
+                // else
+                // {
+                //     g(i,j).phi = 0.5 * ( atan2( (g(i+1,j).y-g(i,j).y) , (g(i+1,j).x-g(i,j).x) ) +
+                //                          atan2( (g(i,j).y-g(i-1,j).y) , (g(i,j).x-g(i-1,j).x) ));
+                // }
+                // if(j==0)
+                // {
+                //     g(i,j).gam = atan2( (g(i,j+1).x-g(i,j).x) , (g(i,j+1).y-g(i,j).y) );
+                // }
+                // else if(j==nj-1)
+                // {
+                //     g(i,j).gam = atan2( (g(i,j).x-g(i,j-1).x) , (g(i,j).y-g(i,j-1).y) );
+                // }
+                // else
+                // {
+                //     g(i,j).gam = 0.5 * ( atan2( (g(i,j+1).x-g(i,j).x) , (g(i,j+1).y-g(i,j).y) ) +
+                //                          atan2( (g(i,j).x-g(i,j-1).x) , (g(i,j).y-g(i,j-1).y) ));
+                // }
+
                 g(i,j).cgp = std::cos( g(i,j).gam + g(i,j).phi);
                 g(i,j).sgp = std::sin( g(i,j).gam + g(i,j).phi);
             }
@@ -73,6 +100,10 @@ namespace yams
             for (auto j = 0; j < nj; j++)
             {
                 g(i,j).cur = D1_O2_i(g, i, j, fphi, fm);// TODO check why Aungier put -DphiDm
+                // g(i,j).cur = 2 * ( atan2( (g(i+1,j).y-g(i,j).y) , (g(i+1,j).x-g(i,j).x) ) -
+                //                    atan2( (g(i,j).y-g(i-1,j).y) , (g(i,j).x-g(i-1,j).x) ) ) /
+                //                    (g(i+1,j).m - g(i-1,j).m);
+
             }
         }
         for (auto j = 0; j < nj; j++)
@@ -84,8 +115,10 @@ namespace yams
             }
             else
             {
-                g(0, j).cur  =  D1_O1_i_fw(g, 0 , j, fphi, fm);
-                g(nim, j).cur =  D1_O1_i_bw(g, nim, j, fphi, fm);
+                // g(0, j).cur  =  D1_O1_i_fw(g, 0 , j, fphi, fm);
+                // g(nim, j).cur =  D1_O1_i_bw(g, nim, j, fphi, fm);
+                g(0, j).cur  =  0.;
+                g(nim, j).cur =  0.;
             }
 
         }
@@ -107,18 +140,25 @@ namespace yams
         T d_ksi = 1. / (ni - 1.);
         T d_eth = 1. / (nj - 1.);
 
-        for (auto i = 1; i < ni-1; i++)
+        // for (auto i = 1; i < ni-1; i++)
+        // {
+        //     for (auto j = 0; j < nj; j++)
+        //     {
+        //         // g(i,j).cur = D1_O2_i(g, i, j, fphi, fm);// TODO check why Aungier put -DphiDm
+        //         g(i,j).cur = D1_O2_dx1(g,g_metrics, i, j, d_ksi, d_eth, fphi);// TODO check why Aungier put -DphiDm
+        //     }
+        // }
+        // for (auto j = 0; j < nj; j++) // extrapolate on bounds
+        // {
+        //     g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
+        //     g(ni-1, j).cur = 2. * g(ni - 2, j).cur - g(ni - 3, j).cur;
+        // }
+        for (auto i = 0; i < ni; i++)
         {
             for (auto j = 0; j < nj; j++)
             {
-                // g(i,j).cur = D1_O2_i(g, i, j, fphi, fm);// TODO check why Aungier put -DphiDm
                 g(i,j).cur = D1_O2_dx1(g,g_metrics, i, j, d_ksi, d_eth, fphi);// TODO check why Aungier put -DphiDm
             }
-        }
-        for (auto j = 0; j < nj; j++) // extrapolate on bounds
-        {
-            g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
-            g(ni-1, j).cur = 2. * g(ni - 2, j).cur - g(ni - 3, j).cur;
         }
     }
 
@@ -128,6 +168,7 @@ namespace yams
         compute_abscissas(g);
         compute_metrics(g,f_m,f_l,g_metrics);
         compute_angles(g);
+        // compute_curvature(g,g_metrics);
         compute_curvature(g);
     }
 
