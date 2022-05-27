@@ -161,36 +161,36 @@ TEST(tests_curvature_solver, vtk_no_blades)
         }
     }
 
-    {
-        // shadowing
-        auto &gi= *(solver_case.gi);
-        auto &g = *(solver_case.gi->g);
+    // {
+    //     // shadowing
+    //     auto &gi= *(solver_case.gi);
+    //     auto &g = *(solver_case.gi->g);
 
 
-        gi.rho_cst = false;
-        // solver_case.relocate = false;
-        solver_case.max_geom = 1000;
-        solver_case.gi->RF /= 1.;
-        std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; gp.omg_=0.1;});
-        solver_case.inlet.Vu = [Vm](auto l_rel){return 0.5*Vm;};
-        solver_case.inlet.Ps = [](auto l_rel){return 1.6432411e5;};
-        solver_case.inlet.Ts = [](auto l_rel){return 300. * (1. - l_rel) + 310 * l_rel;};
+    //     gi.rho_cst = false;
+    //     // solver_case.relocate = false;
+    //     solver_case.max_geom = 1000;
+    //     solver_case.gi->RF /= 1.;
+    //     std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm*0.5;gp.Vu=Vm*0.5;gp.H=gp.Cp*gp.Tt;gp.Pt=1.6432411e5; gp.omg_=0.01;});
+    //     solver_case.inlet.Vu = [Vm](auto l_rel){return 0.5*Vm;};
+    //     solver_case.inlet.Ps = [](auto l_rel){return 1.6432411e5;};
+    //     solver_case.inlet.Ts = [](auto l_rel){return 300. * (1. - l_rel) + 310 * l_rel;};
 
-        auto start = high_resolution_clock::now();
-        curvature_solver(solver_case);
-        auto stop = high_resolution_clock::now();
-        auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+    //     auto start = high_resolution_clock::now();
+    //     curvature_solver(solver_case);
+    //     auto stop = high_resolution_clock::now();
+    //     auto duration = duration_cast<microseconds>(stop - start);
+    //     cout << "Time taken by meridian computation: "
+    //          << duration.count() << " microseconds" << endl;
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
-        if (TESTS_USE_PLOT)
-        {
-            plot_vtkStructuredGrid(structuredGrid,"Ts", true, true);
-            plot_vtkStructuredGrid(structuredGrid,"s", true, true);
-            plot_residual(solver_case.log);
-        }
-    }
+    //     auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
+    //     if (TESTS_USE_PLOT)
+    //     {
+    //         plot_vtkStructuredGrid(structuredGrid,"Ts", true, true);
+    //         plot_vtkStructuredGrid(structuredGrid,"s", true, true);
+    //         plot_residual(solver_case.log);
+    //     }
+    // }
 }
 
 TEST(tests_curvature_solver, vtk_static_blades1)
@@ -866,7 +866,7 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
         .ni = ni,
         .nj = nj,
         .rho_cst=false,
-        .RF = 0.01,
+        .RF = 0.005,
     };
 
     SolverCase<T> solver_case{
@@ -883,7 +883,7 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
     };
 
     read_blade_info( (fname+"_bld.json").c_str(), solver_case );
-    solver_case.max_geom = 200;
+    solver_case.max_geom = 500;
     // solver_case.tol_rel_mf=0.05;
     // solver_case.tol_rel_pos=0.05;
 
