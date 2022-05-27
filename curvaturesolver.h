@@ -218,24 +218,38 @@ namespace yams
         auto nj = gi.nj;
         int j_0 = std::round((nj - 1 ) * gi.j_0);
 
-        for (size_t j{}; j < nj; j++)
-        {
-            g(i, j).dH_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_H); 
-            g(i, j).dI_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_I); 
-            g(i, j).dS_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_S_);
-            g(i, j).drVu_dl= D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rVu);
-            g(i, j).drTb_dl= D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rTanBeta);
-        }
-        // for (int j{j_0+1}; j < nj; j++)
+        // for (size_t j{}; j < nj; j++)
         // {
-        //     g(i, j).drVu_dl= ( g(i, j).y * g(i, j).Vu - g(i, j-1).y * g(i, j-1).Vu ) / ( g(i, j).l - g(i, j-1).l );
-        //     g(i, j).drTb_dl= ( g(i, j).y * tan(g(i, j).bet) - g(i, j-1).y * tan(g(i, j-1).bet) ) / ( g(i, j).l - g(i, j-1).l );
+        //     // g(i, j).dH_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_H); 
+        //     // g(i, j).dI_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_I); 
+        //     // g(i, j).dS_dl  = D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_S_);
+        //     // g(i, j).drVu_dl= D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rVu);
+        //     // g(i, j).drTb_dl= D1_O2_dx2(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rTanBeta);
         // }
+        for (int j{1}; j < nj; j++)
+        {
+            g(i, j).dH_dl= ( g(i, j).H - g(i, j-1).H ) / ( g(i, j).l - g(i, j-1).l );
+            g(i, j).dH_dl= ( g(i, j).H - g(i, j-1).H ) / ( g(i, j).l - g(i, j-1).l );
+            g(i, j).dS_dl= ( g(i, j).s - g(i, j-1).s ) / ( g(i, j).l - g(i, j-1).l );
+            g(i, j).drVu_dl= ( g(i, j).y * g(i, j).Vu - g(i, j-1).y * g(i, j-1).Vu ) / ( g(i, j).l - g(i, j-1).l );
+            g(i, j).drTb_dl= ( g(i, j).y * tan(g(i, j).bet) - g(i, j-1).y * tan(g(i, j-1).bet) ) / ( g(i, j).l - g(i, j-1).l );
+        }
         // for (int j{j_0-1}; j >= 0; j--)
         // {
-        //     g(i, j).drVu_dl= ( g(i, j+1).y * g(i, j+1).Vu - g(i, j).y * g(i, j).Vu ) / ( g(i, j+1).l - g(i, j).l );
-        //     g(i, j).drTb_dl= ( g(i, j+1).y * tan(g(i, j+1).bet) - g(i, j).y * tan(g(i, j).bet) ) / ( g(i, j+1).l - g(i, j).l );
+        size_t j = 0 ; 
+            g(i, j).dH_dl= ( g(i, j+1).H - g(i, j).H ) / ( g(i, j+1).l - g(i, j).l );
+            g(i, j).dI_dl= ( g(i, j+1).I - g(i, j).I ) / ( g(i, j+1).l - g(i, j).l );
+            g(i, j).dS_dl= ( g(i, j+1).s - g(i, j).s ) / ( g(i, j+1).l - g(i, j).l );
+            g(i, j).drVu_dl= ( g(i, j+1).y * g(i, j+1).Vu - g(i, j).y * g(i, j).Vu ) / ( g(i, j+1).l - g(i, j).l );
+            g(i, j).drTb_dl= ( g(i, j+1).y * tan(g(i, j+1).bet) - g(i, j).y * tan(g(i, j).bet) ) / ( g(i, j+1).l - g(i, j).l );
         // }
+        // if(j_0==0)
+        // {
+
+        // }
+        // else if
+        // g(i, j0).drVu_dl = 0.5 * (  g(i, fmin(j0+1,nj-1)).drVu_dl + g(i, fmax(j0-1,0)).drVu_dl );
+        // g(i, j0).drTb_dl = 0.5 * (  g(i, fmin(j0+1,nj-1)).drTb_dl + g(i, fmax(j0-1,0)).drTb_dl );
     }
 
     template <typename T>
