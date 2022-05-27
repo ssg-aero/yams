@@ -11,6 +11,7 @@
 #include <curvaturesolver.h>
 #include <plots.h>
 #include <vtk_bind.h>
+#include <gbs-render/vtkgridrender.h>
 namespace py = pybind11;
 
 PYBIND11_MODULE(yams, m)
@@ -269,6 +270,16 @@ PYBIND11_MODULE(yams, m)
         >(&make_solver_case<T>),
         "Make solver case and init GridInfo metrics",
         py::arg("sgrid"), py::arg("bld_info_lst")
+    );
+
+    m.def("make_solver_case",
+        [](gbs::points_vector<T,2> &pts, size_t  n_span,size_t n_stream, const std::vector< BladeInfo<T> > &bld_info_lst)
+        {
+            auto sgrid = gbs::make_structuredgrid(pts, n_span, n_stream);
+            return make_solver_case(sgrid, bld_info_lst);
+        },
+        "Make solver case and init GridInfo metrics",
+        py::arg("pts"), py::arg("n_span"), py::arg("n_stream"), py::arg("bld_info_lst")
     );
 
     m.def("make_solver_case",
