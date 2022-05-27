@@ -244,10 +244,10 @@ namespace yams
                 g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
             }
             g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
-            compute_gas_properties(solver_case,i); // needed for span grad
-            eval_span_grad(solver_case,i);
         }
 
+        compute_gas_properties(solver_case,i); // needed for span grad
+        eval_span_grad(solver_case,i);
         integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
     }
 
