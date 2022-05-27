@@ -90,7 +90,7 @@ namespace yams
     }
     
     template <typename T>
-    inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = false)
+    inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = true)
     {
         size_t nim = g.nRows()-1;
         size_t nj = g.nCols();

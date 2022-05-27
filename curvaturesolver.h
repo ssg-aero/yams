@@ -1028,17 +1028,47 @@ namespace yams
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
                             {
+                                // if(i==0 || i == ni-1)
+                                // {
+                                //     g(i, j).dsqVm_dm_2 = 0.;
+                                //     g(i, j).ds_dm      = 0.;
+                                // }
+                                // else
+                                // {
+                                //     g(i, j).dsqVm_dm_2 = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_sqVmq2);
+                                //     g(i, j).ds_dm      = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_S_);
+                                //     g(i,j).drtb_dm     = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rTanBeta);
+                                //     g(i,j).drVu_dm     = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rVu);
+                                // }
+                                // if(i==0)
+                                // {
+                                //     // g(i, j).dsqVm_dm_2 = 0.;
+                                //     g(i, j).dsqVm_dm_2 = ( f_sqVmq2(g(i+1 , j)) - f_sqVmq2(g(i, j)) / (g(i+1, j).m -  g(i, j).m) );
+                                //     g(i, j).ds_dm      = 0.;
+                                // }
+
+                                // else if( i == ni-1)
+                                // {
+                                //     g(i, j).dsqVm_dm_2 = ( f_sqVmq2(g(i , j)) - f_sqVmq2(g(i-1, j)) / (g(i, j).m -  g(i-1, j).m) );
+                                // }
                                 if(i==0 || i == ni-1)
                                 {
                                     g(i, j).dsqVm_dm_2 = 0.;
                                     g(i, j).ds_dm      = 0.;
+                                    g(i,j).drtb_dm     = 0.;
+                                    g(i,j).drVu_dm     = 0.;
                                 }
                                 else
                                 {
-                                    g(i, j).dsqVm_dm_2 = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_sqVmq2);
-                                    g(i, j).ds_dm      = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_S_);
-                                    g(i,j).drtb_dm     = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rTanBeta);
-                                    g(i,j).drVu_dm     = D1_O2_dx1(g, g_metrics, i, j, gi.d_ksi, gi.d_eth, f_rVu);
+                                    auto dm1 =  g(i+1, j).m -  g(i, j).m;
+                                    auto dm2 =  g(i, j).m -  g(i-1, j).m;
+                                    auto gp1 = g(i+1, j);
+                                    auto gp2 = g(i , j);
+                                    auto gp3 = g(i-1, j);
+                                    g(i, j).dsqVm_dm_2 = ( ( f_sqVmq2(gp1) - f_sqVmq2(gp2) ) / dm1 + ( f_sqVmq2(gp2) - f_sqVmq2(gp3) )/dm2 )/2;
+                                    g(i, j).ds_dm      = ( ( f_S_(gp1) - f_S_(gp2) ) / dm1 + ( f_S_(gp2) - f_S_(gp3) )/dm2 )/2;
+                                    g(i,j).drtb_dm     = ( ( f_rTanBeta(gp1) - f_rTanBeta(gp2) ) / dm1 + ( f_rTanBeta(gp2) - f_rTanBeta(gp3) )/dm2 )/2;
+                                    g(i,j).drVu_dm     = ( ( f_rVu(gp1) - f_rVu(gp2) ) / dm1 + ( f_rVu(gp2) - f_rVu(gp3) )/dm2 )/2;
                                 }
                             }
                         }
