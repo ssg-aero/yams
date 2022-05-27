@@ -137,6 +137,16 @@ namespace yams
                     { return gp.cgp; });
         add_value(g, structuredGrid, "sgp", [](const auto &gp)
                     { return gp.sgp; });
+        add_value(g, structuredGrid, "dH_dl", [](const auto &gp)
+                    { return gp.dH_dl; });
+        add_value(g, structuredGrid, "dI_dl", [](const auto &gp)
+                    { return gp.dI_dl; });
+        add_value(g, structuredGrid, "dS_dl", [](const auto &gp)
+                    { return gp.dS_dl; });
+        add_value(g, structuredGrid, "drVu_dl", [](const auto &gp)
+                    { return gp.drVu_dl; });
+        add_value(g, structuredGrid, "drTb_dl", [](const auto &gp)
+                    { return gp.drTb_dl; });
         return structuredGrid;
     }
 
