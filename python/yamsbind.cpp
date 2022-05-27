@@ -9,7 +9,6 @@
 #include <eqcurvaturesolver.h>
 #include <gridrender.h>
 #include <curvaturesolver.h>
-#include <curvaturesolver2.h>
 #include <plots.h>
 #include <vtk_bind.h>
 namespace py = pybind11;
@@ -302,11 +301,7 @@ PYBIND11_MODULE(yams, m)
         "Solve case with curvature solver",
         py::arg( "set" )
     );
-    m.def("curvature_solver2",
-        py::overload_cast<SolverCase<T> &>( &curvature_solver2<T> ),
-        "Solve case with curvature solver",
-        py::arg( "solver_case" )
-    );
+
     m.def("eq_vu",
         [](const MeridionalGrid<T> &g, const Grid2dMetrics<T> &g_metrics, size_t i, size_t j, T d_ksi, T d_eth)
         {
