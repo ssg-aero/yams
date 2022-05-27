@@ -262,7 +262,7 @@ namespace yams
             for (auto j = 0; j < nj; j++)
             {
                 g(i, j).Vu = g(i, j).y > 0. ? g(i - 1, j).y * g(i - 1, j).Vu / g(i, j).y : 0.;
-                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
+                g(i, j).bet = cap_angle( atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm)); // <- lag from previous
             }
             compute_gas_properties(solver_case,i); // needed for span grad
             eval_span_grad(solver_case,i);

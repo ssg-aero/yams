@@ -1,6 +1,7 @@
 #pragma once
 #include <diffop.h>
 #include <numbers>
+#include <gbs/maths.h>
 // Using Novak and Hearsey 1977
 namespace yams
 {
@@ -8,6 +9,17 @@ namespace yams
     using std::sin;
     using std::sqrt;
     using std::tan;
+
+    template <typename T>
+    T cap(T a, T a_max_abs)
+    {
+        return gbs::sgn(a) * std::min( std::abs(a), a_max_abs );
+    }
+    template <typename T>
+    T cap_angle(T a)
+    {
+        return cap(a, 80 * (std::numbers::pi_v<T> / 180) );
+    }
 
     const double c_r = 287.04;
 
