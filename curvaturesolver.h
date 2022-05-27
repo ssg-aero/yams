@@ -288,6 +288,7 @@ namespace yams
                     dev = -dev;
                 }
                 g(i, j).bet = g(i, j).k + dev; 
+                g(i, j).Vu = g(i, j).Vm * tan(g(i, j).bet) + g(i, j).y * g(i, j).omg;
             }
             compute_gas_properties(solver_case,i); // needed for span grad
             eval_span_grad(solver_case,i);
@@ -391,10 +392,10 @@ namespace yams
             }
             compute_gas_properties(solver_case,i);// needed for span grad
             integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
-            // for (auto j = 0; j < nj; j++)
-            // {
-            //     g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
-            // }
+            for (auto j = 0; j < nj; j++)
+            {
+                g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
+            }
         }
     }
     /**
@@ -440,7 +441,7 @@ namespace yams
                 eq_massflow_blade_design_psi(vmi, solver_case, i, i1, i2, solver_case.bld_info_lst[g(i, 0).iB].psi, integrate);
             }
         }
-        // compute_gas_properties(gi,i);
+        compute_gas_properties(solver_case,i);
         return compute_massflow(g, i);
     }
 
@@ -986,6 +987,8 @@ namespace yams
         init_values(solver_case,tol_rel_mf, eps);
         // apply rotation speeds
         apply_rotation_speeds(solver_case);
+        // apply blade info
+        apply_blade_info(solver_case);
         // run computation
         while (!converged && (count_geom < max_geom))
         {
