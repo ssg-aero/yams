@@ -59,8 +59,10 @@ namespace yams
     {
         auto &g = *gi.g;
         auto &g_metrics= *gi.g_metrics;
+        auto Vm_max = 3 * g(i, j_beg - j_stp).Vm;
         for (int j = j_beg; j != j_end; j+=j_stp)
         {
+            auto Vm_prev =  g(i, j - j_stp).Vm;
             const auto &gp = g(i, j);
             const auto &gp_prev = g(i, j - j_stp);
 
@@ -68,15 +70,20 @@ namespace yams
             auto dl = gp.l - gp_prev.l;
 
             auto Fjm= F(g,g_metrics, i, j - j_stp,gi.d_ksi,gi.d_eth); assert(Fjm==Fjm);
-            auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl);
+            auto sqVmq2_1 = std::fmin(Vm_max*Vm_max/2, std::fmax(0.1,sqVmq2 + Fjm * dl));
+            // auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl); 
             // auto sqVmq2_1 = sqVmq2 + Fjm * dl;
             g(i, j).Vm = sqrt(2. * sqVmq2_1);
             
             auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth); assert(Fj==Fj);
-            auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
+            auto sqVmq2_2 = std::fmin(Vm_max*Vm_max/2, std::fmax(0.1,sqVmq2 + Fj * dl)); 
+            // auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // auto sqVmq2_2 = sqVmq2 + Fj * dl; 
+            // auto Vm_new = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
+            // auto dVm = (Vm_new-Vm_prev)/Vm_prev;
+            // g(i, j).Vm = Vm_prev + Vm_prev * cap(dVm,0.3)
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
-        }
+;        }
     }
 
     template <typename T, typename _Func>
@@ -686,13 +693,13 @@ namespace yams
             mf_pre = eq_massflow(vmi - eps, solver_case, i, integrate);
             mf_ = eq_massflow(vmi, solver_case, i, integrate);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
-            vmi = fmin(fmax(0.1,vmi),360.); // TODO improve test
+            vmi = fmin(fmax(1e-3,vmi),360.); // TODO improve test
             err_mf = fabs(mf_ - mf) / mf;
             count++;
         }
         if(count==max_count && err_mf > tol_rel_mf)
         {
-            std::cout << "Warning span: " << i << " did not converged after "<< count << " err_mf: " << err_mf  << std::endl;
+            std::cout << "Warning span: " << i << " did not converged after "<< count << " err_mf: " << err_mf  * 100 << "%"<< std::endl;
         }
         if(integrate && verbose)
         {
