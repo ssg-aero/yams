@@ -399,6 +399,7 @@ namespace yams
                 g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg, g(i, j).Vm); // <- lag from previous
             }
             compute_gas_properties(solver_case,i); // needed for span grad
+            eval_span_grad(solver_case,i);
             integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
         }
         else
@@ -412,6 +413,7 @@ namespace yams
                 g(i, j).bet = atan2(g(i, j).Vu - g(i, j).y * g(i, j).omg , g(i, j).Vm); // <- lag from previous
             }
             compute_gas_properties(solver_case,i);// needed for span grad
+            eval_span_grad(solver_case,i);
             integrate_RK2_vm_sheet(vmi, i, gi, eq_vu, integrate);
             for (auto j = 0; j < nj; j++)
             {
