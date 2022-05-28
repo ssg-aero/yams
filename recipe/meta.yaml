@@ -1,6 +1,6 @@
 package:
   name: yams
-  version:  0.0.5
+  version:  0.0.6
 
 source:  
   # git_url: https://github.com/ssg-aero/yams.git
@@ -30,7 +30,7 @@ requirements:
     - xtl
     - xtensor
     - xsimd
-    - gbs >=0.1.5
+    - gbs >=0.1.9
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
   run:
     # - python {{ python }}
