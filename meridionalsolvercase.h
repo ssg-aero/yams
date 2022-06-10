@@ -55,6 +55,7 @@ namespace yams
 
     enum class MeridionalBC
     {
+        INLET_Mf_Tt_Pt_Vu,
         INLET_Mf_Ts_Ps_Vu,
         INLET_VmMoy_Ts_Ps_Vu,
         INLET_Vm_Ts_Ps_Vu,

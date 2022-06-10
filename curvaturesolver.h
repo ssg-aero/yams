@@ -706,6 +706,10 @@ namespace yams
         auto max_count = solver_case.gi->vm_distribution_max_count;
         while (err_mf > tol_rel_mf && count < max_count)
         {
+            if(i==0 && solver_case.inlet.mode == MeridionalBC::INLET_Mf_Tt_Pt_Vu)
+            {
+                apply_bc(solver_case);
+            }
             mf_pre = eq_massflow(vmi - eps, solver_case, i, integrate);
             mf_ = eq_massflow(vmi, solver_case, i, integrate);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
@@ -863,6 +867,23 @@ namespace yams
                             gp.Tt = gp.Ts + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. / gp.Cp;
                             //   gp.Pt = gp.Ps + (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. * gp.rho;
                             gp.Pt = gp.Ps / std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
+                            gp.H = gp.Tt * gp.Cp;
+                            gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
+                          });
+        }
+        if(solver_case.inlet.mode == MeridionalBC::INLET_Mf_Tt_Pt_Vu)
+        {
+           std::for_each(g.begin(0), g.end(0), [l_tot, Tref, Pref, &inlet, &gi](auto &gp)
+                          {
+                            auto l_rel = gp.l / l_tot;
+                            gp.Vm = inlet.Vm(l_rel);
+                            gp.Vu = inlet.Vu(l_rel);
+                            gp.Tt = inlet.Tt(l_rel);
+                            gp.Pt = inlet.Pt(l_rel);
+                            gp.Ts = gp.Tt - (gp.Vm * gp.Vm + gp.Vu * gp.Vu) / 2. / gp.Cp;
+                            gp.Ps = gp.Pt / std::pow(gp.Tt / gp.Ts, gp.ga / (gp.ga - 1));
+                            if(!gi.rho_cst)
+                                gp.rho = gp.Ps / (gi.R) / gp.Ts;
                             gp.H = gp.Tt * gp.Cp;
                             gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
                           });

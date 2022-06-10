@@ -144,6 +144,7 @@ PYBIND11_MODULE(yams, m)
     ;
 
     py::enum_<MeridionalBC>(m, "MeridionalBC", py::arithmetic())
+    .value("INLET_Mf_Tt_Pt_Vu", MeridionalBC::INLET_Mf_Tt_Pt_Vu)
     .value("INLET_Mf_Ts_Ps_Vu", MeridionalBC::INLET_Mf_Ts_Ps_Vu)
     .value("INLET_VmMoy_Ts_Ps_Vu", MeridionalBC::INLET_VmMoy_Ts_Ps_Vu)
     .value("INLET_Vm_Ts_Ps_Vu", MeridionalBC::INLET_Vm_Ts_Ps_Vu)
