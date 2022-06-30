@@ -1,8 +1,11 @@
+#include "gridsbuilders.h"
+
+#include <yams/datastorage.h>
+#include <yams/diffop.h>
+#include <yams/gridmetrics.h>
+
 #include <gtest/gtest.h>
-#include <datastorage.h>
-#include <diffop.h>
-#include <gridsbuilders.h>
-#include <gridmetrics.h>
+
 #include <execution>
 #include <algorithm>
 #include <chrono>

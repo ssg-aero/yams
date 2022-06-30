@@ -1,16 +1,20 @@
+#include "gridsbuilders.h"
+
+#include <yams/datastorage.h>
+#include <yams/diffop.h>
+#include <yams/gridmetrics.h>
+#include <yams/gridrender.h>
+
 #include <gtest/gtest.h>
-#include <datastorage.h>
-#include <diffop.h>
-#include <gridsbuilders.h>
-#include <gridmetrics.h>
-#include <gridrender.h>
+
 #include <gbs/bscinterp.h>
 #include <gbs/bscapprox.h>
 #include <gbs/extrema.h>
 
+#include <vtkXMLStructuredGridWriter.h>
+
 #include <numbers>
 
-#include <vtkXMLStructuredGridWriter.h>
 const double PI = acos(-1.);
 
 const bool TESTS_USE_PLOT = true;
@@ -20,8 +24,6 @@ using namespace yams;
 using gbs::operator*;
 using gbs::operator+;
 using gbs::operator-;
-
-
 
 auto f_sqVmq2 = [](const auto &gp) { return 0.5 * gp.Vm * gp.Vm; };
 
@@ -967,8 +969,6 @@ TEST(tests_eq, solve_straight_cmp)
     }
 }
 
-#include <gtest/gtest.h>
-#include <gridreader.h>
 TEST(tests_gridreader, vtk_no_blades)
 {
     using T = double;

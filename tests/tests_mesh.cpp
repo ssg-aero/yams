@@ -1,7 +1,10 @@
+#include <yams/meshtools.h>
+
 #include <gtest/gtest.h>
-#include <meshtools.h>
+
 #include <gbs-render/vtkcurvesrender.h>
 #include <gbs-render/vtkgridrender.h>
+
 using T = double;
 const T tol{static_cast<T>(1e-6)};
 const bool PLOT_ON = true;

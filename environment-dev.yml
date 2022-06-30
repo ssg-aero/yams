@@ -15,4 +15,7 @@ dependencies:
   - python=3.9
   - pybind11
   - pytest
+  - gtest
+  - gmock
+  - nlopt
   - sel(win): vs2019_win-64

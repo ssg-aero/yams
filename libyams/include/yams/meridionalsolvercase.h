@@ -1,8 +1,13 @@
 #pragma once
-#include <datastorage.h>
+
+#include "datastorage.h"
+
+#include <gbs/curves>
+
 #include <optional>
 #include <functional>
-#include <gbs/curves>
+
+
 namespace yams
 {
     template <typename T>

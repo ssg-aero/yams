@@ -1,5 +1,9 @@
 #pragma once
+
+#include "meridionalsolvercase.h"
+
 #include <gbs-render/vtkcurvesrender.h>
+
 #include <vtkSmartPointer.h>
 #include <vtkStructuredGrid.h>
 #include <vtkDataSetMapper.h>
@@ -17,8 +21,9 @@
 #include <vtkProperty2D.h>
 #include <vtkContourFilter.h>
 #include <vtkPolyDataMapper.h>
+
 #include <algorithm>
-#include <meridionalsolvercase.h>
+
 namespace yams
 {
     template <typename T>

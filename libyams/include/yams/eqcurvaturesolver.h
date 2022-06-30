@@ -1,7 +1,11 @@
 #pragma once
-#include <diffop.h>
-#include <numbers>
+
+#include "diffop.h"
+
 #include <gbs/maths.h>
+
+#include <numbers>
+
 // Using Novak and Hearsey 1977
 namespace yams
 {

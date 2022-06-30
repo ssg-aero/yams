@@ -1,9 +1,11 @@
+#include <yams/datastorage.h>
+#include <yams/gridreader.h>
+#include <yams/curvaturesolver.h>
+#include <yams/plots.h>
+#include <yams/gridrender.h>
+
 #include <string>
-#include <datastorage.h>
-#include <gridreader.h>
-#include <curvaturesolver.h>
-#include <plots.h>
-#include <gridrender.h>
+
 
 int main(int argc, char *argv[])
 {

@@ -1,4 +1,4 @@
-#include <meridionalsolvercase.h>
+#include "meridionalsolvercase.h"
 
 namespace yams
 {

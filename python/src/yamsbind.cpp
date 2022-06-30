@@ -1,20 +1,24 @@
+#include "vtk_bind.h"
+
+#include <yams/meshtools.h>
+#include <yams/gridreader.h>
+#include <yams/meridionalsolvercase.h>
+#include <yams/solvercasetools.h>
+#include <yams/gridmetrics.h>
+#include <yams/eqcurvaturesolver.h>
+#include <yams/gridrender.h>
+#include <yams/curvaturesolver.h>
+#include <yams/plots.h>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
-#include <meshtools.h>
-#include <gridreader.h>
-#include <meridionalsolvercase.h>
-#include <solvercasetools.h>
-#include <gridmetrics.h>
-#include <eqcurvaturesolver.h>
-#include <gridrender.h>
-#include <curvaturesolver.h>
-#include <plots.h>
-#include <vtk_bind.h>
+
 #include <gbs-render/vtkgridrender.h>
+
 namespace py = pybind11;
 
-PYBIND11_MODULE(yams, m)
+PYBIND11_MODULE(yams_bindings, m)
 {
     using namespace yams;
     using T = double;

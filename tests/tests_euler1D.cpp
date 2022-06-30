@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <gbs/curves>
 
+#include <gbs/curves>
 
 #include <vtkChartXY.h>
 #include <vtkContextScene.h>
@@ -15,6 +15,8 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkTable.h>
+
+
 template <typename T>
 void plotXY(const std::vector<T> &X, const std::vector<T> &Y)
 {

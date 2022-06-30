@@ -1,11 +1,15 @@
+#include "gridsbuilders.h"
+
+#include <yams/curvaturesolver.h>
+#include <yams/plots.h>
+#include <yams/gridreader.h>
+#include <yams/gridrender.h>
+#include <yams/datastorage.h>
+
 #include <gtest/gtest.h>
-#include <curvaturesolver.h>
-#include <plots.h>
-#include <gridreader.h>
-#include <gridsbuilders.h>
-#include <gridrender.h>
-#include <datastorage.h>
+
 #include <vtkXMLStructuredGridWriter.h>
+
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/writer.h>
 // #include <tbs/io/json2.h>
