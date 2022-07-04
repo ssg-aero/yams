@@ -5,6 +5,7 @@
 #include <vtkXMLStructuredGridReader.h>
 #include <gridreader.h>
 #include <diffop.h>
+#include <correlationscax.h>
 namespace yams
 {
     template <typename T>
@@ -235,12 +236,13 @@ namespace yams
     }
 
     template <typename T>
-    auto apply_blade_info(SolverCase<T> &solver_case)
+    auto apply_blade_info(SolverCase<T> &solver_case, bool correlation = true)
     {
         auto nj = solver_case.gi->nj;
         auto &g = *(solver_case.gi->g);
         size_t iB{};
-        for(const auto &bld_info : solver_case.bld_info_lst)
+        const auto deg= 180 / std::numbers::pi_v<T>;
+        for(auto &bld_info : solver_case.bld_info_lst)
         {
             for( auto i{bld_info.i1} ; i <= bld_info.i2; i++  )
             {
@@ -263,6 +265,39 @@ namespace yams
                     g(i,j).iB = iB;
                 }
             }
+            // compute effective deviation
+            if(bld_info.compute_dev && correlation)
+            {
+                auto i1 = bld_info.i1;
+                auto i2 = bld_info.i2;
+                std::vector<T> dev(nj), v(nj);
+                for (size_t j{}; j < nj; j++)
+                {
+                    auto v_ = (g(i2, j).l - g(i2, 0).l) / (g(i2, nj - 1).l - g(i2, 0).l);
+                    auto k1 = g(i1, j).k * deg;
+                    auto k2 = g(i2, j).k * deg;
+                    auto gam = bld_info.gauge ? bld_info.gauge(v_) : 0.5 * (k1 + k2);
+                    auto sng = gbs::sgn(gam);
+                    k1 *= sng;
+                    k2 *= sng;
+                    gam*= sng;
+                    auto b1 = std::max<T>(0,g(i1, j).bet * deg * sng);
+                    auto th = k1 - k2;
+                    auto cax = g(i2, j).m - g(i1, j).m;
+                    auto c = cax / std::cos(gam);
+                    auto s = g(i2, j).y * 2 * std::numbers::pi_v<T> / bld_info.z_;
+                    auto sig = c / s;
+                    auto a = bld_info.max_cam_pos ? bld_info.max_cam_pos(v_) : 0.44;
+                    auto tb = bld_info.max_thickness ? bld_info.max_thickness(v_) : 0.1 * c;
+                    auto Vm1 = g(i1, j).Vm;
+                    auto Vm2 = g(i2, j).Vm;
+                    auto Ksh = bld_info.Ksh;
+                    v[j] = v_;
+                    dev[j] = dev_cmp_ax(b1, k1, sig, th, gam, a, c, tb, Vm1, Vm2, Ksh) / deg * sng;
+                }
+                gbs::BSCfunction<T> f_dev = gbs::interpolate(dev, v, 1);
+                bld_info.dev = f_dev;
+            }
             iB++;
         }
     }
@@ -278,7 +313,7 @@ namespace yams
         {
             solver_case.bld_info_lst.push_back(bld_info);
         }
-        apply_blade_info(solver_case);
+        apply_blade_info(solver_case,false);
         return solver_case;
     }
 } // namespace yams
