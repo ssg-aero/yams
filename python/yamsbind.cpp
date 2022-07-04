@@ -56,8 +56,10 @@ PYBIND11_MODULE(yams, m)
     .def(py::init<size_t, size_t>())
     .def(
         "__call__", 
-        // py::overload_cast<size_t, size_t>(&Array2d<T>::operator(), py::const_), 
-        py::overload_cast<size_t, size_t>(&MeridionalGrid<T>::operator()), 
+        [](const MeridionalGrid<T>& self, std::size_t i, std::size_t j) -> const MeridionalGridPoint<T>&
+        {
+            return self(i, j);
+        },
         py::arg("i"), py::arg("j"),
         py::return_value_policy::reference
     )
