@@ -10,3 +10,6 @@ build/
 /doc/*.log
 /doc/*.fls
 __pycache__
+
+*_svs.*
+*_dummy.*
