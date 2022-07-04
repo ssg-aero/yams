@@ -39,7 +39,8 @@ namespace yams
         int i1 = -1;
         int is = -1; 
         int i2 = -1;
-        T omg     = 0.;
+        T omg  = 0.;
+        T Ksh  = 1.;
         size_t z_{2};
         std::function<T(T)> omg_;
         std::function<T(T)> dev;
@@ -51,6 +52,10 @@ namespace yams
         std::function<T(T,T)> k;
         std::function<T(T,T)> tb;
         std::function<T(T,T)> eps;
+        std::function<T(T)> gauge;
+        std::function<T(T)> max_cam_pos;
+        std::function<T(T)> max_thickness;
+        bool compute_dev{false};
     };
 
     enum class MeridionalBC
