@@ -59,9 +59,15 @@ namespace yams
     {
         auto &g = *gi.g;
         auto &g_metrics= *gi.g_metrics;
-        auto Vm_max = 3 * g(i, j_beg - j_stp).Vm;
+        auto Vmi    = g(i, j_beg - j_stp).Vm;
+        auto sqVm_max_q2 = 3 * Vmi;
+        sqVm_max_q2 = sqVm_max_q2 * sqVm_max_q2 /2;
+        auto nj = gi.nj;
+        auto l = g(i,nj-1);
+        auto Fjcap = 0.3*Vmi*Vmi/2;
         for (int j = j_beg; j != j_end; j+=j_stp)
         {
+
             auto Vm_prev =  g(i, j - j_stp).Vm;
             const auto &gp = g(i, j);
             const auto &gp_prev = g(i, j - j_stp);
@@ -69,21 +75,39 @@ namespace yams
             auto sqVmq2 = f_sqVmq2(gp_prev);
             auto dl = gp.l - gp_prev.l;
 
-            auto Fjm= F(g,g_metrics, i, j - j_stp,gi.d_ksi,gi.d_eth); assert(Fjm==Fjm);
-            auto sqVmq2_1 = std::fmin(Vm_max*Vm_max/2, std::fmax(0.1,sqVmq2 + Fjm * dl));
+            auto Fjm= F(g,g_metrics, i, j - j_stp,gi.d_ksi,gi.d_eth);// assert(Fjm==Fjm);
+            // Fjm = std::max<T>(-Fjcap/dl,std::min<T>(Fjcap/dl,Fjm));
+            auto sqVmq2_1 = std::fmin(
+                sqVm_max_q2, 
+                std::fmax(0.1,sqVmq2 + Fjm * dl)
+            );
             // auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl); 
             // auto sqVmq2_1 = sqVmq2 + Fjm * dl;
             g(i, j).Vm = sqrt(2. * sqVmq2_1);
             
-            auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth); assert(Fj==Fj);
-            auto sqVmq2_2 = std::fmin(Vm_max*Vm_max/2, std::fmax(0.1,sqVmq2 + Fj * dl)); 
+            auto Fj = F(g,g_metrics, i, j,gi.d_ksi,gi.d_eth);// assert(Fj==Fj);
+            // Fj = std::max<T>(-Fjcap/dl,std::min<T>(Fjcap/dl,Fj));
+            auto sqVmq2_2 = std::fmin( 
+                sqVm_max_q2, 
+                std::fmax(0.1,sqVmq2 + Fj * dl)
+            ); 
             // auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // auto sqVmq2_2 = sqVmq2 + Fj * dl; 
             // auto Vm_new = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
             // auto dVm = (Vm_new-Vm_prev)/Vm_prev;
+            // g(i, j).Vm = Vm_prev + Vm_prev * cap(dVm,0.3);
+            // auto dVm_dl = (Vm_new-Vm_prev)/dl;
             // g(i, j).Vm = Vm_prev + Vm_prev * cap(dVm,0.3)
+            // g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
+
+            // g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
+            // auto dVm = ( g(i, j).Vm - Vm_prev ) / Vmi;
+            // dVm = cap(dVm,0.3);
+            // g(i, j).Vm = dVm * Vmi + Vm_prev;
+
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
-;        }
+
+        }
     }
 
     template <typename T, typename _Func>
@@ -194,13 +218,9 @@ namespace yams
         for (auto j = 0; j < nj; j++)
         {
             auto &gp = g(i, j);
+            // TODO use Coolprop
             gp.Ts = gp.Tt - f_sqV(gp) / 2. / gp.Cp;
             gp.Ps = gp.Pt * std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
-            // TODO use Coolprop
-            if(!gi.rho_cst)
-            {
-                gp.rho = gp.Ps / gi.R / gp.Ts;
-            }
             // TODO update cp
             gp.ga = 1. / (1. - gi.R / gp.Cp);
             // Compute entropy rise
@@ -717,14 +737,14 @@ namespace yams
             err_mf = fabs(mf_ - mf) / mf;
             count++;
         }
-        if(count==max_count && err_mf > tol_rel_mf)
-        {
-            std::cout << "Warning span: " << i << " did not converged after "<< count << " err_mf: " << err_mf  * 100 << "%"<< std::endl;
-        }
-        if(integrate && verbose)
-        {
-            std::cout << " i: " << i << " count: " << count << " err_mf: " << err_mf << std::endl;
-        }
+        // if(count==max_count && err_mf > tol_rel_mf)
+        // {
+        //     std::cout << "Warning span: " << i << " did not converged after "<< count << " err_mf: " << err_mf  * 100 << "%"<< std::endl;
+        // }
+        // if(integrate && verbose)
+        // {
+        //     std::cout << " i: " << i << " count: " << count << " err_mf: " << err_mf << std::endl;
+        // }
     }
 
     template <typename T>
@@ -888,6 +908,7 @@ namespace yams
                             gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
                           });
         }
+        compute_gas_properties(solver_case,0);
     }
 
     template <typename T>
@@ -1023,10 +1044,10 @@ namespace yams
         T delta_pos_moy {};
         std::vector<T> delta_pos_array(ni);
         auto span_range = gbs::make_range<size_t>(0,ni-1);
-        // compute spans mass flow
-        apply_mf(solver_case);
         // apply boundary conditions
         apply_bc(solver_case);
+        // compute spans mass flow
+        apply_mf(solver_case);
         // innit values
         init_values(solver_case,tol_rel_mf, eps);
         // apply rotation speeds
@@ -1179,6 +1200,20 @@ namespace yams
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;
+            // update density
+            if(!gi.rho_cst)
+            {
+                std::for_each(
+                        ExPo,
+                        span_range.begin(), span_range.end(),
+                        [&](const auto &i){
+                            for (size_t j{}; j < nj; j++)
+                            {
+                                g(i, j).rho = g(i, j).Ps / gi.R / g(i,j).Ts;
+                            }
+                        }
+                );
+            }
         }
     }
 
