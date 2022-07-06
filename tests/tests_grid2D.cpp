@@ -1,13 +1,18 @@
+#include "gridsbuilders.h"
+
+#include <yams/meshtools.h>
+#include <yams/meridionalsolvercase.h>
+#include <yams/gridmetrics.h>
+#include <yams/gridrender.h>
+
 #include <gtest/gtest.h>
+
 #include <gbs/curves>
-#include <gbs-render/vtkcurvesrender.h>
-#include <gbs-render/vtkgridrender.h>
-#include <meshtools.h>
-#include <meridionalsolvercase.h>
-#include <gridmetrics.h>
-#include <gridrender.h>
-#include <gridsbuilders.h>
+#include <gbs/render/vtkcurvesrender.h>
+#include <gbs/render/vtkgridrender.h>
+
 #include <numbers>
+
 using T = double;
 using namespace yams;
 const bool PLOT_ON = false;

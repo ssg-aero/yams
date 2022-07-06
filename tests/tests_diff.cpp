@@ -1,11 +1,15 @@
+#include "gridsbuilders.h"
+
+#include <yams/diffop.h>
+#include <yams/gridreader.h>
+#include <yams/gridmetrics.h>
+#include <yams/gridrender.h>
+#include <yams/meshtools.h>
+
 #include <gtest/gtest.h>
-#include <diffop.h>
-#include <gridsbuilders.h>
-#include <gridreader.h>
-#include <gridmetrics.h>
-#include <gridrender.h>
-#include <meshtools.h>
-#include <gbs-render/vtkgridrender.h>
+
+#include <gbs/render/vtkgridrender.h>
+
 using namespace yams;
 
 const double PI = acos(-1.);

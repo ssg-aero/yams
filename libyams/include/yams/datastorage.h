@@ -1,7 +1,10 @@
 #pragma once
-#include <vector>
+
 #include <xtensor/xarray.hpp>
+
 #include <execution>
+#include <vector>
+
 namespace yams
 {
     template <typename Container,typename T>

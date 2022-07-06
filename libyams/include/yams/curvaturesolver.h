@@ -1,10 +1,12 @@
 #pragma once
-#include <eqcurvaturesolver.h>
-#include <meridionalsolvercase.h>
-#include <gridmetrics.h>
+
+#include "eqcurvaturesolver.h"
+#include "meridionalsolvercase.h"
+#include "gridmetrics.h"
+#include "meshtools.h"
+
 #include <gbs/bscinterp.h>
 #include <gbs/bscapprox.h>
-#include <meshtools.h>
 
 // const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;

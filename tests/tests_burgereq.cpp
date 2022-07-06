@@ -2,7 +2,6 @@
 // #include <tbb/parallel_for.h>
 #include <gbs/maths.h>
 
-
 #include <vtkChartXY.h>
 #include <vtkContextScene.h>
 #include <vtkContextView.h>
@@ -16,6 +15,7 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkTable.h>
+
 template <typename T>
 void plotXY(const std::vector<T> &X, const std::vector<std::vector<T>> &Y)
 {

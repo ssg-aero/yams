@@ -1,0 +1,116 @@
+# YAMS
+
+## Build instructions
+
+### Clone the repo
+
+Start by cloning the repo:
+
+```bash
+$ git clone https://github.com/ssg-aero/yams.git
+```
+
+Then move to the newly created directory:
+
+```bash
+$ cd yams
+```
+
+###  Install dev requirements
+
+Make sure you have `yams`'s development requirements installed in your environment.
+To do so, you can create a new ``conda`` env using ``mamba`` or ``micromamba``:
+
+```bash
+$ micromamba create -f environment-dev.yml
+```
+
+### Build the projects
+
+Note:
+All ``cmake`` commands listed below use ``bash`` multi-line syntax.
+ On Windows, replace ``\`` trailing character with ``^``.
+
+Note:
+Feel free to use your favorite generator: ``make``, ``ninja``, etc.
+
+Note:
+Installation prefix on Unix (linux and MacOS) is set to your `conda` env using
+the `CMAKE_INSTALL_PREFIX` CMake option to the `CONDA_PREFIX` env variable. On Windows,
+it has to be set to `CONDA_PREFIX/Library`.
+
+
+#### ``libyams`` library
+
+`libyams` is a header-only library, so it has no translation unit to compile and the
+library CMake definition is used:
+- to install headers in the correct directory
+- to forward include directories and link libraries to downstream projects
+
+```bash
+$ mkdir -p build
+$ cd build
+$ cmake .. \
+$   -DBUILD_LIB=ON \
+$   -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+$ ninja
+```
+
+Note:
+This target is built by default
+
+#### C++ Tests
+
+Build C++ tests by activating the `BUILD_TESTS` CMake option:
+
+```bash
+$ mkdir -p build
+$ cd build
+$ cmake .. \
+$   -G"Ninja" \
+$   -DBUILD_TESTS=ON \
+$   -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+$ ninja
+```
+
+#### Python bindings
+
+To build the Python bindings and make it possible to use `yams` from Python code, just
+active the `BUILD_PYTHON_BINDINGS` CMake option:
+
+```bash
+$ mkdir -p build
+$ cd build
+$ cmake .. \
+$   -G"Ninja" \
+$   -DBUILD_PYTHON_BINDINGS=ON \
+$   -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+$ ninja install
+```
+CMake will install the shared library in the Python package source directory.
+It can be then installed using `pip`:
+
+```bash
+$ pip install ./python
+```
+
+or in editable mode:
+
+```bash
+$ pip install -e ./python 
+```
+
+#### CLI interface
+
+`yams` as a simple CLI interface one can use to run a simulation.
+To build it, just active the `BUILD_CLI` CMake option in the `cmake` command.
+
+```bash
+$ mkdir -p build
+$ cd build
+$ cmake .. \
+$   -G"Ninja" \
+$   -BUILD_CLI=ON \
+$   -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+$ ninja install
+```

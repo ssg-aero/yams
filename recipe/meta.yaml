@@ -10,34 +10,23 @@ build:
 requirements:
   build:
     - {{ compiler('cxx') }}
-    # - {{ cdt('libx11-devel') }}         # [linux]
-    # - {{ cdt('xorg-x11-proto-devel') }} # [linux]
-    # - {{ cdt('mesa-libgl-devel') }}     # [linux]
-    # - {{ cdt('libxi-devel') }}          # [linux]
     - vs2019_win-64 [win]
     - ninja
-    - cmake 
-    # - python {{ python }}
+    - cmake
+    - python
   host:
-    # - {{ cdt('libx11-devel') }}         # [linux]
-    # - {{ cdt('xorg-x11-proto-devel') }} # [linux]
-    # - {{ cdt('mesa-libgl-devel') }}     # [linux]
-    # - {{ cdt('libxi-devel') }}          # [linux]
-    # - python {{ python }}
-    - python=3.9
+    - python
     - python-devtools
     - pybind11
     - xtl
     - xtensor
     - xsimd
     - gbs >=0.1.9
-    - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
+    - tbb <2021.0        # [linux]
   run:
-    # - python {{ python }}
-    # - pytest
-    - python=3.9
+    - python
     - gbs
-    - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
+    - tbb <2021.0        # [linux]
 about:
   home: http://www.ssg-aero.com
   license: LGPL3

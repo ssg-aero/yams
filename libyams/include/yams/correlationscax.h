@@ -1,6 +1,8 @@
 #pragma once
+
 #include <gbs/maths.h>
 #include <gbs/solvers.h>
+
 namespace yams
 {
     auto Kti(auto tb, auto c)

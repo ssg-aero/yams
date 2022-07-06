@@ -1,10 +1,13 @@
 #pragma once
-#include <vector>
-#include <memory>
+
 #include <gbs/curves>
 #include <gbs/bscinterp.h>
-#include <gbs-mesh/tfi.h>
-#include <gbs-mesh/smoothing.h>
+#include <gbs/mesh/tfi.h>
+#include <gbs/mesh/smoothing.h>
+
+#include <vector>
+#include <memory>
+
 namespace yams
 {
     template <typename T>

@@ -1,11 +1,14 @@
 #pragma once
-#include <datastorage.h>
-#include <meridionalsolvercase.h>
+
+#include "datastorage.h"
+#include "meridionalsolvercase.h"
+#include "gridreader.h"
+#include "diffop.h"
+#include "correlationscax.h"
+
 #include <vtkStructuredGrid.h>
 #include <vtkXMLStructuredGridReader.h>
-#include <gridreader.h>
-#include <diffop.h>
-#include <correlationscax.h>
+
 namespace yams
 {
     template <typename T>

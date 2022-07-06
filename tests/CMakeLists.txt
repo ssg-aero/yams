@@ -1,40 +1,29 @@
 cmake_minimum_required(VERSION 3.17.0)
 
-find_package(GTest REQUIRED)
+project(yams_tests)
 
-project(quiss_tests LANGUAGES CXX)
 if(MSVC)
     add_compile_options(/bigobj)
 endif()
 
-message(${CMAKE_CURRENT_SOURCE_DIR}/../)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
+find_package(GTest REQUIRED)
+
+if(NOT TARGET libyams)
+    find_package(libyams REQUIRED)
+endif ()
 
 file(GLOB SRC_LIST "tests_*")
+
 foreach(file_name ${SRC_LIST})
-        get_filename_component(exe_name ${file_name} NAME_WE  )
-        add_executable(${exe_name} ${file_name})
+    get_filename_component(exe_name ${file_name} NAME_WE)
+    add_executable(${exe_name} ${file_name})
 
-        target_link_libraries(${exe_name} 
-                            GTest::gtest
-                            GTest::gtest_main
-                            xtensor 
-                            xtensor::optimize 
-                            xtensor::use_xsimd
-                            ${VTK_LIBRARIES}
-                            NLopt::nlopt
-                            gbs-render
-                            iges
-                            TBB::tbb
-        )
+    target_link_libraries(
+        ${exe_name} 
+        GTest::gtest
+        GTest::gtest_main
+        libyams
+    )
 
-        install(TARGETS ${exe_name})
-        if ( MSVC )
-        SET_OUT_DIR(${exe_name} ${CMAKE_BINARY_DIR})
-        endif ( MSVC )
-        vtk_module_autoinit(
-                TARGETS ${exe_name}
-                MODULES ${VTK_LIBRARIES}
-                )
-        
+    install(TARGETS ${exe_name})
 endforeach()

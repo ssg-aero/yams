@@ -1,16 +1,21 @@
 #pragma once
+
+#include "datastorage.h"
+#include "meridionalsolvercase.h"
+
 #include <vtkNew.h>
 #include <vtkXMLStructuredGridReader.h>
 #include <vtkXMLStructuredGridWriter.h>
 #include <vtkStructuredGrid.h>
 #include <vtkPoints.h>
 #include <vtkPointData.h>
-#include <datastorage.h>
-#include <numbers>
+
 #include <rapidjson/rapidjson.h>
+
 #include <gbs/tools/magic_enum.hpp>
-#include <gbs-io/fromjson.h>
-#include <meridionalsolvercase.h>
+#include <gbs/io/fromjson.h>
+
+#include <numbers>
 
 namespace yams
 {

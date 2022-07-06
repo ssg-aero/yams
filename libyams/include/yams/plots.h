@@ -1,6 +1,7 @@
 #pragma once
 
-#include <curvaturesolver.h>
+#include "curvaturesolver.h"
+
 #include <vtkChartXY.h>
 #include <vtkContextScene.h>
 #include <vtkContextView.h>
@@ -15,6 +16,7 @@
 #include <vtkRenderer.h>
 #include <vtkTable.h>
 #include <vtkAxis.h>
+
 namespace yams
 {
     template <typename T>
