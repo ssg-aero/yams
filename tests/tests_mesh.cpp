@@ -2,8 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#include <gbs-render/vtkcurvesrender.h>
-#include <gbs-render/vtkgridrender.h>
+#include <gbs/render/vtkcurvesrender.h>
+#include <gbs/render/vtkgridrender.h>
 
 using T = double;
 const T tol{static_cast<T>(1e-6)};

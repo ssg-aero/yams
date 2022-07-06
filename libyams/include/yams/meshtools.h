@@ -2,8 +2,8 @@
 
 #include <gbs/curves>
 #include <gbs/bscinterp.h>
-#include <gbs-mesh/tfi.h>
-#include <gbs-mesh/smoothing.h>
+#include <gbs/mesh/tfi.h>
+#include <gbs/mesh/smoothing.h>
 
 #include <vector>
 #include <memory>

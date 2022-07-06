@@ -3,11 +3,6 @@ project(libyams)
 # C++ conf
 set(CMAKE_CXX_STANDARD 20)
 
-# dependencies
-## Eigen
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
-#include_directories(${EIGEN3_INCLUDE_DIR})
-
 ## libIGES
 include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iges/)
 
@@ -17,39 +12,10 @@ find_package(xtensor REQUIRED)
 find_package(xsimd REQUIRED)
 add_definitions(-DXTENSOR_USE_XSIMD)
 
-## VTK
-find_package(
-    VTK REQUIRED
-    COMPONENTS
-        CommonCore
-        CommonColor
-        CommonDataModel
-        FiltersSources
-        InteractionStyle
-        RenderingCore
-        RenderingAnnotation
-        RenderingFreeType
-        IOXML
-        ChartsCore
-        InteractionStyle
-        RenderingContext2D
-        RenderingContextOpenGL2
-        RenderingCore
-        RenderingFreeType
-        ViewsContext2D
-        RenderingOpenGL2 
-        Python
-        WrappingPythonCore
-)
-
-## NLopt
-find_package(NLopt REQUIRED)
-
-# TBB
-if(LINUX)
-    # add_definitions(-D__TBB_show_deprecation_message_task_H))
-    find_package(TBB REQUIRED)
-endif()
+find_package(gbs REQUIRED)
+find_package(gbs-io REQUIRED)
+find_package(gbs-render REQUIRED)
+find_package(gbs-mesh REQUIRED)
 
 set(YAMS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
@@ -79,22 +45,17 @@ target_include_directories(
 )
 
 target_link_libraries(
-    libyams INTERFACE
-    NLopt::nlopt
-    ${VTK_LIBRARIES}
-    xtensor 
-    xtensor::optimize 
-    xtensor::use_xsimd
-    Eigen3::Eigen
-    gbs-render
-    iges
-    TBB::tbb
+    libyams
+    INTERFACE
+        xtensor 
+        xtensor::optimize 
+        xtensor::use_xsimd
+        gbs::core
+        gbs::render
+        gbs::io
+        gbs::mesh
 )
 
-vtk_module_autoinit(
-    TARGETS libyams
-    MODULES ${VTK_LIBRARIES}
-)
 
 install(TARGETS libyams EXPORT ${PROJECT_NAME}-targets)
 install(FILES ${yams_headers} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/yams)

@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-#include <gbs-render/vtkgridrender.h>
+#include <gbs/render/vtkgridrender.h>
 
 using namespace yams;
 

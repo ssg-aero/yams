@@ -8,8 +8,8 @@
 #include <gtest/gtest.h>
 
 #include <gbs/curves>
-#include <gbs-render/vtkcurvesrender.h>
-#include <gbs-render/vtkgridrender.h>
+#include <gbs/render/vtkcurvesrender.h>
+#include <gbs/render/vtkgridrender.h>
 
 #include <numbers>
 

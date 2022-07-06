@@ -19,14 +19,6 @@ message("  -> includes: " ${CMAKE_INSTALL_INCLUDEDIR})
 set(CMAKECONFIG_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}" CACHE
     STRING "install path for libyamsConfig.cmake")
 
-# Paths
-# TODO: remove this after GBS refactoring
-file(TO_CMAKE_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} lib_dir)
-file(TO_CMAKE_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} bin_dir)
-include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
-include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/gbs)
-link_directories(${lib_dir})
-link_directories(${bin_dir})
 
 if (${BUILD_LIB})
     add_subdirectory(libyams)

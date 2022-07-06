@@ -13,7 +13,7 @@
 #include <rapidjson/rapidjson.h>
 
 #include <gbs/tools/magic_enum.hpp>
-#include <gbs-io/fromjson.h>
+#include <gbs/io/fromjson.h>
 
 #include <numbers>
 

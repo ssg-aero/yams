@@ -2,7 +2,7 @@
 
 #include "meridionalsolvercase.h"
 
-#include <gbs-render/vtkcurvesrender.h>
+#include <gbs/render/vtkcurvesrender.h>
 
 #include <vtkSmartPointer.h>
 #include <vtkStructuredGrid.h>
