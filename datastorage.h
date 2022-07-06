@@ -14,11 +14,11 @@ namespace yams
         _Array2d() = default;
         _Array2d(size_t ni, size_t nj) : container_(ni*nj), nj_{nj} { }
         _Array2d(size_t ni, size_t nj,const T& v) : container_(ni*nj,v), nj_{nj} { }
-        const auto &operator()(size_t i, size_t j) const noexcept
+        const T &operator()(size_t i, size_t j) const noexcept
         {
             return container_[j + nj_ * i];
         }
-        auto &operator()(size_t i, size_t j) noexcept
+        T &operator()(size_t i, size_t j) noexcept
         {
             return container_[j + nj_ * i];
         }
