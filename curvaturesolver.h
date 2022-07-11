@@ -221,6 +221,7 @@ namespace yams
             // TODO use Coolprop
             gp.Ts = gp.Tt - f_sqV(gp) / 2. / gp.Cp;
             gp.Ps = gp.Pt * std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
+            // gp.rho = gp.Ps / gi.R / gp.Ts;
             // TODO update cp
             gp.ga = 1. / (1. - gi.R / gp.Cp);
             // Compute entropy rise
@@ -904,6 +905,20 @@ namespace yams
             {
                 break;
             }
+            // update density
+            if(!gi.rho_cst && delta_pos_moy < 1e-2 )
+            {
+                std::for_each(
+                        ExPo,
+                        span_range.begin(), span_range.end(),
+                        [&](const auto &i){
+                            for (size_t j{}; j < nj; j++)
+                            {
+                                g(i, j).rho = g(i, j).Ps / gi.R / g(i,j).Ts;
+                            }
+                        }
+                );
+            }
             // Compute mass flow distribution
            std::for_each(
                 ExPo,
@@ -947,20 +962,7 @@ namespace yams
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;
-            // update density
-            if(!gi.rho_cst)
-            {
-                std::for_each(
-                        ExPo,
-                        span_range.begin(), span_range.end(),
-                        [&](const auto &i){
-                            for (size_t j{}; j < nj; j++)
-                            {
-                                g(i, j).rho = g(i, j).Ps / gi.R / g(i,j).Ts;
-                            }
-                        }
-                );
-            }
+
         }
     }
 
