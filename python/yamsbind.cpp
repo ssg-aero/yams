@@ -12,6 +12,9 @@
 #include <plots.h>
 #include <vtk_bind.h>
 #include <gbs-render/vtkgridrender.h>
+
+#include <meridionalsolvercase_experiemental.h>
+#include <curvaturesolver_experimental.h>
 namespace py = pybind11;
 
 PYBIND11_MODULE(yams, m)
