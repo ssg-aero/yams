@@ -78,7 +78,6 @@ TEST(tests_curvature_solver, vtk_no_blades)
             solver_case.gi->RF /= 10.;
             solver_case.max_geom = 1000;
         }
-
         auto start = high_resolution_clock::now();
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
@@ -157,6 +156,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
         if (TESTS_USE_PLOT)
         {
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
+            plot_vtkStructuredGrid(structuredGrid,"rho", true);
             plot_residual(solver_case.log);
         }
     }
@@ -917,7 +917,7 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
             plot_vtkStructuredGrid(solver_case,"Vm", true);
             // plot_vtkStructuredGrid(structuredGrid,"Vu", true);
             // plot_vtkStructuredGrid(structuredGrid,"V", true);
-            // plot_vtkStructuredGrid(structuredGrid,"rho", true);
+            plot_vtkStructuredGrid(structuredGrid,"rho", true);
             plot_vtkStructuredGrid(solver_case,"bet", true);
             plot_vtkStructuredGrid(solver_case,"alf", true);
             plot_vtkStructuredGrid(solver_case,"s", true);
