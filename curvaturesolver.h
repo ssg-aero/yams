@@ -60,7 +60,7 @@ namespace yams
         auto &g = *gi.g;
         auto &g_metrics= *gi.g_metrics;
         auto Vmi    = g(i, j_beg - j_stp).Vm;
-        auto sqVm_max_q2 = 3 * Vmi;
+        auto sqVm_max_q2 = 3 * Vmi * Vmi / 2.;
         sqVm_max_q2 = sqVm_max_q2 * sqVm_max_q2 /2;
         auto nj = gi.nj;
         auto l = g(i,nj-1);
@@ -828,12 +828,12 @@ namespace yams
         apply_bc(solver_case);
         // compute spans mass flow
         apply_mf(solver_case);
+        // apply blade info
+        apply_blade_info(solver_case);
         // innit values
         init_values(solver_case,tol_rel_mf, eps);
         // apply rotation speeds
         apply_rotation_speeds(solver_case);
-        // apply blade info
-        apply_blade_info(solver_case);
         // run computation
         while (!converged && (count_geom < max_geom))
         {
