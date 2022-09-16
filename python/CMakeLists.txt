@@ -16,7 +16,7 @@ file(GLOB SRC_LIST "*.cpp")
 
 pybind11_add_module(
     ${PROJECT_NAME}
-    ${SRC_LIST}
+    yamsbind.cpp
 )
 
 target_link_libraries(
@@ -36,6 +36,17 @@ set_target_properties(
     ${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "yams"
 )
+
+# target_compile_options(${PROJECT_NAME} PRIVATE
+#         /arch:AVX2 
+#         # /O2
+#         # /Qpar
+#         # /openmp
+#         # /fp:fast
+#         # /fp:precise /fp:contract
+#         /Qvec-report:2
+#         # /Qpar-report:2
+# )
 
 install(
     TARGETS ${PROJECT_NAME} 
