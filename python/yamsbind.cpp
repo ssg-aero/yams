@@ -489,5 +489,43 @@ PYBIND11_MODULE(yams, m)
         py::arg("contour_on")=true,
         py::arg("scale")=1.
     );
+
+    m.def(
+        "getPsSide1",&getPsSide1<T>,
+        "Get static pressure on blade side 1",
+        py::arg("solver")
+    );
+
+    m.def(
+        "getPsSide2",&getPsSide2<T>,
+        "Get static pressure on blade side 2",
+        py::arg("solver")
+    );
+
+    m.def(
+        "getValuesSide1",&getValuesSide1<T>,
+        "Get values on blade side 1",
+        py::arg("solver"),
+        py::arg("val")
+    );
+
+    m.def(
+        "getValuesSide2",&getValuesSide2<T>,
+        "Get values on blade side 2",
+        py::arg("solver"),
+        py::arg("val")
+    );
+
+    m.def(
+        "getPsSide1",&getXYZSide1<T>,
+        "Get blade side 1 cut 3d coordinates",
+        py::arg("solver")
+    );
+
+    m.def(
+        "getPsSide2",&getXYZSide2<T>,
+        "Get blade side 2 cut 3d coordinates",
+        py::arg("solver")
+    );
 }
 
