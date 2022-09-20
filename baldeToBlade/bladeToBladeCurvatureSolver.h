@@ -60,7 +60,8 @@ namespace yams
     template <typename T>
     struct BladeToBladeCurvatureSolverMesh
     {
-        size_t nj;
+        size_t ni, nj;
+        vector<T> U;
         vector<T> M;
         vector<T> TH;
         vector<T> DTH;
@@ -80,7 +81,7 @@ namespace yams
         // vector<T> G3; // d2_th / d_m2
         vector<T> G4; // dr / dz
         BladeToBladeCurvatureSolverMesh() = default;
-        BladeToBladeCurvatureSolverMesh(size_t ni, size_t nj) : nj{nj}
+        BladeToBladeCurvatureSolverMesh(size_t ni, size_t nj) : ni{ni}, nj{nj}
         {
             auto n = ni * nj;
             R.resize(n);
@@ -89,6 +90,7 @@ namespace yams
             DTH.resize(n);
             TAU.resize(n);
             M.resize(n);
+            U.resize(n);
             BT.resize(n);
             RTB.resize(n);
             CB.resize(n);
@@ -209,6 +211,7 @@ namespace yams
             auto [u, th] = pts[i];
             auto [z, r] = stream_line->value(u);
             auto m = gbs::length(*stream_line, u1, u);
+            msh.U[i] = u;
             msh.M[i] = m;
             msh.R[i] = r;
             msh.Z[i] = z;
