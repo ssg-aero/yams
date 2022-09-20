@@ -9,28 +9,29 @@ namespace yams
     template <typename T>
     struct BladeToBladeCurvatureSolverData
     {
-        size_t nj;
-        vector<T> W;
-        vector<T> V;
-        vector<T> U;
-        vector<T> M;
-        vector<T> MW;
-        vector<T> Vm;
-        vector<T> Vu;
-        vector<T> Wu;
+        size_t ni,nj;
+        vector<T> W;  // Relative velocity
+        vector<T> V;  // Absolute velocity
+        vector<T> U;  // Blade tangential velocity
+        vector<T> M;  // Absolute Mach number
+        vector<T> MW; // Relative Mach number
+        vector<T> Vm; // Meridional velocity
+        vector<T> Vu; // Tangential absolute velocity
+        vector<T> Wu; // Tangential relative velocity
         vector<T> TS; // Static temp
         vector<T> TT; // Total temp
         vector<T> PS; // Total press
         vector<T> PT; // Total press
-        vector<T> H;
-        vector<T> S;
+        vector<T> H;  // Enthalpy
+        vector<T> S;  // Entropy
         vector<T> R;  // Density
+        vector<T> Q;  // Accumulated mass flow
         vector<T> W1; // W + d_theta * d_W / d_th
         vector<T> W2; // W + d_theta * d_W1 / d_th
         vector<T> G1; // d_Vm / d_m
         vector<T> G2; // d_S_ / d_m
         BladeToBladeCurvatureSolverData() = default;
-        BladeToBladeCurvatureSolverData(size_t ni, size_t nj) : nj{nj}
+        BladeToBladeCurvatureSolverData(size_t ni, size_t nj) : ni{ni}, nj{nj}
         {
             auto n = ni * nj;
             M.resize(n);
@@ -48,6 +49,7 @@ namespace yams
             H.resize(n);
             S.resize(n);
             R.resize(n);
+            Q.resize(n);
             W1.resize(n);
             W2.resize(n);
             G1.resize(n);
@@ -443,17 +445,18 @@ namespace yams
     T BladeToBladeCurvatureSolver<T>::evalMassFlow(size_t id_start)
     {
         auto id_end = id_start + ni - 1;
+        dat.Q[0] = 0.;
         vector<T> q(ni);
         for (size_t id{id_start}; id <= id_end; id++)
         {
             q[id - id_start] = dat.R[id] * dat.W[id] * msh.CB[id] * msh.CP[id] * msh.TAU[id];
         }
-        T Mf_{};
+        
         for (size_t i{1}; i < ni; i++)
         {
-            Mf_ += (msh.TH[id_start + i] - msh.TH[id_start + i - 1]) * (q[i] + q[i - 1]) / 2;
+            dat.Q[id_start + i] = dat.Q[id_start + i -1] + (msh.TH[id_start + i] - msh.TH[id_start + i - 1]) * (q[i] + q[i - 1]) / 2;
         }
-        return Mf_;
+        return dat.Q[id_end];
     }
 
     template <typename T>
