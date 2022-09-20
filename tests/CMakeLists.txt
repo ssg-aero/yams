@@ -43,7 +43,7 @@ foreach(file_name ${SRC_LIST})
                 # /O2
                 # /Qpar
                 # /openmp
-                # /fp:fast
+                /fp:fast
                 # /fp:precise /fp:contract
                 # /Qvec-report:2
                 # /Qpar-report:2

@@ -64,7 +64,7 @@ TEST(solver, base_novak)
 
     // yams::plot(solver.mesh(), nj ,solver.data().M,"Absolute Mach Number");
     // yams::plot(solver.mesh(), solver.data().W,"Relative Speed");
-    // yams::plot(solver.mesh(), solver.data().MW,"Relative Mach Number");
+    yams::plot(solver.mesh(), solver.data().MW,"Relative Mach Number");
     // yams::plot(solver.mesh(), solver.data().PT,"TotalPressure");
     // yams::plot(solver.mesh(), solver.data().TT,"TotalPressure");
 
