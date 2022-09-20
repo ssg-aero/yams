@@ -37,16 +37,16 @@ set_target_properties(
     OUTPUT_NAME "yams"
 )
 
-# target_compile_options(${PROJECT_NAME} PRIVATE
-#         /arch:AVX2 
+target_compile_options(${PROJECT_NAME} PRIVATE
+        /arch:AVX2 
 #         # /O2
 #         # /Qpar
 #         # /openmp
-#         # /fp:fast
+        /fp:fast
 #         # /fp:precise /fp:contract
-#         /Qvec-report:2
+        # /Qvec-report:2
 #         # /Qpar-report:2
-# )
+)
 
 install(
     TARGETS ${PROJECT_NAME} 
