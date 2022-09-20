@@ -112,6 +112,7 @@ namespace yams
         BladeToBladeCurvatureSolverMesh<T> msh;
         size_t ni{}, nj{}, jLe{}, jTe{};
         vector<size_t> computational_planes_offsets;
+        vector<size_t> stream_lines_indices;
         std::shared_ptr<gbs::Curve<T, 2>> stream_line;
         // Stage info
         size_t z_;
@@ -219,7 +220,10 @@ namespace yams
         {
             computational_planes_offsets.push_back(j * ni);
         }
-        
+        for(size_t i{}; i < ni; i++)
+        {
+            stream_lines_indices.push_back(i);
+        }
         computeMeshData();
     }
 
