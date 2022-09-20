@@ -18,6 +18,7 @@ namespace py = pybind11;
 
 #include <baldeToBlade/bladeToBladeCurvatureSolver.h>
 #include <baldeToBlade/gridReader.h>
+#include <baldeToBlade/bladeToBladeCurvatureSolverPost.h>
 
 #include <meridionalsolvercase_experiemental.h>
 #include <curvaturesolver_experimental.h>
@@ -413,12 +414,16 @@ PYBIND11_MODULE(yams, m)
             const gbs::points_vector<T,2> &,
             size_t,
             const std::shared_ptr<gbs::Curve<T, 2>> &,
+            size_t,
+            size_t,
             size_t
         >(),
         py::arg("points"),
         py::arg("n_computation_planes"),
         py::arg("stream_line"),
-        py::arg("n_blades")
+        py::arg("n_blades"),
+        py::arg("j_le"),
+        py::arg("j_te")
     )
     .def_property(
         "periodicity",
@@ -435,6 +440,20 @@ PYBIND11_MODULE(yams, m)
         &BladeToBladeCurvatureSolver<T>::rotationSpeed,
         &BladeToBladeCurvatureSolver<T>::setRotationSpeed
     )
+    // .def_property(
+    //     "jLe",
+    //     &BladeToBladeCurvatureSolver<T>::leadingEdgeIndex,
+    //     &BladeToBladeCurvatureSolver<T>::setLeadingEdgeIndex
+    // )
+    // .def_property(
+    //     "jTe",
+    //     &BladeToBladeCurvatureSolver<T>::trailingEdgeIndex,
+    //     &BladeToBladeCurvatureSolver<T>::setTrailingEdgeIndex
+    // )
+    .def_property_readonly(
+        "jLe", &BladeToBladeCurvatureSolver<T>::leadingEdgeIndex )
+    .def_property_readonly(
+        "jTe", &BladeToBladeCurvatureSolver<T>::trailingEdgeIndex )
     .def_property_readonly(
         "dimensions",&BladeToBladeCurvatureSolver<T>::dimensions
     )

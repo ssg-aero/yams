@@ -106,7 +106,7 @@ namespace yams
         // Geom info
         BladeToBladeCurvatureSolverData<T> dat;
         BladeToBladeCurvatureSolverMesh<T> msh;
-        size_t ni{}, nj{};
+        size_t ni{}, nj{}, jLe{}, jTe{};
         vector<size_t> computational_planes_offsets;
         std::shared_ptr<gbs::Curve<T, 2>> stream_line;
         // Stage info
@@ -143,6 +143,8 @@ namespace yams
         size_t periodicity() const { return z_; }
         T fullBladePassageMassFlow() const { return Mf * z_;}
         T rotationSpeed() { return omg;}
+        size_t leadingEdgeIndex() const {return jLe;}
+        size_t trailingEdgeIndex() const {return jTe;}
         void setFullBladePassageMassFlow(T mf) { Mf = mf / z_; }
         void setPeriodicity(size_t n)
         {
@@ -156,6 +158,8 @@ namespace yams
         void setGamma(T Gamma){gamma=Gamma;}
         void setPtIn(T Pt){for( size_t i {}; i <ni; i++) dat.PT[i]=Pt;}
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
+        // void setLeadingEdgeIndex(size_t j){jLe = j;}
+        // void setTrailingEdgeIndex(size_t j){jTe = j;}
 
         void computeW();
         
@@ -163,14 +167,17 @@ namespace yams
         BladeToBladeCurvatureSolver(
             const gbs::points_vector<T,2> &pts, size_t n_computation_planes,
             const std::shared_ptr<gbs::Curve<T, 2>> &stream_line,
-            size_t n_blades);
+            size_t n_blades,
+            size_t j_le,
+            size_t j_te
+            );
     };
 
     template <typename T>
     BladeToBladeCurvatureSolver<T>::BladeToBladeCurvatureSolver(
         const gbs::points_vector<T,2> &pts, size_t n_computation_planes,
         const std::shared_ptr<gbs::Curve<T, 2>> &stream_line,
-        size_t n_blades) : stream_line{stream_line}, z_{n_blades}
+        size_t n_blades, size_t j_le, size_t j_te) : stream_line{stream_line}, z_{n_blades}, jLe{j_le}, jTe{j_te}
     {
         auto n = pts.size();
         if (n % n_computation_planes != 0)

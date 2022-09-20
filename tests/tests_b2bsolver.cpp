@@ -43,7 +43,7 @@ TEST(solver, base_novak)
     //     )
     // );
 
-    yams::BladeToBladeCurvatureSolver<T> solver{ pts, nj, stream_line, 11 };
+    yams::BladeToBladeCurvatureSolver<T> solver{ pts, nj, stream_line, 11 ,5,16};
 
     solver.setRotationSpeed( -150 );
 
