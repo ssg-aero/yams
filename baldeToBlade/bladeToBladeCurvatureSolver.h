@@ -152,6 +152,7 @@ namespace yams
         T rotationSpeed() { return omg;}
         size_t leadingEdgeIndex() const {return jLe;}
         size_t trailingEdgeIndex() const {return jTe;}
+        const auto & meridionalStreamLine() const {return *stream_line;}
         void setFullBladePassageMassFlow(T mf) { Mf = mf / z_; }
         void setPeriodicity(size_t n)
         {
