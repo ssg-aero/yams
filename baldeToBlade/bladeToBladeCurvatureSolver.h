@@ -504,6 +504,52 @@ namespace yams
     void BladeToBladeCurvatureSolver<T>::computeW(size_t id_start, T Wi)
     {
 
+        auto id_end = id_start + ni - 1;
+        dat.W[id_start] = Wi;
+//*************** unsuccessful aggressive vectorization *****************//
+        // const auto &W   = dat.W;
+        // const auto &CB  = msh.CB;
+        // const auto &SB  = msh.SB;
+        // const auto &SP  = msh.SP;
+        // const auto &MG2 = msh.G2;
+        // const auto &DG1 = dat.G1;
+        // const auto &DG2 = dat.G2;
+        // const auto &TS  = dat.TS;
+        // const auto &R   = msh.R;
+
+        // for (size_t id{id_start + 1}; id <= id_end; id++)
+        // {
+        //     auto dth = msh.DTH[id];
+
+        //     auto W = dat.W[id - 1];
+        //     auto P_ = CB[id - 1] * CB[id - 1] * MG2[id - 1];
+        //     auto Q_ = SB[id - 1] * DG1[id - 1] * R[id - 1] + 2 * omg * R[id - 1] * SP[id - 1] * CB[id - 1];
+        //     auto R_ = TS[id - 1] * R[id - 1] * SB[id - 1] * CB[id - 1] * DG2[id - 1];
+
+        //     auto R = W * P_ + Q_ + R_ / W;
+        //     dat.W1[id] = W + dth *R;
+
+        // }
+        // for (size_t id{id_start + 1}; id <= id_end; id++)
+        // {
+        //     auto dth = msh.DTH[id];
+            
+        //     auto W1 = dat.W1[id];
+        //     auto W = dat.W[id - 1];
+        //     auto P_ = CB[id] * CB[id] * MG2[id];
+        //     auto Q_ = SB[id] * DG1[id] * R[id] + 2 * omg * R[id] * SP[id] * CB[id];
+        //     auto R_ = TS[id] * R[id] * SB[id] * CB[id] * DG2[id];
+
+        //     auto R = W1 * P_ + Q_ + R_ / W1;
+
+        //     dat.W2[id] = W + dth *R;
+        // }
+
+        // for (size_t id{id_start + 1}; id <= id_end; id++)
+        // {
+        //     dat.W[id] = ( dat.W1[id] + dat.W2[id] ) /2;
+        // }
+//**********************************************//
         auto f = [omg = omg,
                   &CB = msh.CB,
                   &SB = msh.SB,
@@ -512,7 +558,8 @@ namespace yams
                   &DG1 = dat.G1,
                   &DG2 = dat.G2,
                   &TS = dat.TS,
-                  &R = msh.R](auto W, auto id) // <- lambda to enable vectorization
+                  &R = msh.R
+                ](auto W, auto id) // <- lambda to enable vectorization
         {
             auto P_ = CB[id] * CB[id] * MG2[id];
             auto Q_ = SB[id] * DG1[id] * R[id] + 2 * omg * R[id] * SP[id] * CB[id];
@@ -521,13 +568,24 @@ namespace yams
             return W * P_ + Q_ + R_ / W;
         };
 
-        auto id_end = id_start + ni - 1;
-        dat.W[id_start] = Wi;
-        for (size_t id{id_start + 1}; id <= id_end; id++)
-        {
-            auto dth = msh.DTH[id];
-            dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
-            dat.W[id] = (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2;
-        }
+        // for (size_t id{id_start + 1}; id <= id_end; id++)
+        // {
+        //     auto dth = msh.DTH[id];
+        //     dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
+        //     dat.W[id] = (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2;
+        // }
+
+        std::transform(
+            std::next(stream_lines_indices.begin()), stream_lines_indices.end(),
+            std::next(dat.W.begin(),id_start + 1),
+            [id_start, &msh = this->msh, &dat = this->dat, &f](size_t i)
+            {
+                auto id = id_start + i;
+                auto dth = msh.DTH[id];
+                dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
+                return  (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2;
+            }
+        );
+
     }
 }
