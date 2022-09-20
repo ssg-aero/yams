@@ -11,7 +11,7 @@ TEST(solver, base_novak)
     using namespace std;
     using T = double;
 
-    auto f_name = "C:/Users/sebastien/workspace/cosapp-tubomachine/studies/b2bmsh.vts";
+    auto f_name = "C:/Users/sebastien/workspace/yams/tests/b2bmsh.vts";
 
     auto [pts, nj]  = yams::getVtkStructuredGridPoints<T>(f_name);
     // auto stream_line = make_shared<gbs::BSCurve<T,2>>( 
@@ -53,7 +53,8 @@ TEST(solver, base_novak)
         // 74.9251
         // 75
         // 138
-        70
+        // 70
+        60
     );
 
     auto start = chrono::steady_clock::now();
@@ -62,10 +63,10 @@ TEST(solver, base_novak)
     cout << elapsed << endl;
 
     // yams::plot(solver.mesh(), nj ,solver.data().M,"Absolute Mach Number");
-    yams::plot(solver.mesh(), solver.data().W,"Relative Speed");
-    yams::plot(solver.mesh(), solver.data().MW,"Relative Mach Number");
-    yams::plot(solver.mesh(), solver.data().PT,"TotalPressure");
-    yams::plot(solver.mesh(), solver.data().TT,"TotalPressure");
+    // yams::plot(solver.mesh(), solver.data().W,"Relative Speed");
+    // yams::plot(solver.mesh(), solver.data().MW,"Relative Mach Number");
+    // yams::plot(solver.mesh(), solver.data().PT,"TotalPressure");
+    // yams::plot(solver.mesh(), solver.data().TT,"TotalPressure");
 
 
 }
