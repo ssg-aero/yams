@@ -444,6 +444,8 @@ PYBIND11_MODULE(yams, m)
     .def_property_readonly(
         "data",&BladeToBladeCurvatureSolver<T>::data
     )
+    .def("setPtIn",&BladeToBladeCurvatureSolver<T>::setPtIn)
+    .def("setTtIn",&BladeToBladeCurvatureSolver<T>::setTtIn)
     .def(
         "computeW", 
         py::overload_cast<>(&BladeToBladeCurvatureSolver<T>::computeW)

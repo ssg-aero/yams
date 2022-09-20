@@ -154,6 +154,8 @@ namespace yams
         void setCp(T cp){ Cp = cp;}
         void setGasConstant(T RG){ R = RG;}
         void setGamma(T Gamma){gamma=Gamma;}
+        void setPtIn(T Pt){for( size_t i {}; i <ni; i++) dat.PT[i]=Pt;}
+        void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
 
         void computeW();
         
