@@ -517,13 +517,13 @@ PYBIND11_MODULE(yams, m)
     );
 
     m.def(
-        "getPsSide1",&getXYZSide1<T>,
+        "getXYZSide1",&getXYZSide1<T>,
         "Get blade side 1 cut 3d coordinates",
         py::arg("solver")
     );
 
     m.def(
-        "getPsSide2",&getXYZSide2<T>,
+        "getXYZSide2",&getXYZSide2<T>,
         "Get blade side 2 cut 3d coordinates",
         py::arg("solver")
     );
