@@ -63,6 +63,7 @@ namespace yams
         size_t nj;
         vector<T> M;
         vector<T> TH;
+        vector<T> DTH;
         vector<T> R;
         vector<T> Z;
         vector<T> TAU; // delta r, stream sheet thickness
@@ -85,6 +86,7 @@ namespace yams
             R.resize(n);
             Z.resize(n);
             TH.resize(n);
+            DTH.resize(n);
             TAU.resize(n);
             M.resize(n);
             BT.resize(n);
@@ -212,12 +214,13 @@ namespace yams
             msh.TH[i] = th;
         }
 
-        computeMeshData();
 
         for (size_t j{}; j < nj; j++)
         {
             computational_planes_offsets.push_back(j * ni);
         }
+        
+        computeMeshData();
     }
 
     template <typename T>
@@ -332,6 +335,17 @@ namespace yams
             msh.SB.begin(),
             [](auto beta)
             { return sin(beta); });
+        std::for_each(
+            std::execution::par,
+            computational_planes_offsets.begin(),
+            computational_planes_offsets.end(),
+            [ni=ni, &DTH=msh.DTH, &TH=msh.TH](auto id_start)
+                { 
+                    auto id_end = id_start + ni - 1;
+                    for(size_t id{id_start+1}; id <= id_end; id++)
+                        DTH[id] = TH[id] - TH[id-1];
+                }
+        );
     }
 
     template <typename T>
@@ -503,7 +517,7 @@ namespace yams
         dat.W[id_start] = Wi;
         for (size_t id{id_start + 1}; id <= id_end; id++)
         {
-            auto dth = msh.TH[id] - msh.TH[id - 1];
+            auto dth = msh.DTH[id];
             dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
             dat.W[id] = (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2;
         }
