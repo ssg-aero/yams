@@ -11,8 +11,9 @@ TEST(vectorization, 1d)
 
     using namespace std;
     using T = double;
-
-    size_t n = 1e8;
+    using TT = chrono::nanoseconds;
+    T factor_time = 1e6;
+    size_t n = 1e2;
     xt::xarray<T>::shape_type shape = {n};
     xt::xarray<T> X_xt(shape);
     xt::xarray<T> Y_xt(shape);
@@ -30,17 +31,18 @@ TEST(vectorization, 1d)
     // }
     Y_xt = xt::sin(X_xt);
 
-    auto elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
+    auto elapsed = chrono::duration_cast<TT>(chrono::steady_clock::now() - start).count() / factor_time;
     cout << elapsed << endl;
 
-    start = chrono::steady_clock::now();
+    start = chrono::steady_clock::now(); 
 
     for(size_t i{}; i < n; i++)
     {
-        Y[i] = f_sin(X[i]);
+        // Y[i] = f_sin(X[i]);
+        Y[i] = std::sin(X[i]);
     }
 
-    elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
+    elapsed = chrono::duration_cast<TT>(chrono::steady_clock::now() - start).count() / factor_time;
     cout << elapsed << endl;
 
     for(size_t i{}; i < n; i++)
@@ -50,15 +52,15 @@ TEST(vectorization, 1d)
 
     start = chrono::steady_clock::now();
 
-    #pragma omp parallel for 
-    // #pragma loop( no_vector )
+    // #pragma omp parallel for 
+    #pragma loop( no_vector )
     // #pragma loop( hint_parallel( 0 ) )
     for(int i{}; i < n; i++)
     {
         Y[i] = f_sin(X[i]);
     }
 
-    elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
+    elapsed = chrono::duration_cast<TT>(chrono::steady_clock::now() - start).count() / factor_time;
     cout << elapsed << endl;
 
     start = chrono::steady_clock::now();
@@ -67,7 +69,7 @@ TEST(vectorization, 1d)
         X.begin(), X.end(), Y.begin(), f_sin
     );
 
-    elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
+    elapsed = chrono::duration_cast<TT>(chrono::steady_clock::now() - start).count() / factor_time;
     cout << elapsed << endl;
 
     start = chrono::steady_clock::now();
@@ -77,6 +79,6 @@ TEST(vectorization, 1d)
         X.begin(), X.end(), Y.begin(), f_sin
     );
 
-    elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
+    elapsed = chrono::duration_cast<TT>(chrono::steady_clock::now() - start).count() / factor_time;
     cout << elapsed << endl;
 }
