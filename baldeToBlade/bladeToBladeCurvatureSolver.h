@@ -30,6 +30,7 @@ namespace yams
         vector<T> W2; // W + d_theta * d_W1 / d_th
         vector<T> G1; // d_Vm / d_m
         vector<T> G2; // d_S_ / d_m
+        vector<T> G3; // d_r^2Vm / d_m
         BladeToBladeCurvatureSolverData() = default;
         BladeToBladeCurvatureSolverData(size_t ni, size_t nj) : ni{ni}, nj{nj}
         {
@@ -54,6 +55,7 @@ namespace yams
             W2.resize(n);
             G1.resize(n);
             G2.resize(n);
+            G3.resize(n);
         }
     };
 
@@ -361,6 +363,14 @@ namespace yams
     {
         computeVm();
         f_grad(dat.G1, dat.Vm, msh.M);
+        vector<T> Vec(ni*nj);
+        std::transform(
+            msh.R.begin(), msh.R.end(),
+            dat.Vm.begin(),
+            Vec.begin(),
+            [](T r, T Vm){return r*r*Vm;}
+        );
+        f_grad(dat.G3, Vec, msh.M);
         auto ga_ = gamma / (gamma - 1);
         for (int j{0}; j < nj; j++)
         {
