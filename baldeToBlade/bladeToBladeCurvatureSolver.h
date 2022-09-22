@@ -403,6 +403,7 @@ namespace yams
                 dat.S[id] = std::log(pow(dat.TS[id] / 288.15, Cp) / std::pow(dat.PS[id] / 1e5, R));
             }
         }
+        f_grad(dat.G2, dat.S, msh.M);
     }
 
     template <typename T>
