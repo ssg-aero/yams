@@ -135,7 +135,7 @@ namespace yams
         size_t max_iter_newton{100};
         //**************
         void f_grad(vector<T> &G, const vector<T> &Y, const vector<T> &X);
-        void f_grad2(vector<T> &G, const vector<T> &Y, const vector<T> &X);
+        // void f_grad2(vector<T> &G, const vector<T> &Y, const vector<T> &X);
         void computeMeshData();
         void computeFlowData();
         void computeVm();
@@ -249,44 +249,44 @@ namespace yams
         }
     }
 
-    template <typename T>
-    void BladeToBladeCurvatureSolver<T>::f_grad2(vector<T> & G, const vector<T> &Y, const vector<T> &X)
-    {
-        int nm = Y.size() - 1;
+    // template <typename T>
+    // void BladeToBladeCurvatureSolver<T>::f_grad2(vector<T> & G, const vector<T> &Y, const vector<T> &X)
+    // {
+    //     int nm = Y.size() - 1;
 
-        for (int j{1}; j < nj - 1; j++)
-        {
-            int jOffset = j * ni;
-            int jOffset1 = std::max<int>(0, jOffset - ni);
-            int jOffset2 = std::min<int>(nm, jOffset + ni);
-            // #pragma omp parallel for
-            for (int i{}; i < ni; i++)
-            {
-                auto dX = (X[i + jOffset2] - X[i + jOffset1]);
-                G[i + jOffset] = (Y[i + jOffset2] - 2 * Y[i + jOffset] + Y[i + jOffset1]) / dX / dX;
-            }
-        }
+    //     for (int j{1}; j < nj - 1; j++)
+    //     {
+    //         int jOffset = j * ni;
+    //         int jOffset1 = std::max<int>(0, jOffset - ni);
+    //         int jOffset2 = std::min<int>(nm, jOffset + ni);
+    //         // #pragma omp parallel for
+    //         for (int i{}; i < ni; i++)
+    //         {
+    //             auto dX = (X[i + jOffset2] - X[i + jOffset1]);
+    //             G[i + jOffset] = (Y[i + jOffset2] - 2 * Y[i + jOffset] + Y[i + jOffset1]) / dX / dX;
+    //         }
+    //     }
 
-        {
-            int jOffset = 0;
-            int jOffset1 = ni;
-            int jOffset2 = 2 * ni;
-            for (int i{}; i < ni; i++)
-            {
-                G[i + jOffset] = 2 * G[i + jOffset1] - G[i + jOffset2];
-            }
-        }
+    //     {
+    //         int jOffset = 0;
+    //         int jOffset1 = ni;
+    //         int jOffset2 = 2 * ni;
+    //         for (int i{}; i < ni; i++)
+    //         {
+    //             G[i + jOffset] = 2 * G[i + jOffset1] - G[i + jOffset2];
+    //         }
+    //     }
 
-        {
-            int jOffset = ni * (nj - 1);
-            int jOffset1 = ni * (nj - 2);
-            int jOffset2 = ni * (nj - 3);
-            for (int i{}; i < ni; i++)
-            {
-                G[i + jOffset] = 2 * G[i + jOffset1] - G[i + jOffset2];
-            }
-        }
-    }
+    //     {
+    //         int jOffset = ni * (nj - 1);
+    //         int jOffset1 = ni * (nj - 2);
+    //         int jOffset2 = ni * (nj - 3);
+    //         for (int i{}; i < ni; i++)
+    //         {
+    //             G[i + jOffset] = 2 * G[i + jOffset1] - G[i + jOffset2];
+    //         }
+    //     }
+    // }
 
     template <typename T>
     void BladeToBladeCurvatureSolver<T>::computeMeshData()
