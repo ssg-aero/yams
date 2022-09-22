@@ -114,7 +114,7 @@ namespace yams
         // Geom info
         BladeToBladeCurvatureSolverData<T> dat;
         BladeToBladeCurvatureSolverMesh<T> msh;
-        size_t ni{}, nj{}, jLe{}, jTe{};
+        size_t ni{}, nj{}, jLe{}, jTe{}, i0{};
         vector<size_t> computational_planes_offsets;
         vector<size_t> stream_lines_indices;
         std::shared_ptr<gbs::Curve<T, 2>> stream_line;
@@ -196,6 +196,7 @@ namespace yams
         }
         nj = n_computation_planes;
         ni = n / n_computation_planes;
+        i0 = (ni-1)/2+1;
         dat = BladeToBladeCurvatureSolverData<T>{ni, nj};
         std::fill(dat.W.begin(), dat.W.end(), 10.);
         msh = BladeToBladeCurvatureSolverMesh<T>{ni, nj};
@@ -516,7 +517,7 @@ namespace yams
     {
 
         auto id_end = id_start + ni - 1;
-        dat.W[id_start] = Wi;
+        dat.W[id_start + i0] = Wi;
 //*************** unsuccessful aggressive vectorization *****************//
         // const auto &W   = dat.W;
         // const auto &CB  = msh.CB;
@@ -579,24 +580,40 @@ namespace yams
             return W * P_ + Q_ + R_ / W;
         };
 
-        // for (size_t id{id_start + 1}; id <= id_end; id++)
-        // {
-        //     auto dth = msh.DTH[id];
-        //     dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
-        //     dat.W[id] = (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2;
-        // }
+        for (size_t id{id_start + i0 + 1}; id <= id_end; id++)
+        {
+            auto dth = msh.DTH[id];
+            dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
+            dat.W[id] = (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2;
+        }
 
-        std::transform(
-            std::next(stream_lines_indices.begin()), stream_lines_indices.end(),
-            std::next(dat.W.begin(),id_start + 1),
-            [id_start, &msh = this->msh, &dat = this->dat, &f](size_t i)
+        if(i0>0)
+        {
+            int id_min = id_start;
+            for (int id = id_start + i0 - 1; id >= id_min; id--)
             {
-                auto id = id_start + i;
                 auto dth = msh.DTH[id];
-                dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
-                return  (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2;
+                dat.W1[id] = dat.W[id + 1] - dth * f(dat.W[id + 1], id + 1);
+                dat.W[id] = (dat.W1[id] + (dat.W[id + 1] - dth * f(dat.W1[id], id))) / 2;
             }
-        );
+        }
+
+        // std::transform(
+        //     std::next(stream_lines_indices.begin()), stream_lines_indices.end(),
+        //     std::next(dat.W.begin(),id_start + 1),
+        //     [Wmin = T{1.},id_start, &msh = this->msh, &dat = this->dat, &f](size_t i)
+        //     {
+        //         auto id = id_start + i;
+        //         auto dth = msh.DTH[id];
+        //         dat.W1[id] = dat.W[id - 1] + dth * f(dat.W[id - 1], id - 1);
+        //         return  std::max(
+        //             (dat.W1[id] + (dat.W[id - 1] + dth * f(dat.W1[id], id))) / 2,
+        //             Wmin
+        //         );
+        //     }
+        // );
+
+    }
 
     }
 }
