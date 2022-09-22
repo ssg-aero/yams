@@ -172,6 +172,8 @@ namespace yams
         // void setTrailingEdgeIndex(size_t j){jTe = j;}
 
         void computeW();
+        void applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH);
+        void applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH);
         
         BladeToBladeCurvatureSolver() = default;
         BladeToBladeCurvatureSolver(
@@ -615,5 +617,51 @@ namespace yams
 
     }
 
+    template<typename T>
+    void BladeToBladeCurvatureSolver<T>::applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH)
+    {
+        auto j_end = std::min(DELTA_TH.size()+jTe, nj-1);
+        auto delta_th{DELTA_TH.front()};
+        for(auto j{jTe+1}; j < j_end; j++)
+        {
+            delta_th = DELTA_TH[j-jTe-1];
+            for(size_t i{}; i < ni; i++)
+            {
+                msh.TH[i+ni*j] +=  delta_th;
+            }
+        }
+        for(auto j{j_end}; j < nj; j++)
+        {
+            for(size_t i{}; i < ni; i++)
+            {
+                msh.TH[i+ni*j] +=  delta_th;
+            }
+        }
+        computeMeshData();
     }
+
+    template<typename T>
+    void BladeToBladeCurvatureSolver<T>::applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH)
+    {
+        auto j_end = std::max<size_t>(jLe - DELTA_TH.size(), 1);
+        auto delta_th{DELTA_TH.front()};
+        for(auto j{jLe-1}; j >= j_end; j--)
+        {
+            delta_th = DELTA_TH[jLe-1-j];
+            for(size_t i{}; i < ni; i++)
+            {
+                msh.TH[i+ni*j] +=  delta_th;
+            }
+        }
+        j_end = -1;
+        for(auto j{j_end}; j >j_end; j--)
+        {
+            for(size_t i{}; i < ni; i++)
+            {
+                msh.TH[i+ni*j] +=  delta_th;
+            }
+        }
+        computeMeshData();
+    }
+
 }
