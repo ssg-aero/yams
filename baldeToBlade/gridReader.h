@@ -24,7 +24,7 @@ namespace yams
 {
 
     template <typename T>
-    auto make_vtkStructuredGrid(const BladeToBladeCurvatureSolverMesh<T> &msh) -> vtkSmartPointer<vtkStructuredGrid>
+    auto make_vtkStructuredGrid(const BladeToBladeCurvatureSolverMesh<T> &msh, T dth =0) -> vtkSmartPointer<vtkStructuredGrid>
     {
         // Build M, R*TH grid
         vtkSmartPointer<vtkStructuredGrid> structuredGrid =
@@ -40,7 +40,7 @@ namespace yams
         auto n = M.size();
         for( size_t i{}; i<n; i++ )
         {
-            points->InsertNextPoint(M[i], R[i]*TH[i], 0);
+            points->InsertNextPoint(M[i], R[i]*( TH[i] + dth ), 0);
         }
 
         auto ni = M.size() / nj;
@@ -87,7 +87,10 @@ namespace yams
     {
         // Build grid with value
         auto nj = msh.nj;
-        auto structuredGrid = yams::make_vtkStructuredGrid(msh);
+        auto ni = msh.ni;
+        auto structuredGrid     = yams::make_vtkStructuredGrid(msh);
+        auto dth = msh.TH[ni-1]-msh.TH[0];
+        auto structuredGrid_per = yams::make_vtkStructuredGrid(msh,dth);
         vtkSmartPointer<vtkDoubleArray> value_array =
             vtkSmartPointer<vtkDoubleArray>::New();
         value_array->SetName(name);
@@ -101,6 +104,7 @@ namespace yams
             });
 
         structuredGrid->GetPointData()->AddArray(value_array);
+        structuredGrid_per->GetPointData()->AddArray(value_array);
 
         // Create a renderer, render window, and interactor
         vtkSmartPointer<vtkRenderer> renderer =
@@ -126,24 +130,37 @@ namespace yams
         mapper->SetInputData(structuredGrid);
         mapper->SetScalarRange(structuredGrid->GetScalarRange());
 
+        structuredGrid_per->GetPointData()->SetActiveScalars(name);
+        vtkSmartPointer<vtkDataSetMapper> mapper_per =
+            vtkSmartPointer<vtkDataSetMapper>::New();
+        mapper_per->SetInputData(structuredGrid_per);
+        mapper_per->SetScalarRange(structuredGrid_per->GetScalarRange());
+
         vtkSmartPointer<vtkLookupTable> rainbowBlueRedLut =
             vtkSmartPointer<vtkLookupTable>::New();
         rainbowBlueRedLut->SetNumberOfColors(256);
         rainbowBlueRedLut->SetHueRange(0.667, 0.0);
         rainbowBlueRedLut->Build();
         mapper->SetLookupTable(rainbowBlueRedLut);
+        mapper_per->SetLookupTable(rainbowBlueRedLut);
 
         vtkSmartPointer<vtkActor> gridActor =
             vtkSmartPointer<vtkActor>::New();
         gridActor->SetMapper(mapper);
+        vtkSmartPointer<vtkActor> gridActor_per =
+            vtkSmartPointer<vtkActor>::New();
+        gridActor_per->SetMapper(mapper_per);
         // add edges if required
         if (edges_on)
         {
             gridActor->GetProperty()->EdgeVisibilityOn();
             gridActor->GetProperty()->SetEdgeColor(0.3, 0.3, 0.3);
+            gridActor_per->GetProperty()->EdgeVisibilityOn();
+            gridActor_per->GetProperty()->SetEdgeColor(0.3, 0.3, 0.3);
         }
         // Add the actor to the scene
         renderer->AddActor(gridActor);
+        renderer->AddActor(gridActor_per);
         if (contour_on)
         { // Add contour
             vtkNew<vtkContourFilter> contourFilter;
@@ -163,6 +180,22 @@ namespace yams
             contourActor->GetProperty()->SetColor(0., 0., 0.);
             contourActor->GetProperty()->SetOpacity(0.7);
             renderer->AddActor(contourActor);
+/**************/
+            vtkNew<vtkContourFilter> contourFilter_per;
+            contourFilter_per->SetInputData(structuredGrid_per);
+            contourFilter_per->GenerateValues(15, range[0], range[1]);
+            // Map the contours to graphical primitives
+            vtkNew<vtkPolyDataMapper> contourMapper_per;
+            contourMapper_per->SetInputConnection(contourFilter_per->GetOutputPort());
+            contourMapper_per->ScalarVisibilityOff();
+
+            // Create an actor for the contours
+            vtkNew<vtkActor> contourActor_per;
+            contourActor_per->SetMapper(contourMapper_per);
+            contourActor_per->GetProperty()->SetLineWidth(1.5);
+            contourActor_per->GetProperty()->SetColor(0., 0., 0.);
+            contourActor_per->GetProperty()->SetOpacity(0.7);
+            renderer->AddActor(contourActor_per);
         }
         // Add scalar bar
         vtkSmartPointer<vtkScalarBarActor> scalarBar =
