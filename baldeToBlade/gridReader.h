@@ -154,9 +154,9 @@ namespace yams
         if (edges_on)
         {
             gridActor->GetProperty()->EdgeVisibilityOn();
-            gridActor->GetProperty()->SetEdgeColor(0.3, 0.3, 0.3);
+            gridActor->GetProperty()->SetEdgeColor(0.9, 0.9, 0.9);
             gridActor_per->GetProperty()->EdgeVisibilityOn();
-            gridActor_per->GetProperty()->SetEdgeColor(0.3, 0.3, 0.3);
+            gridActor_per->GetProperty()->SetEdgeColor(0.9, 0.9, 0.9);
         }
         // Add the actor to the scene
         renderer->AddActor(gridActor);
