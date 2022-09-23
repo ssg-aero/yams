@@ -1,5 +1,7 @@
 #pragma once
 #include <gbs/curves>
+#include <matrix/tridiagonal.h>
+
 namespace yams
 {
 
@@ -126,26 +128,31 @@ namespace yams
         T gamma{1.4};
         T R{287.04};
         T Cp{1004.};
+        // Stagnation line fix
+        bool fix_stag_le{true};
+        bool fix_stag_te{true};
         // Blockage
         size_t max_compressibility_iterations{100};
-        T compressibility_rel_tol{1e-3};
+        T compressibility_rel_tol{1e-2};
         T blockage_mass_flow_reduction_factor{0.999};
         vector<T> compressibility_residual;
         // W newton solve on computation plane
-        T eps_newton = 1e-4;
+        T eps_newton = 1e-3;
         T tol_rel_mf = 1e-3;
         size_t max_iter_newton{100};
         //**************
         void f_grad(vector<T> &G, const vector<T> &Y, const vector<T> &X);
-        // void f_grad2(vector<T> &G, const vector<T> &Y, const vector<T> &X);
-        void computeMeshData();
+        
         void computeFlowData();
+        void computeFlowGrads();
         void computeVm();
         void computeW(size_t id_start);
         void computeW(size_t id_start, T Wi);
         T evalMassFlow(size_t id_start);
+        void fixFlowPeriodicity(const vector<size_t> &j_stations);
 
     public:
+        // getters
         std::array<size_t,2> dimensions() const {return {ni,nj};}
         const auto &mesh() const { return msh; }
         const auto &data() const { return dat; }
@@ -155,6 +162,9 @@ namespace yams
         size_t leadingEdgeIndex() const {return jLe;}
         size_t trailingEdgeIndex() const {return jTe;}
         const auto & meridionalStreamLine() const {return *stream_line;}
+        bool fixUpStreamFlowPeriodicity() {return fix_stag_le;}
+        bool fixDownStreamFlowPeriodicity() {return fix_stag_te;}
+        // setters
         void setFullBladePassageMassFlow(T mf) { Mf = mf / z_; }
         void setPeriodicity(size_t n)
         {
@@ -168,9 +178,10 @@ namespace yams
         void setGamma(T Gamma){gamma=Gamma;}
         void setPtIn(T Pt){for( size_t i {}; i <ni; i++) dat.PT[i]=Pt;}
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
-        // void setLeadingEdgeIndex(size_t j){jLe = j;}
-        // void setTrailingEdgeIndex(size_t j){jTe = j;}
+        void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
+        void setFixDownStreamFlowPeriodicity(bool tog) { fix_stag_te = tog;}
 
+        void computeMeshData();
         void computeW();
         void applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH);
         void applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH);
@@ -198,7 +209,7 @@ namespace yams
         }
         nj = n_computation_planes;
         ni = n / n_computation_planes;
-        i0 = (ni-1)/2+1;
+        // i0 = (ni-1)/2+1;
         dat = BladeToBladeCurvatureSolverData<T>{ni, nj};
         std::fill(dat.W.begin(), dat.W.end(), 10.);
         msh = BladeToBladeCurvatureSolverMesh<T>{ni, nj};
@@ -254,45 +265,6 @@ namespace yams
         }
     }
 
-    // template <typename T>
-    // void BladeToBladeCurvatureSolver<T>::f_grad2(vector<T> & G, const vector<T> &Y, const vector<T> &X)
-    // {
-    //     int nm = Y.size() - 1;
-
-    //     for (int j{1}; j < nj - 1; j++)
-    //     {
-    //         int jOffset = j * ni;
-    //         int jOffset1 = std::max<int>(0, jOffset - ni);
-    //         int jOffset2 = std::min<int>(nm, jOffset + ni);
-    //         // #pragma omp parallel for
-    //         for (int i{}; i < ni; i++)
-    //         {
-    //             auto dX = (X[i + jOffset2] - X[i + jOffset1]);
-    //             G[i + jOffset] = (Y[i + jOffset2] - 2 * Y[i + jOffset] + Y[i + jOffset1]) / dX / dX;
-    //         }
-    //     }
-
-    //     {
-    //         int jOffset = 0;
-    //         int jOffset1 = ni;
-    //         int jOffset2 = 2 * ni;
-    //         for (int i{}; i < ni; i++)
-    //         {
-    //             G[i + jOffset] = 2 * G[i + jOffset1] - G[i + jOffset2];
-    //         }
-    //     }
-
-    //     {
-    //         int jOffset = ni * (nj - 1);
-    //         int jOffset1 = ni * (nj - 2);
-    //         int jOffset2 = ni * (nj - 3);
-    //         for (int i{}; i < ni; i++)
-    //         {
-    //             G[i + jOffset] = 2 * G[i + jOffset1] - G[i + jOffset2];
-    //         }
-    //     }
-    // }
-
     template <typename T>
     void BladeToBladeCurvatureSolver<T>::computeMeshData()
     {
@@ -313,8 +285,6 @@ namespace yams
             [](auto beta, auto r)
             { return r * tan(beta); });
         // eval geom grads
-        // f_grad(msh.G2, msh.R , msh.M);
-        // f_grad2(msh.G3, msh.TH , msh.M);
         f_grad(msh.G2, msh.RTB, msh.M);
         f_grad(msh.G4, msh.R, msh.Z);
         // angles trigonometry
@@ -365,15 +335,7 @@ namespace yams
     void BladeToBladeCurvatureSolver<T>::computeFlowData()
     {
         computeVm();
-        f_grad(dat.G1, dat.Vm, msh.M);
-        vector<T> Vec(ni*nj);
-        std::transform(
-            msh.R.begin(), msh.R.end(),
-            dat.Vm.begin(),
-            Vec.begin(),
-            [](T r, T Vm){return r*r*Vm;}
-        );
-        f_grad(dat.G3, Vec, msh.M);
+
         auto ga_ = gamma / (gamma - 1);
         for (int j{0}; j < nj; j++)
         {
@@ -416,7 +378,22 @@ namespace yams
                 dat.S[id] = std::log(pow(dat.TS[id] / 288.15, Cp) / std::pow(dat.PS[id] / 1e5, R));
             }
         }
+
+    }
+
+    template <typename T>
+    void BladeToBladeCurvatureSolver<T>::computeFlowGrads()
+    {
+        f_grad(dat.G1, dat.Vm, msh.M);
         f_grad(dat.G2, dat.S, msh.M);
+        vector<T> Vec(ni*nj);
+        std::transform(
+            msh.R.begin(), msh.R.end(),
+            dat.Vm.begin(),
+            Vec.begin(),
+            [](T r, T Vm){return r*r*Vm;}
+        );
+        f_grad(dat.G3, Vec, msh.M);
     }
 
     template <typename T>
@@ -434,8 +411,12 @@ namespace yams
     template <typename T>
     void BladeToBladeCurvatureSolver<T>::computeW()
     {
-        for (int i{}; i < max_compressibility_iterations; i++) // TODO find a convergence criteria
+        auto Mf_min = Mf*0.3;
+        auto d_Mf   = Mf*0.01;
+        // for (int i{}; i < 1; i++)
+        for (int i{}; i < max_compressibility_iterations; i++)
         {
+            // Compute W profile on each plane
             std::for_each(
                 std::execution::par,
                 computational_planes_offsets.begin(),
@@ -445,35 +426,62 @@ namespace yams
             // Update energy and compressibility
             compressibility_residual = {dat.R};
             computeFlowData();
+            // compressibility_residual = {dat.G1};
+            computeFlowGrads();
             // Eval flow convergence
             std::transform(
                 std::execution::par,
                 compressibility_residual.begin(), compressibility_residual.end(),
                 dat.R.begin(),
+                // dat.G1.begin(),
                 compressibility_residual.begin(),
                 [](auto rho_prev, auto rho)
-                { return std::abs(rho_prev - rho) / rho; });
+                { return std::abs((rho_prev - rho) / rho); });
             auto residual = std::reduce(
                                 std::execution::par, compressibility_residual.begin(), compressibility_residual.end()) /
                             compressibility_residual.size();
             // std::cout << residual << std::endl;
 
-            if (std::isnan(residual))
+            if (std::isnan(residual) && Mf >= Mf_min )
             {
+                // break;
                 i = 0;
                 std::fill(dat.W.begin(), dat.W.end(), 10.);
+                // computeFlowData();
+                std::fill(dat.Vm.begin(), dat.Vm.end(), 0.);
+                std::fill(dat.TS.begin(), dat.TS.end(), 0.);
                 std::fill(dat.G1.begin(), dat.G1.end(), 0.);
                 std::fill(dat.G2.begin(), dat.G2.end(), 0.);
+                std::fill(dat.G3.begin(), dat.G3.end(), 0.);
                 std::fill(dat.R.begin(), dat.R.end(), dat.R.front()); // TODO improve reset
                 std::cout << "Reducing Mass-Flow from " << Mf * z_ << " to ";
-                Mf *= blockage_mass_flow_reduction_factor;
+                // Mf *= blockage_mass_flow_reduction_factor;
+                Mf -= d_Mf;
                 std::cout << Mf * z_ << std::endl;
             }
             else
             {
-                if (residual < compressibility_rel_tol)
+                if ((residual < compressibility_rel_tol || std::isnan(residual)) && i !=0 )
                     break;
             }
+
+            // Fix periodicity
+            if(fix_stag_le)
+            {
+                vector<size_t> j_stations_le;
+                for (auto j{jLe}; --j > 0;)
+                    j_stations_le.push_back(j);
+                fixFlowPeriodicity(j_stations_le);
+            }
+            if(fix_stag_te)
+            {
+                vector<size_t> j_stations_te;
+                for (auto j{jTe + 1}; j < nj - 1; j++)
+                    j_stations_te.push_back(j);
+                fixFlowPeriodicity(j_stations_te);
+            }
+            if(fix_stag_le || fix_stag_te )
+                computeMeshData();
         }
     }
 
@@ -502,13 +510,19 @@ namespace yams
         size_t id0_integration = id_start;
         T Wi = dat.W[id0_integration];
         size_t count{};
+        // T Wmin{1.};
         while (err_mf > tol_rel_mf && count < max_iter_newton)
         {
             computeW(id_start, Wi - eps_newton);
+            // computeFlowData();
             auto mf_pre = evalMassFlow(id_start);
             computeW(id_start, Wi);
             auto mf_ = evalMassFlow(id_start);
-            Wi = Wi - eps_newton * (mf_ - Mf) / (mf_ - mf_pre);
+            // Wi = std::max(
+            //     Wi - eps_newton * (mf_ - Mf) / (mf_ - mf_pre),
+            //     Wmin
+            // );
+            Wi = Wi - eps_newton * (mf_ - Mf) / (mf_ - mf_pre),
             err_mf = fabs(mf_ - Mf) / Mf;
             count++;
         }
@@ -662,6 +676,97 @@ namespace yams
             }
         }
         computeMeshData();
+    }
+
+    template <typename T>
+    void BladeToBladeCurvatureSolver<T>::fixFlowPeriodicity(const vector<size_t> &j_stations)
+    {
+        int nit = 2;
+        int nit_sub = 3;
+        for (int i{}; i < nit * nit_sub; i++)
+        {
+            size_t i_mid = (ni - 1) / 2 + 1;
+            auto f_A = [i_mid, ni=this->ni, &VM = dat.Vm, &R = msh.R](size_t j)
+            {
+                auto rVm = R[i_mid + ni * j] * VM[i_mid + ni * j];
+                return 2 * rVm * rVm;
+            };
+            auto f_B = [i_mid, ni=this->ni, &VM = dat.Vm, &DG3 = dat.G3](size_t j)
+            {
+                return 2 * VM[i_mid + ni * j] * DG3[i_mid + ni * j];
+            };
+
+            auto f_a = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
+            {
+                auto id1 = i_mid + ni * (j - 1);
+                auto id2 = i_mid + ni * (j);
+                auto id3 = i_mid + ni * (j + 1);
+                return 2 * A[j] / (m[id3] - m[id1]) / (m[id2] - m[id1]) + B[j] / 2 / (m[id2] - m[id1]);
+            };
+
+            auto f_c = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
+            {
+                auto id1 = i_mid + ni * (j - 1);
+                auto id2 = i_mid + ni * (j);
+                auto id3 = i_mid + ni * (j + 1);
+                return 2 * A[j] / (m[id3] - m[id1]) / (m[id3] - m[id2]) + B[j] / 2 / (m[id3] - m[id2]);
+            };
+
+            auto f_b = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
+            {
+                auto id1 = i_mid + ni * (j - 1);
+                auto id2 = i_mid + ni * (j);
+                auto id3 = i_mid + ni * (j + 1);
+                return -2 * A[j] / (m[id3] - m[id1]) * (1 / (m[id3] - m[id2]) + 1 / (m[id2] - m[id1])) - B[j] / 2 * (1 / (m[id3] - m[id2]) + 1 / (m[id2] - m[id1]));
+            };
+
+            auto f_d = [ni=this->ni, &W = dat.W, &TH = msh.TH](size_t j)
+            {
+                auto id1 = ni * j;
+                auto id2 = ni - 1 + ni * j;
+                return (W[id2] * W[id2] - W[id1] * W[id1]) / (TH[id2] - TH[id1]);
+            };
+
+            // not optimal for storage but ease implementation
+            vector<T> A(nj), B(nj);
+            for (auto j : j_stations)
+            {
+                A[j] = f_A(j);
+                B[j] = f_B(j);
+            }
+            vector<T> a, b, c, d;
+            for (auto j : j_stations)
+            {
+                if (j == j_stations.front())
+                {
+                    a.push_back(0);
+                    b.push_back(f_b(j, A, B));
+                    c.push_back(f_c(j, A, B));
+                }
+                else if (j == j_stations.back())
+                {
+                    a.push_back(f_a(j, A, B));
+                    b.push_back(f_b(j, A, B));
+                    c.push_back(0);
+                }
+                else
+                {
+                    a.push_back(f_a(j, A, B));
+                    b.push_back(f_b(j, A, B));
+                    c.push_back(f_c(j, A, B));
+                }
+                d.push_back(-f_d(j) / nit_sub);
+            }
+
+            thomas_algorithm(a, b, c, d);
+
+            if (j_stations.back() > j_stations.front())
+                applyDeltaStagnationLineDownStream(d);
+            else if (j_stations.front() > j_stations.back())
+                applyDeltaStagnationLineUpStream(d);
+            else
+                break;
+        }
     }
 
 }

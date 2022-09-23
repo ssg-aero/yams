@@ -454,6 +454,16 @@ PYBIND11_MODULE(yams, m)
     //     &BladeToBladeCurvatureSolver<T>::trailingEdgeIndex,
     //     &BladeToBladeCurvatureSolver<T>::setTrailingEdgeIndex
     // )
+    .def_property(
+        "fix_upstream_flow_periodicity",
+        &BladeToBladeCurvatureSolver<T>::fixUpStreamFlowPeriodicity,
+        &BladeToBladeCurvatureSolver<T>::setFixUpStreamFlowPeriodicity
+    )
+    .def_property(
+        "fix_downstream_flow_periodicity",
+        &BladeToBladeCurvatureSolver<T>::fixDownStreamFlowPeriodicity,
+        &BladeToBladeCurvatureSolver<T>::setFixDownStreamFlowPeriodicity
+    )
     .def_property_readonly(
         "jLe", &BladeToBladeCurvatureSolver<T>::leadingEdgeIndex )
     .def_property_readonly(
