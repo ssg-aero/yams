@@ -220,10 +220,10 @@ namespace yams
         std::fill(dat.PT.begin(), dat.PT.end(), 1e5);
         std::fill(dat.H.begin(), dat.H.end(), 288.15 * 1004);
 
-        int im = n - 1;
+
         auto [u1, u2] = stream_line->bounds();
         // #pragma omp parallel for
-        for (int i{}; i <= im; i++)
+        for (int i{}; i <n; i++)
         {
             auto [u, th] = pts[i];
             auto [z, r] = stream_line->value(u);
@@ -667,8 +667,9 @@ namespace yams
                 msh.TH[i+ni*j] +=  delta_th;
             }
         }
-        j_end = -1;
-        for(auto j{j_end}; j >j_end; j--)
+        // j_end = -1;
+        // for(auto j{j_end}; j >j_end; j--)
+        for(auto j{j_end}; --j>0; )
         {
             for(size_t i{}; i < ni; i++)
             {
@@ -681,92 +682,88 @@ namespace yams
     template <typename T>
     void BladeToBladeCurvatureSolver<T>::fixFlowPeriodicity(const vector<size_t> &j_stations)
     {
-        int nit = 2;
-        int nit_sub = 3;
-        for (int i{}; i < nit * nit_sub; i++)
+
+        size_t i_mid = (ni - 1) / 2 + 1;
+        auto f_A = [i_mid, ni=this->ni, &VM = dat.Vm, &R = msh.R](size_t j)
         {
-            size_t i_mid = (ni - 1) / 2 + 1;
-            auto f_A = [i_mid, ni=this->ni, &VM = dat.Vm, &R = msh.R](size_t j)
-            {
-                auto rVm = R[i_mid + ni * j] * VM[i_mid + ni * j];
-                return 2 * rVm * rVm;
-            };
-            auto f_B = [i_mid, ni=this->ni, &VM = dat.Vm, &DG3 = dat.G3](size_t j)
-            {
-                return 2 * VM[i_mid + ni * j] * DG3[i_mid + ni * j];
-            };
+            auto rVm = R[i_mid + ni * j] * VM[i_mid + ni * j];
+            return 2 * rVm * rVm;
+        };
+        auto f_B = [i_mid, ni=this->ni, &VM = dat.Vm, &DG3 = dat.G3](size_t j)
+        {
+            return 2 * VM[i_mid + ni * j] * DG3[i_mid + ni * j];
+        };
 
-            auto f_a = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
-            {
-                auto id1 = i_mid + ni * (j - 1);
-                auto id2 = i_mid + ni * (j);
-                auto id3 = i_mid + ni * (j + 1);
-                return 2 * A[j] / (m[id3] - m[id1]) / (m[id2] - m[id1]) + B[j] / 2 / (m[id2] - m[id1]);
-            };
+        auto f_a = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
+        {
+            auto id1 = i_mid + ni * (j - 1);
+            auto id2 = i_mid + ni * (j);
+            auto id3 = i_mid + ni * (j + 1);
+            return 2 * A[j] / (m[id3] - m[id1]) / (m[id2] - m[id1]) + B[j] / 2 / (m[id2] - m[id1]);
+        };
 
-            auto f_c = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
-            {
-                auto id1 = i_mid + ni * (j - 1);
-                auto id2 = i_mid + ni * (j);
-                auto id3 = i_mid + ni * (j + 1);
-                return 2 * A[j] / (m[id3] - m[id1]) / (m[id3] - m[id2]) + B[j] / 2 / (m[id3] - m[id2]);
-            };
+        auto f_c = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
+        {
+            auto id1 = i_mid + ni * (j - 1);
+            auto id2 = i_mid + ni * (j);
+            auto id3 = i_mid + ni * (j + 1);
+            return 2 * A[j] / (m[id3] - m[id1]) / (m[id3] - m[id2]) + B[j] / 2 / (m[id3] - m[id2]);
+        };
 
-            auto f_b = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
-            {
-                auto id1 = i_mid + ni * (j - 1);
-                auto id2 = i_mid + ni * (j);
-                auto id3 = i_mid + ni * (j + 1);
-                return -2 * A[j] / (m[id3] - m[id1]) * (1 / (m[id3] - m[id2]) + 1 / (m[id2] - m[id1])) - B[j] / 2 * (1 / (m[id3] - m[id2]) + 1 / (m[id2] - m[id1]));
-            };
+        auto f_b = [i_mid, ni=this->ni, &m = msh.M](size_t j, vector<T> &A, vector<T> &B)
+        {
+            auto id1 = i_mid + ni * (j - 1);
+            auto id2 = i_mid + ni * (j);
+            auto id3 = i_mid + ni * (j + 1);
+            return -2 * A[j] / (m[id3] - m[id1]) * (1 / (m[id3] - m[id2]) + 1 / (m[id2] - m[id1])) - B[j] / 2 * (1 / (m[id3] - m[id2]) + 1 / (m[id2] - m[id1]));
+        };
 
-            auto f_d = [ni=this->ni, &W = dat.W, &TH = msh.TH](size_t j)
-            {
-                auto id1 = ni * j;
-                auto id2 = ni - 1 + ni * j;
-                return (W[id2] * W[id2] - W[id1] * W[id1]) / (TH[id2] - TH[id1]);
-            };
+        auto f_d = [ni=this->ni, &W = dat.W, &TH = msh.TH](size_t j)
+        {
+            auto id1 = ni * j;
+            auto id2 = ni - 1 + ni * j;
+            return (W[id2] * W[id2] - W[id1] * W[id1]) / (TH[id2] - TH[id1]);
+        };
 
-            // not optimal for storage but ease implementation
-            vector<T> A(nj), B(nj);
-            for (auto j : j_stations)
-            {
-                A[j] = f_A(j);
-                B[j] = f_B(j);
-            }
-            vector<T> a, b, c, d;
-            for (auto j : j_stations)
-            {
-                if (j == j_stations.front())
-                {
-                    a.push_back(0);
-                    b.push_back(f_b(j, A, B));
-                    c.push_back(f_c(j, A, B));
-                }
-                else if (j == j_stations.back())
-                {
-                    a.push_back(f_a(j, A, B));
-                    b.push_back(f_b(j, A, B));
-                    c.push_back(0);
-                }
-                else
-                {
-                    a.push_back(f_a(j, A, B));
-                    b.push_back(f_b(j, A, B));
-                    c.push_back(f_c(j, A, B));
-                }
-                d.push_back(-f_d(j) / nit_sub);
-            }
-
-            thomas_algorithm(a, b, c, d);
-
-            if (j_stations.back() > j_stations.front())
-                applyDeltaStagnationLineDownStream(d);
-            else if (j_stations.front() > j_stations.back())
-                applyDeltaStagnationLineUpStream(d);
-            else
-                break;
+        // not optimal for storage but ease implementation
+        vector<T> A(nj), B(nj);
+        for (auto j : j_stations)
+        {
+            A[j] = f_A(j);
+            B[j] = f_B(j);
         }
+        vector<T> a, b, c, d;
+        for (auto j : j_stations)
+        {
+            if (j == j_stations.front())
+            {
+                a.push_back(0);
+                b.push_back(f_b(j, A, B));
+                c.push_back(f_c(j, A, B));
+            }
+            else if (j == j_stations.back())
+            {
+                a.push_back(f_a(j, A, B));
+                b.push_back(f_b(j, A, B));
+                c.push_back(0);
+            }
+            else
+            {
+                a.push_back(f_a(j, A, B));
+                b.push_back(f_b(j, A, B));
+                c.push_back(f_c(j, A, B));
+            }
+            d.push_back(-f_d(j) );
+        }
+
+        thomas_algorithm(a, b, c, d);
+
+        if (j_stations.back() > j_stations.front())
+            applyDeltaStagnationLineDownStream(d);
+        else if (j_stations.front() > j_stations.back())
+            applyDeltaStagnationLineUpStream(d);
+
+
     }
 
 }
