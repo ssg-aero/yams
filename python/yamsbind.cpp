@@ -1,6 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
+
+namespace py = pybind11;
+
 #include <meshtools.h>
 #include <gridreader.h>
 #include <meridionalsolvercase.h>
@@ -13,9 +16,12 @@
 #include <vtk_bind.h>
 #include <gbs-render/vtkgridrender.h>
 
+#include <baldeToBlade/bladeToBladeCurvatureSolver.h>
+#include <baldeToBlade/gridReader.h>
+#include <baldeToBlade/bladeToBladeCurvatureSolverPost.h>
+
 #include <meridionalsolvercase_experiemental.h>
 #include <curvaturesolver_experimental.h>
-namespace py = pybind11;
 
 PYBIND11_MODULE(yams, m)
 {
@@ -372,4 +378,168 @@ PYBIND11_MODULE(yams, m)
 
     m.def( "switch_to_direct",&switch_to_direct<T>,py::arg("solver_case"));
 
+    py::class_< BladeToBladeCurvatureSolverData<T>, std::shared_ptr<BladeToBladeCurvatureSolverData<T>> >(m, "BladeToBladeCurvatureSolverData")
+    .def(py::init<>())
+    .def(py::init<size_t, size_t>())
+    .def_readonly("ni", &BladeToBladeCurvatureSolverData<T>::ni,"Stream line number")
+    .def_readonly("nj", &BladeToBladeCurvatureSolverData<T>::nj,"Computation plane number")
+    .def_readonly("W", &BladeToBladeCurvatureSolverData<T>::W,"Relative velocity")
+    .def_readonly("V", &BladeToBladeCurvatureSolverData<T>::V,"Absolute velocity")
+    .def_readonly("Vm", &BladeToBladeCurvatureSolverData<T>::Vm,"Meridional velocity")
+    .def_readonly("Vu", &BladeToBladeCurvatureSolverData<T>::Vu,"Absolute tangential velocity")
+    .def_readonly("Wu", &BladeToBladeCurvatureSolverData<T>::Wu,"Relative tangential velocity")
+    .def_readonly("M", &BladeToBladeCurvatureSolverData<T>::M,"Absolute Mach number")
+    .def_readonly("MW", &BladeToBladeCurvatureSolverData<T>::MW,"Relative Mach number")
+    .def_readonly("R", &BladeToBladeCurvatureSolverData<T>::R,"Density")
+    .def_readonly("PS", &BladeToBladeCurvatureSolverData<T>::PS,"Static Pressure")
+    .def_readonly("TS", &BladeToBladeCurvatureSolverData<T>::TS,"Static Temperature")
+    .def_readonly("PT", &BladeToBladeCurvatureSolverData<T>::PT,"Total Pressure")
+    .def_readonly("TT", &BladeToBladeCurvatureSolverData<T>::TT,"Total Temperature")
+    .def_readonly("H", &BladeToBladeCurvatureSolverData<T>::H,"Enthalpy")
+    .def_readonly("S", &BladeToBladeCurvatureSolverData<T>::S,"Entropy")
+    .def_readonly("Q", &BladeToBladeCurvatureSolverData<T>::Q,"Accumulated mass flow")
+    ;
+
+    py::class_< BladeToBladeCurvatureSolverMesh<T>, std::shared_ptr<BladeToBladeCurvatureSolverMesh<T>> >(m, "BladeToBladeCurvatureSolverMesh")
+    .def(py::init<>())
+    .def(py::init<size_t, size_t>())
+    .def_readonly("ni", &BladeToBladeCurvatureSolverMesh<T>::ni,"Stream line number")
+    .def_readonly("nj", &BladeToBladeCurvatureSolverMesh<T>::nj,"Computation plane number")
+    .def_readonly("M", &BladeToBladeCurvatureSolverMesh<T>::M,"Curvilinear abscissa on stream line")
+    .def_readonly("TH", &BladeToBladeCurvatureSolverMesh<T>::TH,"Tangential coordinate")
+    .def_readonly("R", &BladeToBladeCurvatureSolverMesh<T>::R,"Radial position on stream line")
+    .def_readonly("BT", &BladeToBladeCurvatureSolverMesh<T>::BT,"Relative speed flow angle")
+    ;
+
+    py::class_< BladeToBladeCurvatureSolver<T>, std::shared_ptr<BladeToBladeCurvatureSolver<T>> >(m, "BladeToBladeCurvatureSolver")
+    .def(py::init<>())
+    .def(
+        py::init<
+            const gbs::points_vector<T,2> &,
+            size_t,
+            const std::shared_ptr<gbs::Curve<T, 2>> &,
+            size_t,
+            size_t,
+            size_t
+        >(),
+        py::arg("points"),
+        py::arg("n_computation_planes"),
+        py::arg("stream_line"),
+        py::arg("n_blades"),
+        py::arg("j_le"),
+        py::arg("j_te")
+    )
+    .def_property(
+        "periodicity",
+        &BladeToBladeCurvatureSolver<T>::periodicity,
+        &BladeToBladeCurvatureSolver<T>::setPeriodicity
+    )
+    .def_property(
+        "full_passage_mass_flow",
+        &BladeToBladeCurvatureSolver<T>::fullBladePassageMassFlow,
+        &BladeToBladeCurvatureSolver<T>::setFullBladePassageMassFlow
+    )
+    .def_property(
+        "rotation_speed",
+        &BladeToBladeCurvatureSolver<T>::rotationSpeed,
+        &BladeToBladeCurvatureSolver<T>::setRotationSpeed
+    )
+    // .def_property(
+    //     "jLe",
+    //     &BladeToBladeCurvatureSolver<T>::leadingEdgeIndex,
+    //     &BladeToBladeCurvatureSolver<T>::setLeadingEdgeIndex
+    // )
+    // .def_property(
+    //     "jTe",
+    //     &BladeToBladeCurvatureSolver<T>::trailingEdgeIndex,
+    //     &BladeToBladeCurvatureSolver<T>::setTrailingEdgeIndex
+    // )
+    .def_property(
+        "fix_upstream_flow_periodicity",
+        &BladeToBladeCurvatureSolver<T>::fixUpStreamFlowPeriodicity,
+        &BladeToBladeCurvatureSolver<T>::setFixUpStreamFlowPeriodicity
+    )
+    .def_property(
+        "fix_downstream_flow_periodicity",
+        &BladeToBladeCurvatureSolver<T>::fixDownStreamFlowPeriodicity,
+        &BladeToBladeCurvatureSolver<T>::setFixDownStreamFlowPeriodicity
+    )
+    .def_property_readonly(
+        "jLe", &BladeToBladeCurvatureSolver<T>::leadingEdgeIndex )
+    .def_property_readonly(
+        "jTe", &BladeToBladeCurvatureSolver<T>::trailingEdgeIndex )
+    .def_property_readonly(
+        "dimensions",&BladeToBladeCurvatureSolver<T>::dimensions
+    )
+    .def_property_readonly(
+        "mesh",&BladeToBladeCurvatureSolver<T>::mesh
+    )
+    .def_property_readonly(
+        "data",&BladeToBladeCurvatureSolver<T>::data
+    )
+    .def("setPtIn",&BladeToBladeCurvatureSolver<T>::setPtIn)
+    .def("setTtIn",&BladeToBladeCurvatureSolver<T>::setTtIn)
+    .def(
+        "computeW", 
+        py::overload_cast<>(&BladeToBladeCurvatureSolver<T>::computeW)
+    )
+    ;
+
+    m.def(
+        "plot",
+        py::overload_cast<
+            const BladeToBladeCurvatureSolverMesh<T> &,
+            const vector<T> &,
+            const char *,
+            bool,
+            bool,
+            T
+        > ( &plot<T> ),
+        "Plot Blade to blade flow",
+        py::arg("msh"),
+        py::arg("value"),
+        py::arg("name"),
+        py::arg("edges_on")=true,
+        py::arg("contour_on")=true,
+        py::arg("scale")=1.
+    );
+
+    m.def(
+        "getPsSide1",&getPsSide1<T>,
+        "Get static pressure on blade side 1",
+        py::arg("solver")
+    );
+
+    m.def(
+        "getPsSide2",&getPsSide2<T>,
+        "Get static pressure on blade side 2",
+        py::arg("solver")
+    );
+
+    m.def(
+        "getValuesSide1",&getValuesSide1<T>,
+        "Get values on blade side 1",
+        py::arg("solver"),
+        py::arg("val")
+    );
+
+    m.def(
+        "getValuesSide2",&getValuesSide2<T>,
+        "Get values on blade side 2",
+        py::arg("solver"),
+        py::arg("val")
+    );
+
+    m.def(
+        "getXYZSide1",&getXYZSide1<T>,
+        "Get blade side 1 cut 3d coordinates",
+        py::arg("solver")
+    );
+
+    m.def(
+        "getXYZSide2",&getXYZSide2<T>,
+        "Get blade side 2 cut 3d coordinates",
+        py::arg("solver")
+    );
 }
+
