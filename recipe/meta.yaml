@@ -24,18 +24,18 @@ requirements:
     # - {{ cdt('mesa-libgl-devel') }}     # [linux]
     # - {{ cdt('libxi-devel') }}          # [linux]
     # - python {{ python }}
-    - python=3.9
+    - python {{ python }}
     - python-devtools
     - pybind11
     - xtl
     - xtensor
     - xsimd
-    - gbs >=0.1.9
+    - gbs >=0.2.0
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
   run:
-    # - python {{ python }}
+    - python {{ python }}
     # - pytest
-    - python=3.9
+    # - python=3.9
     - gbs
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
 about:
