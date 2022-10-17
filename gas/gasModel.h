@@ -1,3 +1,6 @@
+#pragma once
+
+
 namespace yams
 {
     template <typename T>
