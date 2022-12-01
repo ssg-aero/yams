@@ -162,6 +162,7 @@ namespace yams
         size_t leadingEdgeIndex() const {return jLe;}
         size_t trailingEdgeIndex() const {return jTe;}
         const auto & meridionalStreamLine() const {return *stream_line;}
+        T compressibilityRelTol() const {return compressibility_rel_tol;}
         bool fixUpStreamFlowPeriodicity() {return fix_stag_le;}
         bool fixDownStreamFlowPeriodicity() {return fix_stag_te;}
         // setters
@@ -180,6 +181,7 @@ namespace yams
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
         void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
         void setFixDownStreamFlowPeriodicity(bool tog) { fix_stag_te = tog;}
+        void setCompressibilityRelTol( T tol ) {compressibility_rel_tol=tol;}
 
         void computeMeshData();
         void computeW();

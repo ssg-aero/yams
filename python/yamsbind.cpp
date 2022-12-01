@@ -430,6 +430,11 @@ PYBIND11_MODULE(yams, m)
         py::arg("j_te")
     )
     .def_property(
+        "compressibility_rel_tol",
+        &BladeToBladeCurvatureSolver<T>::compressibilityRelTol,
+        &BladeToBladeCurvatureSolver<T>::setCompressibilityRelTol
+    )
+    .def_property(
         "periodicity",
         &BladeToBladeCurvatureSolver<T>::periodicity,
         &BladeToBladeCurvatureSolver<T>::setPeriodicity
