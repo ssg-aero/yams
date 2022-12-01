@@ -1,5 +1,7 @@
 #pragma once
 #include <gbs/curves>
+#include <gbs/bscapprox.h>
+#include <gbs/bscanalysis.h>
 #include <matrix/tridiagonal.h>
 
 namespace yams
@@ -120,6 +122,7 @@ namespace yams
         vector<size_t> computational_planes_offsets;
         vector<size_t> stream_lines_indices;
         std::shared_ptr<gbs::Curve<T, 2>> stream_line;
+        gbs::BSCfunction<T> abs_cur;
         // Stage info
         size_t z_;
         T Mf;
@@ -140,6 +143,7 @@ namespace yams
         T eps_newton = 1e-3;
         T tol_rel_mf = 1e-3;
         size_t max_iter_newton{100};
+        T RF{0.05};
         //**************
         void f_grad(vector<T> &G, const vector<T> &Y, const vector<T> &X);
         
@@ -150,6 +154,7 @@ namespace yams
         void computeW(size_t id_start, T Wi);
         T evalMassFlow(size_t id_start);
         void fixFlowPeriodicity(const vector<size_t> &j_stations);
+        void balanceMassFlow(size_t id_start);
 
     public:
         // getters
@@ -163,6 +168,7 @@ namespace yams
         size_t trailingEdgeIndex() const {return jTe;}
         const auto & meridionalStreamLine() const {return *stream_line;}
         T compressibilityRelTol() const {return compressibility_rel_tol;}
+        T relaxFactor() const {return RF;}
         bool fixUpStreamFlowPeriodicity() {return fix_stag_le;}
         bool fixDownStreamFlowPeriodicity() {return fix_stag_te;}
         // setters
@@ -182,6 +188,7 @@ namespace yams
         void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
         void setFixDownStreamFlowPeriodicity(bool tog) { fix_stag_te = tog;}
         void setCompressibilityRelTol( T tol ) {compressibility_rel_tol=tol;}
+        void setRelaxFactor(T r) {RF = r;}
 
         void computeMeshData();
         void computeW();
@@ -222,6 +229,7 @@ namespace yams
         std::fill(dat.PT.begin(), dat.PT.end(), 1e5);
         std::fill(dat.H.begin(), dat.H.end(), 288.15 * 1004);
 
+        abs_cur = gbs::abs_curv(*stream_line);
 
         auto [u1, u2] = stream_line->bounds();
         // #pragma omp parallel for
@@ -270,6 +278,17 @@ namespace yams
     template <typename T>
     void BladeToBladeCurvatureSolver<T>::computeMeshData()
     {
+        auto [u1, u2] = stream_line->bounds();
+        // #pragma omp parallel for
+        auto n = ni * nj;
+        for (int i{}; i <n; i++)
+        {
+            auto u = abs_cur(msh.M[i]);
+            auto [z, r] = stream_line->value(u);
+            msh.U[i] = u;
+            msh.R[i] = r;
+            msh.Z[i] = z;
+        }
         // compute beta
         f_grad(msh.G1, msh.TH, msh.M);
         transform(
@@ -360,8 +379,13 @@ namespace yams
             int jOffset2 = jOffset + ni;
             for (int id{jOffset}; id < jOffset2; id++)
             {
-                auto DH = dat.U[id - ni] * dat.Vu[id - ni] - dat.U[id] * dat.Vu[id];
-                dat.H[id] = dat.H[id - ni] + DH;
+                T DH = 0;
+                // if(j > jLe && j <= jTe)
+                // if(j > jLe )
+                {
+                    DH = dat.U[id - ni] * dat.Vu[id - ni] - dat.U[id] * dat.Vu[id];
+                }
+                dat.H[id] = dat.H[id - ni] - DH;
                 dat.TT[id] = dat.TT[id - ni] - DH / Cp;
                 dat.PT[id] = dat.PT[id - ni] * std::pow(dat.TT[id] / dat.TT[id - ni], ga_); // when applying losses use leading edge
             }
@@ -482,8 +506,18 @@ namespace yams
                     j_stations_te.push_back(j);
                 fixFlowPeriodicity(j_stations_te);
             }
-            if(fix_stag_le || fix_stag_te )
-                computeMeshData();
+            // if(fix_stag_le || fix_stag_te )
+            //     computeMeshData();
+
+            std::for_each(
+                // std::execution::par,
+                std::next(computational_planes_offsets.begin()),
+                computational_planes_offsets.end(),
+                [this](auto id_start){
+                    this->balanceMassFlow(id_start);
+                }
+            );
+            computeMeshData();
         }
     }
 
@@ -766,6 +800,52 @@ namespace yams
             applyDeltaStagnationLineUpStream(d);
 
 
+    }
+
+    template <typename T>
+    void BladeToBladeCurvatureSolver<T>::balanceMassFlow(size_t id_start)
+    {
+ 
+        auto Q_start = std::next(dat.Q.begin(), id_start);
+        auto Q_end   = std::next(dat.Q.begin(), id_start + ni-1);
+
+        // Fix end value for search
+        *(Q_end) = dat.Q[ni-1];
+
+        std::vector<T> new_M(ni), new_TH(ni);
+
+        for(size_t i{1}; i < ni-1; i++)
+        {
+            auto Q = dat.Q[i];
+            auto it = std::lower_bound(
+                Q_start,
+                Q_end,
+                Q
+            );
+
+            auto i1 = std::distance(Q_start,it)-1;
+            auto i2 = std::min<size_t>(i1+1, ni-1);
+            // if(i1==i2) // 
+            // {
+            //     i1--;
+            // }
+
+            gbs::point<T,2> pt1{msh.M[i1+id_start], msh.TH[i1+id_start]};
+            gbs::point<T,2> pt2{msh.M[i2+id_start], msh.TH[i2+id_start]};
+            auto Q1 = dat.Q[i1+id_start];
+            auto Q2 = dat.Q[i2+id_start];
+            new_M[i] = pt1[0] + (Q-Q1)/(Q2-Q1)*(pt2[0]-pt1[0]);
+            new_TH[i]= pt1[1] + (Q-Q1)/(Q2-Q1)*(pt2[1]-pt1[1]);
+
+        }
+
+        for(size_t i{1}; i < ni-1; i++)
+        {
+            auto dm = RF*( new_M[i] - msh.M[i+id_start] );
+            auto dth = RF*( new_TH[i]-msh.TH[i+id_start] );
+            msh.M[i+id_start]  = msh.M[i+id_start] + dm ;
+            msh.TH[i+id_start] = msh.TH[i+id_start]+ dth;
+        }
     }
 
 }
