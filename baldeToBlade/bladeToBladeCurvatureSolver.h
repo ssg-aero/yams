@@ -536,7 +536,7 @@ namespace yams
 
         auto id_end = id_start + ni - 1;
         dat.W[id_start + i0] = Wi;
-//*************** unsuccessful aggressive vectorization *****************//
+//*************** successful aggressive vectorization *****************//
         // const auto &W   = dat.W;
         // const auto &CB  = msh.CB;
         // const auto &SB  = msh.SB;
@@ -671,7 +671,7 @@ namespace yams
         }
         // j_end = -1;
         // for(auto j{j_end}; j >j_end; j--)
-        for(auto j{j_end}; --j>0; )
+        for(auto j{j_end}; j-- > 0; )
         {
             for(size_t i{}; i < ni; i++)
             {
