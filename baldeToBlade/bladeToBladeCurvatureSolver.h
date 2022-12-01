@@ -383,10 +383,10 @@ namespace yams
                 // if(j > jLe && j <= jTe)
                 // if(j > jLe )
                 {
-                    DH = dat.U[id - ni] * dat.Vu[id - ni] - dat.U[id] * dat.Vu[id];
+                    DH = dat.U[id] * dat.Vu[id] - dat.U[id - ni] * dat.Vu[id - ni];
                 }
-                dat.H[id] = dat.H[id - ni] - DH;
-                dat.TT[id] = dat.TT[id - ni] - DH / Cp;
+                dat.H[id] = dat.H[id - ni] + DH;
+                dat.TT[id] = dat.TT[id - ni] + DH / Cp;
                 dat.PT[id] = dat.PT[id - ni] * std::pow(dat.TT[id] / dat.TT[id - ni], ga_); // when applying losses use leading edge
             }
         }
