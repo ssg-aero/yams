@@ -3,6 +3,7 @@
 #include <gbs/bscapprox.h>
 #include <gbs/bscanalysis.h>
 #include <matrix/tridiagonal.h>
+#include <numbers>
 
 namespace yams
 {
@@ -135,15 +136,22 @@ namespace yams
         bool fix_stag_le{true};
         bool fix_stag_te{true};
         // Blockage
-        size_t max_compressibility_iterations{100};
-        T compressibility_rel_tol{1e-2};
+        size_t max_compressibility_iterations{2000};
         T blockage_mass_flow_reduction_factor{0.999};
         vector<T> compressibility_residual;
+        vector<T> compressibility_residual_avg;
+        std::vector<T> residual_per_le_max;
+        std::vector<T> residual_per_te_max;
+        std::vector<T> residual_geom_max;
         // W newton solve on computation plane
         T eps_newton = 1e-3;
-        T tol_rel_mf = 1e-3;
+        T tol_rel_mf = 1e-4;
+        T tol_th     = 1e-3;
+        T tol_rho    = 1e-3;
         size_t max_iter_newton{100};
         T RF{0.05};
+        T RF_per{0.3};
+        std::vector<T> residual_geom;
         //**************
         void f_grad(vector<T> &G, const vector<T> &Y, const vector<T> &X);
         
@@ -153,7 +161,7 @@ namespace yams
         void computeW(size_t id_start);
         void computeW(size_t id_start, T Wi);
         T evalMassFlow(size_t id_start);
-        void fixFlowPeriodicity(const vector<size_t> &j_stations);
+        auto fixFlowPeriodicity(const vector<size_t> &j_stations);
         void balanceMassFlow(size_t id_start);
 
     public:
@@ -167,10 +175,18 @@ namespace yams
         size_t leadingEdgeIndex() const {return jLe;}
         size_t trailingEdgeIndex() const {return jTe;}
         const auto & meridionalStreamLine() const {return *stream_line;}
-        T compressibilityRelTol() const {return compressibility_rel_tol;}
-        T relaxFactor() const {return RF;}
-        bool fixUpStreamFlowPeriodicity() {return fix_stag_le;}
-        bool fixDownStreamFlowPeriodicity() {return fix_stag_te;}
+        T compressibilityRelTol() const {return tol_rho;}
+        T geomRelTol() const {return tol_th;}
+        T massFlowRelTol() const {return tol_rel_mf;}
+        T relaxFactorGeom() const {return RF;}
+        T relaxFactorPeriodic() const {return RF_per;}
+        bool fixUpStreamFlowPeriodicity() const {return fix_stag_le;}
+        bool fixDownStreamFlowPeriodicity() const {return fix_stag_te;}
+        T maxConvergenceIterations() const {return max_compressibility_iterations;}
+        const auto & compressibilityResidualAverage() const {return compressibility_residual_avg;}
+        const auto & periodicityUpStreamResidual() const {return residual_per_le_max;}
+        const auto & periodicityDownStreamResidual() const {return residual_per_te_max;}
+        const auto & geomResidualMax() const {return residual_geom_max;}
         // setters
         void setFullBladePassageMassFlow(T mf) { Mf = mf / z_; }
         void setPeriodicity(size_t n)
@@ -187,13 +203,17 @@ namespace yams
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
         void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
         void setFixDownStreamFlowPeriodicity(bool tog) { fix_stag_te = tog;}
-        void setCompressibilityRelTol( T tol ) {compressibility_rel_tol=tol;}
-        void setRelaxFactor(T r) {RF = r;}
+        void setMaxConvergenceIterations(T m){max_compressibility_iterations=m;}
+        void setCompressibilityRelTol( T tol ) {tol_rho=tol;}
+        void setGeomRelTol( T tol ) {tol_th=tol;}
+        void setMassFlowRelTol( T tol ) {tol_rel_mf=tol;}
+        void setRelaxFactorGeom(T r) {RF = r;}
+        void setRelaxFactorPeriodic(T r) {RF_per = r;}
 
         void computeMeshData();
         void computeW();
-        void applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH);
-        void applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH);
+        auto applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH);
+        auto applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH);
         
         BladeToBladeCurvatureSolver() = default;
         BladeToBladeCurvatureSolver(
@@ -228,6 +248,8 @@ namespace yams
         std::fill(dat.TT.begin(), dat.TT.end(), 288.15);
         std::fill(dat.PT.begin(), dat.PT.end(), 1e5);
         std::fill(dat.H.begin(), dat.H.end(), 288.15 * 1004);
+
+        residual_geom = std::vector(nj, 0.);
 
         abs_cur = gbs::abs_curv(*stream_line);
 
@@ -439,8 +461,17 @@ namespace yams
     {
         auto Mf_min = Mf*0.3;
         auto d_Mf   = Mf*0.01;
-        // for (int i{}; i < 1; i++)
-        for (int i{}; i < max_compressibility_iterations; i++)
+        T residual_per_le{1}, residual_per_te{1}, residual_rho{1}, residual_geom_{1};
+        for (
+            int i{}; 
+            i < max_compressibility_iterations && (
+                residual_rho > tol_rho ||
+                residual_per_le>tol_th ||
+                residual_per_te>tol_th ||
+                residual_geom_  >tol_th
+            );
+            i++
+            )
         {
             // Compute W profile on each plane
             std::for_each(
@@ -463,12 +494,13 @@ namespace yams
                 compressibility_residual.begin(),
                 [](auto rho_prev, auto rho)
                 { return std::abs((rho_prev - rho) / rho); });
-            auto residual = std::reduce(
+            residual_rho = std::reduce(
                                 std::execution::par, compressibility_residual.begin(), compressibility_residual.end()) /
                             compressibility_residual.size();
-            // std::cout << residual << std::endl;
+            // std::cout << residual_rho << std::endl;
+            compressibility_residual_avg.push_back( residual_rho );
 
-            if (std::isnan(residual) && Mf >= Mf_min )
+            if (std::isnan(residual_rho) && Mf >= Mf_min )
             {
                 // break;
                 i = 0;
@@ -485,38 +517,47 @@ namespace yams
                 Mf -= d_Mf;
                 std::cout << Mf * z_ << std::endl;
             }
-            else
-            {
-                if ((residual < compressibility_rel_tol || std::isnan(residual)) && i !=0 )
-                    break;
-            }
 
             // Fix periodicity
+
             if(fix_stag_le)
             {
                 vector<size_t> j_stations_le;
                 for (auto j{jLe}; --j > 0;)
                     j_stations_le.push_back(j);
-                fixFlowPeriodicity(j_stations_le);
+                residual_per_le = fixFlowPeriodicity(j_stations_le);
+                residual_per_le_max.push_back(residual_per_le);
+            }
+            else{
+                residual_per_le = 0;
             }
             if(fix_stag_te)
             {
                 vector<size_t> j_stations_te;
                 for (auto j{jTe + 1}; j < nj - 1; j++)
                     j_stations_te.push_back(j);
-                fixFlowPeriodicity(j_stations_te);
+                residual_per_te = fixFlowPeriodicity(j_stations_te);
+                residual_per_te_max.push_back(residual_per_te);
             }
-            // if(fix_stag_le || fix_stag_te )
-            //     computeMeshData();
+            else{
+                residual_per_te = 0;
+            }
+
+            // std::cout << "residual_per_le: " << residual_per_te << " residual_per_te: " << residual_per_te << std::endl;
 
             std::for_each(
-                // std::execution::par,
+                std::execution::par,
                 std::next(computational_planes_offsets.begin()),
                 computational_planes_offsets.end(),
                 [this](auto id_start){
                     this->balanceMassFlow(id_start);
                 }
             );
+            // residual_geom_ = *std::max_element(residual_geom.begin(), residual_geom.end());
+            residual_geom_ =  std::reduce(residual_geom.begin(), residual_geom.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / residual_geom.size();
+            residual_geom_max.push_back( residual_geom_ );
+            // std::cout << "residual_geom: " << *std::max_element(residual_geom.begin(), residual_geom.end()) << std::endl;
+            
             computeMeshData();
         }
     }
@@ -668,7 +709,7 @@ namespace yams
     }
 
     template<typename T>
-    void BladeToBladeCurvatureSolver<T>::applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH)
+    auto BladeToBladeCurvatureSolver<T>::applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH)
     {
         auto j_end = std::min(DELTA_TH.size()+jTe, nj-1);
         auto delta_th{DELTA_TH.front()};
@@ -677,21 +718,24 @@ namespace yams
             delta_th = DELTA_TH[j-jTe-1];
             for(size_t i{}; i < ni; i++)
             {
-                msh.TH[i+ni*j] +=  delta_th;
+                msh.TH[i+ni*j] +=  delta_th*RF_per;
             }
         }
         for(auto j{j_end}; j < nj; j++)
         {
             for(size_t i{}; i < ni; i++)
             {
-                msh.TH[i+ni*j] +=  delta_th;
+                msh.TH[i+ni*j] +=  delta_th*RF_per;
             }
         }
-        computeMeshData();
+
+        // return std::abs(*std::max_element(DELTA_TH.begin(), DELTA_TH.end(),[](auto a, auto b) { return std::abs(a) < std::abs(b);}));
+        return std::reduce(DELTA_TH.begin(), DELTA_TH.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / DELTA_TH.size() / ( 2 * std::numbers::pi_v<T> / z_);
+
     }
 
     template<typename T>
-    void BladeToBladeCurvatureSolver<T>::applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH)
+    auto BladeToBladeCurvatureSolver<T>::applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH)
     {
         auto j_end = std::max<size_t>(jLe - DELTA_TH.size(), 1);
         auto delta_th{DELTA_TH.front()};
@@ -700,23 +744,25 @@ namespace yams
             delta_th = DELTA_TH[jLe-1-j];
             for(size_t i{}; i < ni; i++)
             {
-                msh.TH[i+ni*j] +=  delta_th;
+                msh.TH[i+ni*j] +=  delta_th*RF_per;
             }
         }
-        // j_end = -1;
-        // for(auto j{j_end}; j >j_end; j--)
+
         for(auto j{j_end}; j-- > 0; )
         {
             for(size_t i{}; i < ni; i++)
             {
-                msh.TH[i+ni*j] +=  delta_th;
+                msh.TH[i+ni*j] +=  delta_th*RF_per;
             }
         }
-        computeMeshData();
+
+        // return std::abs(*std::max_element(DELTA_TH.begin(), DELTA_TH.end(),[](auto a, auto b) { return std::abs(a) < std::abs(b);}));
+        return std::reduce(DELTA_TH.begin(), DELTA_TH.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / DELTA_TH.size() / ( 2 * std::numbers::pi_v<T> / z_);
+
     }
 
     template <typename T>
-    void BladeToBladeCurvatureSolver<T>::fixFlowPeriodicity(const vector<size_t> &j_stations)
+    auto BladeToBladeCurvatureSolver<T>::fixFlowPeriodicity(const vector<size_t> &j_stations)
     {
 
         size_t i_mid = (ni - 1) / 2 + 1;
@@ -795,11 +841,11 @@ namespace yams
         thomas_algorithm(a, b, c, d);
 
         if (j_stations.back() > j_stations.front())
-            applyDeltaStagnationLineDownStream(d);
+            return applyDeltaStagnationLineDownStream(d);
         else if (j_stations.front() > j_stations.back())
-            applyDeltaStagnationLineUpStream(d);
+            return applyDeltaStagnationLineUpStream(d);
 
-
+        return T{};
     }
 
     template <typename T>
@@ -813,6 +859,7 @@ namespace yams
         *(Q_end) = dat.Q[ni-1];
 
         std::vector<T> new_M(ni), new_TH(ni);
+        T residual{}, residual_avg{};
 
         for(size_t i{1}; i < ni-1; i++)
         {
@@ -841,11 +888,18 @@ namespace yams
 
         for(size_t i{1}; i < ni-1; i++)
         {
-            auto dm = RF*( new_M[i] - msh.M[i+id_start] );
-            auto dth = RF*( new_TH[i]-msh.TH[i+id_start] );
-            msh.M[i+id_start]  = msh.M[i+id_start] + dm ;
-            msh.TH[i+id_start] = msh.TH[i+id_start]+ dth;
+            auto dm = new_M[i] - msh.M[i+id_start] ;
+            auto dth= new_TH[i]-msh.TH[i+id_start] ;
+            // residual = std::max<T>(residual, std::sqrt(dm*dm + dth*dth));
+            // residual = std::max<T>(residual, std::abs(dth));
+            // auto r = std::sqrt(dm*dm + dth*dth);
+            auto r = std::abs(dth);
+            residual = std::max<T>(residual, r);
+            residual_avg += r;
+            msh.M[i+id_start]  = msh.M[i+id_start] + RF*dm ;
+            msh.TH[i+id_start] = msh.TH[i+id_start]+ RF*dth;
         }
+        residual_geom[id_start/ni] = residual_avg / ( ni - 2) / ( 2 * std::numbers::pi_v<T> / z_) ;
     }
 
 }

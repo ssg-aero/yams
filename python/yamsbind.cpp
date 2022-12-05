@@ -435,9 +435,24 @@ PYBIND11_MODULE(yams, m)
         &BladeToBladeCurvatureSolver<T>::setCompressibilityRelTol
     )
     .def_property(
-        "relax_factor",
-        &BladeToBladeCurvatureSolver<T>::relaxFactor,
-        &BladeToBladeCurvatureSolver<T>::setRelaxFactor
+        "geom_rel_tol",
+        &BladeToBladeCurvatureSolver<T>::geomRelTol,
+        &BladeToBladeCurvatureSolver<T>::setGeomRelTol
+    )
+    .def_property(
+        "mass_flow_rel_tol",
+        &BladeToBladeCurvatureSolver<T>::massFlowRelTol,
+        &BladeToBladeCurvatureSolver<T>::setMassFlowRelTol
+    )
+    .def_property(
+        "relax_factor_geom",
+        &BladeToBladeCurvatureSolver<T>::relaxFactorGeom,
+        &BladeToBladeCurvatureSolver<T>::setRelaxFactorGeom
+    )
+    .def_property(
+        "relax_factor_per",
+        &BladeToBladeCurvatureSolver<T>::relaxFactorPeriodic,
+        &BladeToBladeCurvatureSolver<T>::setRelaxFactorPeriodic
     )
     .def_property(
         "periodicity",
@@ -474,6 +489,11 @@ PYBIND11_MODULE(yams, m)
         &BladeToBladeCurvatureSolver<T>::fixDownStreamFlowPeriodicity,
         &BladeToBladeCurvatureSolver<T>::setFixDownStreamFlowPeriodicity
     )
+    .def_property(
+        "max_convergence_iterations",
+        &BladeToBladeCurvatureSolver<T>::maxConvergenceIterations,
+        &BladeToBladeCurvatureSolver<T>::setMaxConvergenceIterations
+    )
     .def_property_readonly(
         "jLe", &BladeToBladeCurvatureSolver<T>::leadingEdgeIndex )
     .def_property_readonly(
@@ -486,6 +506,18 @@ PYBIND11_MODULE(yams, m)
     )
     .def_property_readonly(
         "data",&BladeToBladeCurvatureSolver<T>::data
+    )
+    .def_property_readonly(
+        "compressibilityResidual",&BladeToBladeCurvatureSolver<T>::compressibilityResidualAverage
+    )
+    .def_property_readonly(
+        "periodicityUpStreamResidual",&BladeToBladeCurvatureSolver<T>::periodicityUpStreamResidual
+    )
+    .def_property_readonly(
+        "periodicityDownStreamResidual",&BladeToBladeCurvatureSolver<T>::periodicityDownStreamResidual
+    )
+    .def_property_readonly(
+        "geomResidualMax",&BladeToBladeCurvatureSolver<T>::geomResidualMax
     )
     .def("setPtIn",&BladeToBladeCurvatureSolver<T>::setPtIn)
     .def("setTtIn",&BladeToBladeCurvatureSolver<T>::setTtIn)
