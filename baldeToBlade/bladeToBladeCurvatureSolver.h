@@ -570,7 +570,7 @@ namespace yams
         vector<T> q(ni);
         for (size_t id{id_start}; id <= id_end; id++)
         {
-            q[id - id_start] = dat.R[id] * dat.W[id] * msh.CB[id] * msh.CP[id] * msh.TAU[id];
+            q[id - id_start] = dat.R[id] * dat.W[id] * msh.CB[id] * msh.CP[id] * msh.TAU[id] * msh.R[id];
         }
         
         for (size_t i{1}; i < ni; i++)
