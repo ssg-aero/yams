@@ -517,48 +517,50 @@ namespace yams
                 Mf -= d_Mf;
                 std::cout << Mf * z_ << std::endl;
             }
-
-            // Fix periodicity
-
-            if(fix_stag_le)
-            {
-                vector<size_t> j_stations_le;
-                for (auto j{jLe}; --j > 0;)
-                    j_stations_le.push_back(j);
-                residual_per_le = fixFlowPeriodicity(j_stations_le);
-                residual_per_le_max.push_back(residual_per_le);
-            }
             else{
-                residual_per_le = 0;
-            }
-            if(fix_stag_te)
-            {
-                vector<size_t> j_stations_te;
-                for (auto j{jTe + 1}; j < nj - 1; j++)
-                    j_stations_te.push_back(j);
-                residual_per_te = fixFlowPeriodicity(j_stations_te);
-                residual_per_te_max.push_back(residual_per_te);
-            }
-            else{
-                residual_per_te = 0;
-            }
 
-            // std::cout << "residual_per_le: " << residual_per_te << " residual_per_te: " << residual_per_te << std::endl;
+                // Fix periodicity
 
-            std::for_each(
-                std::execution::par,
-                std::next(computational_planes_offsets.begin()),
-                computational_planes_offsets.end(),
-                [this](auto id_start){
-                    this->balanceMassFlow(id_start);
+                if(fix_stag_le)
+                {
+                    vector<size_t> j_stations_le;
+                    for (auto j{jLe}; --j > 0;)
+                        j_stations_le.push_back(j);
+                    residual_per_le = fixFlowPeriodicity(j_stations_le);
+                    residual_per_le_max.push_back(residual_per_le);
                 }
-            );
-            // residual_geom_ = *std::max_element(residual_geom.begin(), residual_geom.end());
-            residual_geom_ =  std::reduce(residual_geom.begin(), residual_geom.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / residual_geom.size();
-            residual_geom_max.push_back( residual_geom_ );
-            // std::cout << "residual_geom: " << *std::max_element(residual_geom.begin(), residual_geom.end()) << std::endl;
-            
-            computeMeshData();
+                else{
+                    residual_per_le = 0;
+                }
+                if(fix_stag_te)
+                {
+                    vector<size_t> j_stations_te;
+                    for (auto j{jTe + 1}; j < nj - 1; j++)
+                        j_stations_te.push_back(j);
+                    residual_per_te = fixFlowPeriodicity(j_stations_te);
+                    residual_per_te_max.push_back(residual_per_te);
+                }
+                else{
+                    residual_per_te = 0;
+                }
+
+                // std::cout << "residual_per_le: " << residual_per_te << " residual_per_te: " << residual_per_te << std::endl;
+
+                std::for_each(
+                    std::execution::par,
+                    std::next(computational_planes_offsets.begin()),
+                    computational_planes_offsets.end(),
+                    [this](auto id_start){
+                        this->balanceMassFlow(id_start);
+                    }
+                );
+                // residual_geom_ = *std::max_element(residual_geom.begin(), residual_geom.end());
+                residual_geom_ =  std::reduce(residual_geom.begin(), residual_geom.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / residual_geom.size();
+                residual_geom_max.push_back( residual_geom_ );
+                // std::cout << "residual_geom: " << *std::max_element(residual_geom.begin(), residual_geom.end()) << std::endl;
+                
+                computeMeshData();
+            }
         }
     }
 
