@@ -75,11 +75,11 @@ namespace yams
         vector<T> R;
         vector<T> Z;
         vector<T> TAU; // delta r, stream sheet thickness
-        vector<T> BT;  // beta = atan()
+        vector<T> BT;  // beta = atan(Wu,Vm)
         vector<T> RTB; // r * tan( beta )
         vector<T> CB;  // Cos( beta )
         vector<T> SB;  // Sin( beta )
-        vector<T> PH;  // Phi d_r / d_z
+        vector<T> PH;  // atan( d_r / d_z )
         vector<T> SP;  // Sin( phi )
         vector<T> CP;  // Cos( phi )
         vector<T> G1;  // d_th / d_m
@@ -217,7 +217,18 @@ namespace yams
         void computeW();
         auto applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH);
         auto applyDeltaStagnationLineUpStream(const vector<T> &DELTA_TH);
-        
+        void setDr(const std::vector<T> &dr)
+        {
+            for (size_t j{}; j < nj; j++)
+            {
+                auto tau = dr[j];
+                for (size_t i{}; i < ni; i++)
+                {
+                    msh.TAU[i + ni * j] = tau;
+                }
+            }
+        }
+
         BladeToBladeCurvatureSolver() = default;
         BladeToBladeCurvatureSolver(
             const gbs::points_vector<T,2> &pts, size_t n_computation_planes,
@@ -310,7 +321,7 @@ namespace yams
         {
             auto u = abs_cur(msh.M[i]);
             auto [z, r] = stream_line->value(u);
-            msh.U[i] = u;
+            // msh.U[i] = u;
             msh.R[i] = r;
             msh.Z[i] = z;
         }
