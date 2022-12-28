@@ -151,6 +151,7 @@ namespace yams
         size_t max_iter_newton{100};
         T RF{0.05};
         T RF_per{0.3};
+        T RF_rho{0.01};
         std::vector<T> residual_geom;
         //**************
         void f_grad(vector<T> &G, const vector<T> &Y, const vector<T> &X);
@@ -180,6 +181,7 @@ namespace yams
         T massFlowRelTol() const {return tol_rel_mf;}
         T relaxFactorGeom() const {return RF;}
         T relaxFactorPeriodic() const {return RF_per;}
+        T relaxFactorCompressibility() const {return RF_rho;}
         bool fixUpStreamFlowPeriodicity() const {return fix_stag_le;}
         bool fixDownStreamFlowPeriodicity() const {return fix_stag_te;}
         T maxConvergenceIterations() const {return max_compressibility_iterations;}
@@ -209,6 +211,7 @@ namespace yams
         void setMassFlowRelTol( T tol ) {tol_rel_mf=tol;}
         void setRelaxFactorGeom(T r) {RF = r;}
         void setRelaxFactorPeriodic(T r) {RF_per = r;}
+        void setRelaxFactorCompressibility(T r){RF_rho = r;}
 
         void computeMeshData();
         void computeW();
@@ -422,7 +425,8 @@ namespace yams
                 dat.MW[id] = dat.W[id] / std::sqrt(gamma * R * dat.TS[id]);
                 dat.TS[id] = dat.TT[id] - dat.V[id] * dat.V[id] / 2 / Cp;
                 dat.PS[id] = dat.PT[id] * std::pow(dat.TS[id] / dat.TT[id], ga_);
-                dat.R[id] = dat.PS[id] / R / dat.TS[id];
+                auto rho_new = dat.PS[id] / R / dat.TS[id];
+                dat.R[id] = dat.R[id] + RF_rho * (rho_new-dat.R[id]);
                 dat.S[id] = std::log(pow(dat.TS[id] / 288.15, Cp) / std::pow(dat.PS[id] / 1e5, R));
             }
         }

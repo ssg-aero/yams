@@ -455,6 +455,11 @@ PYBIND11_MODULE(yams, m)
         &BladeToBladeCurvatureSolver<T>::setRelaxFactorPeriodic
     )
     .def_property(
+        "relax_factor_compress",
+        &BladeToBladeCurvatureSolver<T>::relaxFactorCompressibility,
+        &BladeToBladeCurvatureSolver<T>::setRelaxFactorCompressibility
+    )
+    .def_property(
         "periodicity",
         &BladeToBladeCurvatureSolver<T>::periodicity,
         &BladeToBladeCurvatureSolver<T>::setPeriodicity
