@@ -13,3 +13,4 @@ __pycache__
 
 *_svs.*
 *_dummy.*
+.vs/*

@@ -406,9 +406,12 @@ PYBIND11_MODULE(yams, m)
     .def_readonly("ni", &BladeToBladeCurvatureSolverMesh<T>::ni,"Stream line number")
     .def_readonly("nj", &BladeToBladeCurvatureSolverMesh<T>::nj,"Computation plane number")
     .def_readonly("M", &BladeToBladeCurvatureSolverMesh<T>::M,"Curvilinear abscissa on stream line")
+    .def_readonly("U", &BladeToBladeCurvatureSolverMesh<T>::U,"Stream line parameter")
     .def_readonly("TH", &BladeToBladeCurvatureSolverMesh<T>::TH,"Tangential coordinate")
+    .def_readonly("PH", &BladeToBladeCurvatureSolverMesh<T>::PH,"Stream slope")
     .def_readonly("R", &BladeToBladeCurvatureSolverMesh<T>::R,"Radial position on stream line")
     .def_readonly("BT", &BladeToBladeCurvatureSolverMesh<T>::BT,"Relative speed flow angle")
+    .def_readonly("TAU", &BladeToBladeCurvatureSolverMesh<T>::TAU,"Stream tube thickness")
     ;
 
     py::class_< BladeToBladeCurvatureSolver<T>, std::shared_ptr<BladeToBladeCurvatureSolver<T>> >(m, "BladeToBladeCurvatureSolver")
@@ -428,6 +431,36 @@ PYBIND11_MODULE(yams, m)
         py::arg("n_blades"),
         py::arg("j_le"),
         py::arg("j_te")
+    )
+    .def_property(
+        "compressibility_rel_tol",
+        &BladeToBladeCurvatureSolver<T>::compressibilityRelTol,
+        &BladeToBladeCurvatureSolver<T>::setCompressibilityRelTol
+    )
+    .def_property(
+        "geom_rel_tol",
+        &BladeToBladeCurvatureSolver<T>::geomRelTol,
+        &BladeToBladeCurvatureSolver<T>::setGeomRelTol
+    )
+    .def_property(
+        "mass_flow_rel_tol",
+        &BladeToBladeCurvatureSolver<T>::massFlowRelTol,
+        &BladeToBladeCurvatureSolver<T>::setMassFlowRelTol
+    )
+    .def_property(
+        "relax_factor_geom",
+        &BladeToBladeCurvatureSolver<T>::relaxFactorGeom,
+        &BladeToBladeCurvatureSolver<T>::setRelaxFactorGeom
+    )
+    .def_property(
+        "relax_factor_per",
+        &BladeToBladeCurvatureSolver<T>::relaxFactorPeriodic,
+        &BladeToBladeCurvatureSolver<T>::setRelaxFactorPeriodic
+    )
+    .def_property(
+        "relax_factor_compress",
+        &BladeToBladeCurvatureSolver<T>::relaxFactorCompressibility,
+        &BladeToBladeCurvatureSolver<T>::setRelaxFactorCompressibility
     )
     .def_property(
         "periodicity",
@@ -464,6 +497,11 @@ PYBIND11_MODULE(yams, m)
         &BladeToBladeCurvatureSolver<T>::fixDownStreamFlowPeriodicity,
         &BladeToBladeCurvatureSolver<T>::setFixDownStreamFlowPeriodicity
     )
+    .def_property(
+        "max_convergence_iterations",
+        &BladeToBladeCurvatureSolver<T>::maxConvergenceIterations,
+        &BladeToBladeCurvatureSolver<T>::setMaxConvergenceIterations
+    )
     .def_property_readonly(
         "jLe", &BladeToBladeCurvatureSolver<T>::leadingEdgeIndex )
     .def_property_readonly(
@@ -477,8 +515,24 @@ PYBIND11_MODULE(yams, m)
     .def_property_readonly(
         "data",&BladeToBladeCurvatureSolver<T>::data
     )
+    .def_property_readonly(
+        "meridionalStreamLine", &BladeToBladeCurvatureSolver<T>::meridionalStreamLine
+    )
+    .def_property_readonly(
+        "compressibilityResidual",&BladeToBladeCurvatureSolver<T>::compressibilityResidualAverage
+    )
+    .def_property_readonly(
+        "periodicityUpStreamResidual",&BladeToBladeCurvatureSolver<T>::periodicityUpStreamResidual
+    )
+    .def_property_readonly(
+        "periodicityDownStreamResidual",&BladeToBladeCurvatureSolver<T>::periodicityDownStreamResidual
+    )
+    .def_property_readonly(
+        "geomResidualMax",&BladeToBladeCurvatureSolver<T>::geomResidualMax
+    )
     .def("setPtIn",&BladeToBladeCurvatureSolver<T>::setPtIn)
     .def("setTtIn",&BladeToBladeCurvatureSolver<T>::setTtIn)
+    .def("setDr",&BladeToBladeCurvatureSolver<T>::setDr)
     .def(
         "computeW", 
         py::overload_cast<>(&BladeToBladeCurvatureSolver<T>::computeW)
