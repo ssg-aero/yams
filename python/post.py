@@ -129,12 +129,9 @@ def grid_plotly_fig(g: yams.MeridionalGrid, value_name:str = 'Vm', width=1500, h
     )
     return fig
 
-def case_plotly_fig(solver_case: yams.SolverCase, value_name:str = 'Vm', width=1500, height=1000, scale = 1.):
-    fig = go.Figure( )
-    g = solver_case.gi.g
-    add_mg_to_plotly_fig(fig, solver_case.gi.g, value_name, scale= scale, rg =solver_case.gi.R)
-    
+def add_mt_to_plotly_fig(fig, solver_case: yams.SolverCase):
     nj = solver_case.gi.nj
+    g = solver_case.gi.g
 
     for bld_info in solver_case.bld_info_lst:
         x_le = []
@@ -156,6 +153,13 @@ def case_plotly_fig(solver_case: yams.SolverCase, value_name:str = 'Vm', width=1
         fig.add_trace(
             go.Scatter(x=x_te, y=y_te, line=dict(color='royalblue', width=4, dash='dash'), mode='lines')
         )
+
+
+def case_plotly_fig(solver_case: yams.SolverCase, value_name:str = 'Vm', width=1500, height=1000, scale = 1.):
+    fig = go.Figure( )
+    add_mg_to_plotly_fig(fig, solver_case.gi.g, value_name, scale= scale, rg =solver_case.gi.R)
+    add_mt_to_plotly_fig(fig, solver_case)
+
 
     fig.update_layout(
         width=width,
