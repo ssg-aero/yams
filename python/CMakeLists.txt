@@ -4,7 +4,7 @@ project(pyams LANGUAGES CXX)
 
 # set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Python3 
+find_package(Python 
     COMPONENTS 
         Interpreter 
         Developement
@@ -48,13 +48,29 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 #         # /Qpar-report:2
 )
 
-install(
-    TARGETS ${PROJECT_NAME} 
-    DESTINATION ${Python3_SITELIB}/${PROJECT_NAME}
-)
+# install(
+#     TARGETS ${PROJECT_NAME} 
+#     DESTINATION ${Python3_SITELIB}/${PROJECT_NAME}
+# )
 
 file(GLOB PY_SRC_LIST "*.py")
 
-install(FILES ${PY_SRC_LIST}
-        DESTINATION ${Python3_SITELIB}/${PROJECT_NAME}
-)
+if($ENV{CONDA_BUILD})
+        install(TARGETS ${PROJECT_NAME} 
+        DESTINATION $ENV{SP_DIR}/${PROJECT_NAME}
+        )
+        install(FILES 
+                        ${PY_SRC_LIST}
+                DESTINATION 
+                        $ENV{SP_DIR}/${PROJECT_NAME}
+                )
+else($ENV{CONDA_BUILD})
+        install(TARGETS ${PROJECT_NAME} 
+                DESTINATION ${Python3_SITELIB}/${PROJECT_NAME}
+        )
+        install(FILES 
+                        ${PY_SRC_LIST}
+                DESTINATION 
+                        ${Python3_SITELIB}/${PROJECT_NAME}
+        )
+endif()

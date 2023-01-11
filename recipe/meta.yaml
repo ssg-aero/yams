@@ -3,8 +3,8 @@ package:
   version:  0.1.2
 
 source:  
-  git_url: https://github.com/ssg-aero/yams.git
-  # path: ../
+  # git_url: https://github.com/ssg-aero/yams.git
+  path: ../
 
 build:
 requirements:
@@ -16,28 +16,25 @@ requirements:
     # - {{ cdt('libxi-devel') }}          # [linux]
     - vs2019_win-64 [win]
     - ninja
-    - cmake 
+    - cmake<=3.20
     - python {{ python }}
-    # - python {{ python }}
   host:
     # - {{ cdt('libx11-devel') }}         # [linux]
     # - {{ cdt('xorg-x11-proto-devel') }} # [linux]
     # - {{ cdt('mesa-libgl-devel') }}     # [linux]
     # - {{ cdt('libxi-devel') }}          # [linux]
-    # - python {{ python }}
     - python {{ python }}
     - python-devtools
     - pybind11
     - xtl
     - xtensor
     - xsimd
-    - gbs >=0.2.0
+    - gbs>=0.2.0
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
   run:
     - python {{ python }}
     # - pytest
-    # - python=3.9
-    - gbs
+    - gbs>=0.2.0
     - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
 about:
   home: http://www.ssg-aero.com

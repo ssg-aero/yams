@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.17.0)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-project(gbs LANGUAGES CXX)
+project(yams LANGUAGES CXX)
 
 #
 # c++ conf
@@ -58,6 +58,13 @@ find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
 find_package(xsimd REQUIRED)
 add_definitions(-DXTENSOR_USE_XSIMD)
+# # Python Dev
+# find_package (
+#     Python3 COMPONENTS 
+#     Interpreter 
+#     # Development
+# )
+# message("Python3_SITELIB:" ${Python3_SITELIB})
 #
 # VTK
 #
