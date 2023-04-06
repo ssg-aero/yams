@@ -180,7 +180,13 @@ def case_plotly_fig(solver_case: yams.SolverCase, value_name:str = 'Vm', width=1
     # )
     return fig
 
-def residuals_plotly_fig(solver_case: yams.SolverCase, width=800, height=600):
+def residuals_plotly_fig(
+    solver_case: yams.SolverCase,
+    width=800,
+    height=600,
+    hovermode='x',
+    **layout_options,
+):
     n =len(solver_case.log.delta_pos_moy)
     x = np.linspace(0, n-1, n)
     fig = go.Figure()
@@ -202,6 +208,8 @@ def residuals_plotly_fig(solver_case: yams.SolverCase, width=800, height=600):
     fig.update_layout(
         width=width,
         height=height,
+        hovermode=hovermode,
+        **layout_options,
     )
     return fig
 
