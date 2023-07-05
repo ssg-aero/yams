@@ -232,6 +232,7 @@ TEST(tests_datastorage, GridStd_perfo)
     }
 }
 
+#ifdef USE_XT
 TEST(tests_datastorage, GridX_perfo)
 {
     size_t ni = 2100;
@@ -255,7 +256,6 @@ TEST(tests_datastorage, GridX_perfo)
         }
     }
 }
-
 TEST(tests_datastorage, convertion)
 {
     MeridionalGridPoint<double> gpd;
@@ -362,3 +362,4 @@ TEST(tests_datastorage, xsimd_perfo)
                   << " took " << ms.count() << " ms\n";
     }
 }
+#endif

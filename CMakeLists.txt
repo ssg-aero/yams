@@ -53,18 +53,18 @@ include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iges/)
 #
 # xtensors
 #
-set(XTENSOR_USE_XSIMD BOOL:ON)
-find_package(xtl REQUIRED)
-find_package(xtensor REQUIRED)
-find_package(xsimd REQUIRED)
-add_definitions(-DXTENSOR_USE_XSIMD)
-# # Python Dev
-# find_package (
-#     Python3 COMPONENTS 
-#     Interpreter 
-#     # Development
-# )
-# message("Python3_SITELIB:" ${Python3_SITELIB})
+# set(XTENSOR_USE_XSIMD BOOL:ON)
+# find_package(xtl REQUIRED)
+# find_package(xtensor REQUIRED)
+# find_package(xsimd REQUIRED)
+# add_definitions(-DXTENSOR_USE_XSIMD)
+# Python Dev
+find_package (
+    Python3 COMPONENTS 
+    Interpreter 
+    # Development
+)
+message("Python3_SITELIB:" ${Python3_SITELIB})
 #
 # VTK
 #

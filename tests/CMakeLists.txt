@@ -18,9 +18,9 @@ foreach(file_name ${SRC_LIST})
         target_link_libraries(${exe_name} 
                             GTest::gtest
                             GTest::gtest_main
-                            xtensor 
-                            xtensor::optimize 
-                            xtensor::use_xsimd
+                            # xtensor 
+                            # xtensor::optimize 
+                            # xtensor::use_xsimd
                             ${VTK_LIBRARIES}
                             NLopt::nlopt
                             gbs-render
