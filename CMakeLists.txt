@@ -115,9 +115,9 @@ target_link_libraries(
     yams 
     NLopt::nlopt
     ${VTK_LIBRARIES}
-    xtensor 
-    xtensor::optimize 
-    xtensor::use_xsimd
+    # xtensor 
+    # xtensor::optimize 
+    # xtensor::use_xsimd
     gbs-render
     iges
     TBB::tbb
