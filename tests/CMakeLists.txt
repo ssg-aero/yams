@@ -75,5 +75,18 @@ foreach(file_name ${SRC_LIST})
                 # /Qpar-report:1
             )
         endif()
+
+        if(exe_name STREQUAL "tests_biflux")
+            target_compile_options(${exe_name} PRIVATE
+                /arch:AVX2 
+                # /O2
+                # /Qpar
+                /openmp
+                /fp:fast
+                # /fp:precise /fp:contract
+                /Qvec-report:2
+                # /Qpar-report:1
+            )
+        endif()
         
 endforeach()
