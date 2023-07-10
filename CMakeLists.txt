@@ -41,6 +41,7 @@ file(TO_CMAKE_PATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} bin_dir)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
 include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/gbs)
+include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/gbs/inc)
 link_directories(${lib_dir})
 link_directories(${bin_dir})
 
