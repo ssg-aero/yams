@@ -84,7 +84,7 @@ foreach(file_name ${SRC_LIST})
                 /openmp
                 /fp:fast
                 # /fp:precise /fp:contract
-                /Qvec-report:2
+                # /Qvec-report:2
                 # /Qpar-report:1
             )
         endif()
