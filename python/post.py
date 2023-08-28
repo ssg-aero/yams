@@ -56,6 +56,8 @@ def add_mg_to_plotly_fig(fig, g: yams.MeridionalGrid, value_name:str = 'Vm', zmi
                     z.append(gp.Vm/sqrt(gp.gam*rg*gp.Ts)*scale)
                 elif value_name == 'Mu':
                     z.append(gp.Vu/sqrt(gp.gam*rg*gp.Ts)*scale)
+                elif value_name == 'V':
+                    z.append(sqrt(gp.Vm*gp.Vm+gp.Vu*gp.Vu)*scale)
                 elif value_name == 'i':
                     z.append(( gp.bet- gp.k)*scale)
                 else:
