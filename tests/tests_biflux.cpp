@@ -209,6 +209,7 @@ struct MeridianData
     auto &Ps(){return vectors[8];}
     auto &V() {return vectors[9];}
     auto &Rho() {return vectors[10];}
+    const auto &Rho() const{return vectors[10];}
     auto &q() {return vectors[11];}
     const auto &q() const{return vectors[11];}
     auto &M() {return vectors[12];}
@@ -313,7 +314,7 @@ public:
     void integrate_Vm(size_t i);
     void compute_gradients();
     void compute_tangential_flow();
-    void compute_fluid_prop();
+    void compute_fluid_prop(T compressibility_relax = 1.);
     T compute_mass_flow(size_t i, T Vmj0);
     void update_streams(size_t i, size_t i0);
     void update_streams(size_t i0);
@@ -322,6 +323,7 @@ public:
     void solve();
     size_t ni, nj;
     size_t j0;
+    T compressibility_relax = 0.3;
     MeridianMesh<T> mesh;
     MeridianData<T> data;
     std::unique_ptr<gasModel<T>> gm;
@@ -435,7 +437,7 @@ void MeridianSolver<T>::compute_tangential_flow()
 }
 
 template<std::floating_point T>
-void MeridianSolver<T>::compute_fluid_prop()
+void MeridianSolver<T>::compute_fluid_prop(T compressibility_relax)
 {
     auto &Tt       = data.Tt();
     auto &Pt       = data.Pt();
@@ -507,7 +509,8 @@ void MeridianSolver<T>::compute_fluid_prop()
         auto rho_= gm->rho(Ts_, Ps_);
         auto res_=std::abs(rho_-Rho[id]);
         compress_residual = std::max(compress_residual, res_);
-        Rho[id] = rho_;
+        // Rho[id] = rho_;
+        Rho[id] = Rho[id] + compressibility_relax*(rho_-Rho[id]);
         M[id]   = M_;
     }
     data.compressibility_residual = compress_residual;
@@ -663,8 +666,8 @@ void MeridianSolver<T>::update_streams(size_t i, size_t i0)
         auto delta_ = delta[j-1];
         // r[id] = r[id] + delta_ * f * (r[id+1] - r[id]);
         // z[id] = z[id] + delta_ * f * (z[id+1] - z[id]);
-        // r[id] = r[id] + delta_ * f * (r[id+1] - r[id]) *0.5;
-        // z[id] = z[id] + delta_ * f * (z[id+1] - z[id])*0.5;
+        // r[id] = r[id] + delta_ * f * (r[id+1] - r[id]) *0.1;
+        // z[id] = z[id] + delta_ * f * (z[id+1] - z[id])*0.1;
         r[id] = r[id] + delta_ * RF * (r[id+1] - r[id]);
         z[id] = z[id] + delta_ * RF * (z[id+1] - z[id]);
     }
@@ -709,7 +712,7 @@ void MeridianSolver<T>::solve()
         {
             solve_Vm();
             compute_tangential_flow();
-            compute_fluid_prop();
+            compute_fluid_prop(compressibility_relax);
             compute_gradients();
             std::cout<< "\tCompressibility_residual: " << data.compressibility_residual << std::endl;
             if(data.compressibility_residual < 1e-5)
@@ -987,35 +990,41 @@ TEST(solver, design_novak)
     // mesh_flux_1.compute_metrics();
     // mesh_flux_2.compute_metrics();
 
-    // MeridianSolver<T> solver_main(pts_main, nj, 120, 30);
-    // MeridianSolver<T> solver_main(pts_flux_2,nj_flux_2, 120, 30);
-    MeridianSolver<T> solver_main(pts_flux_1,nj_flux_1, 30, 0);
+    T Vu_in{0.}, Vm_in{104.0};
+
+    // MeridianSolver<T> solver_main(pts_main, nj, Vm_in, Vu_in);
+    // MeridianSolver<T> solver_main(pts_flux_2,nj_flux_2, Vm_in, Vu_in);
+    MeridianSolver<T> solver_main(pts_flux_1,nj_flux_1, Vm_in, Vu_in);
     solver_main.compute_tangential_flow();
     solver_main.compute_fluid_prop();
     solver_main.compute_gradients();
-    auto mf = solver_main.compute_mass_flow(0,30);
+    auto mf = solver_main.compute_mass_flow(0,Vm_in);
     solver_main.setMassFlow(mf);
     // solver_main.solve_Vm();
     // solver_main.update_streams(0);
+    // solver_main.compressibility_relax = 0.1;
     solver_main.solve();
 
-    auto sgrid = make_vtkStructuredGrid(solver_main.msh().z(), solver_main.msh().r(), solver_main.n_streams());
-    add_value(solver_main.msh().c(), sgrid, "Curvature");
-    add_value(solver_main.msh().g(), sgrid, "Gamma");
-    add_value(solver_main.msh().p(), sgrid, "Phi");
-    add_value(solver_main.msh().m(), sgrid, "m");
-    add_value(solver_main.msh().l(), sgrid, "l");
-    add_value(solver_main.dat().Vm(), sgrid, "Vm");
-    add_value(solver_main.dat().Vu(), sgrid, "Vu");
-    add_value(solver_main.dat().q(), sgrid, "q");
-    yams::plot_vtkStructuredGrid(sgrid, "Vm", true);
+    // auto sgrid = make_vtkStructuredGrid(solver_main.msh().z(), solver_main.msh().r(), solver_main.n_streams());
+    // add_value(solver_main.msh().c(), sgrid, "Curvature");
+    // add_value(solver_main.msh().g(), sgrid, "Gamma");
+    // add_value(solver_main.msh().p(), sgrid, "Phi");
+    // add_value(solver_main.msh().m(), sgrid, "m");
+    // add_value(solver_main.msh().l(), sgrid, "l");
+    // add_value(solver_main.dat().Vm(), sgrid, "Vm");
+    // add_value(solver_main.dat().Vu(), sgrid, "Vu");
+    // add_value(solver_main.dat().M(), sgrid, "M");
+    // add_value(solver_main.dat().q(), sgrid, "q");
+    // add_value(solver_main.dat().Rho(), sgrid, "rho");
+    // // yams::plot_vtkStructuredGrid(sgrid, "rho", true, true);
+    // yams::plot_vtkStructuredGrid(sgrid, "M", true, true);
     
 
-    auto f_name = "novak_design_biflux.vts";
+    // auto f_name = "novak_design_biflux.vts";
 
-    vtkNew<vtkXMLStructuredGridWriter> writer;
-    writer->SetFileName(f_name);
-    writer->SetInputData(sgrid);
-    writer->Write();
+    // vtkNew<vtkXMLStructuredGridWriter> writer;
+    // writer->SetFileName(f_name);
+    // writer->SetInputData(sgrid);
+    // writer->Write();
 
 }
