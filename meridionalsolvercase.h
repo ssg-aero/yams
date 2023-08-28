@@ -100,7 +100,7 @@ namespace yams
         std::vector<T> mf;
         SolverLog<T> log;
         size_t max_geom = 200;
-        T eps = 0.001;
+        T eps = T{1}/std::pow<T>(2,10);
         T tol_rel_mf = 1e-4;
         T tol_rel_pos = 1e-5;
         bool relocate = true;
