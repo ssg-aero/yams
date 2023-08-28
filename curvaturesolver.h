@@ -60,8 +60,9 @@ namespace yams
         auto &g = *gi.g;
         auto &g_metrics= *gi.g_metrics;
         auto Vmi    = g(i, j_beg - j_stp).Vm;
-        auto sqVm_max_q2 = 3 * Vmi * Vmi / 2.;
-        sqVm_max_q2 = sqVm_max_q2 * sqVm_max_q2 /2;
+        // auto sqVm_max_q2 = 3 * Vmi * Vmi / 2.;
+        auto sqVm_max_q2 = 9. * Vmi * Vmi / 2.;
+        // sqVm_max_q2 = sqVm_max_q2 * sqVm_max_q2 /2;
         auto nj = gi.nj;
         auto l = g(i,nj-1);
         auto Fjcap = 0.3*Vmi*Vmi/2;
@@ -79,7 +80,7 @@ namespace yams
             // Fjm = std::max<T>(-Fjcap/dl,std::min<T>(Fjcap/dl,Fjm));
             auto sqVmq2_1 = std::fmin(
                 sqVm_max_q2, 
-                std::fmax(0.1,sqVmq2 + Fjm * dl)
+                std::fmax(1.0,sqVmq2 + Fjm * dl)
             );
             // auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl); 
             // auto sqVmq2_1 = sqVmq2 + Fjm * dl;
@@ -89,7 +90,7 @@ namespace yams
             // Fj = std::max<T>(-Fjcap/dl,std::min<T>(Fjcap/dl,Fj));
             auto sqVmq2_2 = std::fmin( 
                 sqVm_max_q2, 
-                std::fmax(0.1,sqVmq2 + Fj * dl)
+                std::fmax(1.0,sqVmq2 + Fj * dl)
             ); 
             // auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // auto sqVmq2_2 = sqVmq2 + Fj * dl; 
