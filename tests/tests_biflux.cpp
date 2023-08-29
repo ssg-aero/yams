@@ -704,9 +704,9 @@ void MeridianSolver<T>::update_streams(size_t i0)
 template <std::floating_point T>
 void MeridianSolver<T>::solve()
 {
-    size_t nit = 1000;
+    size_t nit_geom = 5;
     size_t nit_compressibility = 20;
-    for (size_t it{}; it < nit; it++)
+    for (size_t it{}; it < nit_geom; it++)
     {
         for (size_t it_sub{}; it_sub < nit_compressibility; it_sub++)
         {
@@ -992,9 +992,9 @@ TEST(solver, design_novak)
 
     T Vu_in{0.}, Vm_in{104.0};
 
-    // MeridianSolver<T> solver_main(pts_main, nj, Vm_in, Vu_in);
+    MeridianSolver<T> solver_main(pts_main, nj, Vm_in, Vu_in);
     // MeridianSolver<T> solver_main(pts_flux_2,nj_flux_2, Vm_in, Vu_in);
-    MeridianSolver<T> solver_main(pts_flux_1,nj_flux_1, Vm_in, Vu_in);
+    // MeridianSolver<T> solver_main(pts_flux_1,nj_flux_1, Vm_in, Vu_in);
     solver_main.compute_tangential_flow();
     solver_main.compute_fluid_prop();
     solver_main.compute_gradients();
@@ -1005,26 +1005,26 @@ TEST(solver, design_novak)
     // solver_main.compressibility_relax = 0.1;
     solver_main.solve();
 
-    // auto sgrid = make_vtkStructuredGrid(solver_main.msh().z(), solver_main.msh().r(), solver_main.n_streams());
-    // add_value(solver_main.msh().c(), sgrid, "Curvature");
-    // add_value(solver_main.msh().g(), sgrid, "Gamma");
-    // add_value(solver_main.msh().p(), sgrid, "Phi");
-    // add_value(solver_main.msh().m(), sgrid, "m");
-    // add_value(solver_main.msh().l(), sgrid, "l");
-    // add_value(solver_main.dat().Vm(), sgrid, "Vm");
-    // add_value(solver_main.dat().Vu(), sgrid, "Vu");
-    // add_value(solver_main.dat().M(), sgrid, "M");
-    // add_value(solver_main.dat().q(), sgrid, "q");
-    // add_value(solver_main.dat().Rho(), sgrid, "rho");
-    // // yams::plot_vtkStructuredGrid(sgrid, "rho", true, true);
-    // yams::plot_vtkStructuredGrid(sgrid, "M", true, true);
+    auto sgrid = make_vtkStructuredGrid(solver_main.msh().z(), solver_main.msh().r(), solver_main.n_streams());
+    add_value(solver_main.msh().c(), sgrid, "Curvature");
+    add_value(solver_main.msh().g(), sgrid, "Gamma");
+    add_value(solver_main.msh().p(), sgrid, "Phi");
+    add_value(solver_main.msh().m(), sgrid, "m");
+    add_value(solver_main.msh().l(), sgrid, "l");
+    add_value(solver_main.dat().Vm(), sgrid, "Vm");
+    add_value(solver_main.dat().Vu(), sgrid, "Vu");
+    add_value(solver_main.dat().M(), sgrid, "M");
+    add_value(solver_main.dat().q(), sgrid, "q");
+    add_value(solver_main.dat().Rho(), sgrid, "rho");
+    // yams::plot_vtkStructuredGrid(sgrid, "rho", true, true);
+    yams::plot_vtkStructuredGrid(sgrid, "M", true, true);
     
 
-    // auto f_name = "novak_design_biflux.vts";
+    auto f_name = "novak_design_biflux.vts";
 
-    // vtkNew<vtkXMLStructuredGridWriter> writer;
-    // writer->SetFileName(f_name);
-    // writer->SetInputData(sgrid);
-    // writer->Write();
+    vtkNew<vtkXMLStructuredGridWriter> writer;
+    writer->SetFileName(f_name);
+    writer->SetInputData(sgrid);
+    writer->Write();
 
 }
