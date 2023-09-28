@@ -8,8 +8,8 @@
 
 // const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;
-// const bool verbose = false;
-const bool verbose = true;
+const bool verbose = false;
+// const bool verbose = true;
 
 namespace yams
 {
