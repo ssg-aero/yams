@@ -117,6 +117,7 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("d_ksi", &GridInfo<T>::d_ksi)
     .def_readwrite("d_eth", &GridInfo<T>::d_eth)
     .def_readwrite("j_0", &GridInfo<T>::j_0)
+    .def_readwrite("KD",&GridInfo<T>::KD)
     ;
 
     py::enum_<MeridionalBladeMode>(m, "MeridionalBladeMode", py::arithmetic())

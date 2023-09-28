@@ -155,15 +155,21 @@ namespace yams
     }
 
     template <typename T>
-    auto compute_massflow(const MeridionalGrid<T> &g, int i)
+    auto compute_massflow(const GridInfo<T> &gi, int i)
     {
+        const auto &g = *gi.g;
         auto nj = g.nCols();
+        auto ni = g.nRows();
         auto mf = 0.;
         for (auto j = 1; j < nj; j++)
         {
-            mf += (f_mf(g(i, j)) + f_mf(g(i, j - 1))) * (g(i, j).l - g(i, j - 1).l) * 0.5;
+            const auto &gp = g(i, j);
+            const auto &gpp= g(i, j -1); 
+            mf += (f_mf(gp) + f_mf(gpp)) * (gp.l - gpp.l) * 0.5;
         }
-        return mf;
+        size_t j_mean_line = std::round(nj / 2.);
+        auto m_rel = g(i, j_mean_line).m / g(ni-1, j_mean_line).m;
+        return mf * (1. - gi.KD(m_rel));
     }
 
     template <typename T>
@@ -490,7 +496,7 @@ namespace yams
             }
         }
         compute_gas_properties(solver_case,i);
-        return compute_massflow(g, i);
+        return compute_massflow(gi, i);
     }
 
     template <typename T>
@@ -749,7 +755,7 @@ namespace yams
                     gp.Vm=Vm;
                 }
             );
-            solver_case.inlet.Mf = compute_massflow(g, 0);
+            solver_case.inlet.Mf = compute_massflow(gi, 0);
             // std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
         }
         if(solver_case.inlet.mode == MeridionalBC::INLET_Vm_Ts_Ps_Vu)
@@ -760,12 +766,12 @@ namespace yams
                     gp.Vm=solver_case.inlet.Vm(gp.l / l_tot );
                 }
             );
-            solver_case.inlet.Mf = compute_massflow(g, 0);
+            solver_case.inlet.Mf = compute_massflow(gi, 0);
             // std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
         }
         if(solver_case.inlet.mode == MeridionalBC::CON)
         {
-            solver_case.inlet.Mf = compute_massflow(g, 0);
+            solver_case.inlet.Mf = compute_massflow(gi, 0);
         }
         solver_case.mf.resize(ni);
         std::fill(solver_case.mf.begin(),solver_case.mf.end(),solver_case.inlet.Mf); // Todo add leakage and reintroduction

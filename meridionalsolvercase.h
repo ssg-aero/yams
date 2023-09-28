@@ -23,6 +23,7 @@ namespace yams
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =200;
+        std::function<T(T)> KD = [](T m_rel){return T{};};
     };
 
     enum class MeridionalBladeMode
