@@ -781,23 +781,23 @@ namespace yams
         auto &gi   = *solver_case.gi;
         auto &g    = *gi.g;
         
-        auto span_range = gbs::make_range<size_t>(0,ni-1);
-        // update density
-        if( !gi.rho_cst  )
-        {
-            std::for_each(
-                    // ExPo,
-                    span_range.begin(), span_range.end(),
-                    [&](const auto &i){
-                        for (size_t j{}; j < nj; j++)
-                        {
-                            auto rho = g(i, j).Ps / gi.R / g(i,j).Ts;
-                            g(i, j).rho = rho;
-                            // std::cout<<"i: " << i << " rho: " << rho << std::endl;
-                        }
-                    }
-            );
-        }
+        // auto span_range = gbs::make_range<size_t>(0,ni-1);
+        // // update density
+        // if( !gi.rho_cst  )
+        // {
+        //     std::for_each(
+        //             // ExPo,
+        //             span_range.begin(), span_range.end(),
+        //             [&](const auto &i){
+        //                 for (size_t j{}; j < nj; j++)
+        //                 {
+        //                     auto rho = g(i, j).Ps / gi.R / g(i,j).Ts;
+        //                     g(i, j).rho = rho;
+        //                     // std::cout<<"i: " << i << " rho: " << rho << std::endl;
+        //                 }
+        //             }
+        //     );
+        // }
     }
 
     template <typename T>

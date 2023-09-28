@@ -30,6 +30,10 @@ requirements:
     # - xtensor
     # - xsimd
     - gbs>=0.3.3
+    - eigen
+    - boost >=1.74
+    - rapidjson
+    - fmt
     # - tbb <2021.0 [linux] # upgrade asap when other packages will be ready
   run:
     - python {{ python }}
