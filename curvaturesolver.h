@@ -225,7 +225,7 @@ namespace yams
             // TODO use Coolprop
             gp.Ts = gp.Tt - f_sqV(gp) / 2. / gp.Cp;
             gp.Ps = gp.Pt * std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
-            // gp.rho = gp.Ps / gi.R / gp.Ts;
+            // gp.rho = gp.rho + 0.01*(gp.Ps / gi.R / gp.Ts-gp.rho);
             // TODO update cp
             gp.ga = 1. / (1. - gi.R / gp.Cp);
             // Compute entropy rise
@@ -694,7 +694,7 @@ namespace yams
                                 gp.Pt = gp.Ps / std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
                               gp.H = gp.Tt * gp.Cp;
                               gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
-                          });
+                                                      });
         }
         if(solver_case.inlet.mode == MeridionalBC::INLET_Vm_Ts_Ps_Vu)
         {
@@ -780,6 +780,24 @@ namespace yams
         auto nj = solver_case.gi->nj;
         auto &gi   = *solver_case.gi;
         auto &g    = *gi.g;
+        
+        auto span_range = gbs::make_range<size_t>(0,ni-1);
+        // update density
+        if( !gi.rho_cst  )
+        {
+            std::for_each(
+                    // ExPo,
+                    span_range.begin(), span_range.end(),
+                    [&](const auto &i){
+                        for (size_t j{}; j < nj; j++)
+                        {
+                            auto rho = g(i, j).Ps / gi.R / g(i,j).Ts;
+                            g(i, j).rho = rho;
+                            // std::cout<<"i: " << i << " rho: " << rho << std::endl;
+                        }
+                    }
+            );
+        }
     }
 
     template <typename T>
@@ -921,6 +939,7 @@ namespace yams
                             for (size_t j{}; j < nj; j++)
                             {
                                 g(i, j).rho = g(i, j).Ps / gi.R / g(i,j).Ts;
+                                // g(i, j).rho = g(i, j).rho + 0.01 * ( g(i, j).Ps / gi.R / g(i,j).Ts - g(i, j).rho );
                             }
                         }
                 );
@@ -948,6 +967,9 @@ namespace yams
                     return balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );
+            // // apply boundary conditions if static conditions
+            // if(solver_case.inlet.mode != MeridionalBC::INLET_Mf_Tt_Pt_Vu)
+            //     apply_bc(solver_case);
            // update blades info
            apply_blade_info(solver_case);
             // compute residuals
