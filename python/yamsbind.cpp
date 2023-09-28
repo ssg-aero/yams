@@ -20,8 +20,8 @@ namespace py = pybind11;
 #include <baldeToBlade/gridReader.h>
 #include <baldeToBlade/bladeToBladeCurvatureSolverPost.h>
 
-#include <meridionalsolvercase_experiemental.h>
-#include <curvaturesolver_experimental.h>
+// #include <meridionalsolvercase_experiemental.h>
+// #include <curvaturesolver_experimental.h>
 
 PYBIND11_MODULE(yams, m)
 {
@@ -315,10 +315,17 @@ PYBIND11_MODULE(yams, m)
         "Solve case with curvature solver",
         py::arg( "solver_case" )
     );
-    m.def("curvature_solver",
-        py::overload_cast<SolverCaseSet<T> &>( &curvature_solver<T> ),
-        "Solve case with curvature solver",
-        py::arg( "set" )
+    // m.def("curvature_solver",
+    //     py::overload_cast<SolverCaseSet<T> &>( &curvature_solver<T> ),
+    //     "Solve case with curvature solver",
+    //     py::arg( "set" )
+    // );
+    m.def("apply_bc", py::overload_cast<SolverCase<T> &>( &apply_bc<T> ), "Apply the Boundary conditions", py::arg( "solver_case" ));
+    m.def("apply_mf", py::overload_cast<SolverCase<T> &>( &apply_mf<T> ), "Apply MassFlow", py::arg( "solver_case" ));
+    m.def("init_values",
+        py::overload_cast<SolverCase<T> &, T, T>(&init_values<T>),
+        "Mean Line Computation",
+        py::arg( "solver_case" ), py::arg("tol_rel_mf"), py::arg("eps")
     );
 
     m.def("eq_vu",
