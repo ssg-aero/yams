@@ -97,3 +97,42 @@ TEST(tests_turbine, vtk_no_blades)
     }
 
 }
+
+#include <array>
+#include <iostream>
+#include <list>
+#include <ranges>
+#include <string>
+#include <tuple>
+#include <vector>
+
+void print(auto const rem, auto const& range)
+{
+    for (std::cout << rem; auto const& elem : range)
+        std::cout << elem << ' ';
+    std::cout << '\n';
+}
+
+TEST(tests_turbine, zip)
+{
+    auto x = std::vector{ 1, 2, 3, 4 };
+    auto y = std::list<std::string>{ "alpha", "beta", "gamma", "delat", "epsilon" };
+    auto z = std::array{ 'A', 'B', 'C', 'D', 'E', 'F' };
+
+    print("Source views:", "");
+    print("x: ", x);
+    print("y: ", y);
+    print("z: ", z);
+
+    print("\nzip(x,y,z):", "");
+
+    for (auto elem : std::views::zip(x, y, z))
+    {
+        auto &[x_, y_, z_] = elem;
+        std::cout << x_ << ' ' << y_ << ' ' << z_ << std::endl;
+
+        std::get<char&>(elem) += ('a' - 'A'); // modifies the element of z
+    }
+
+    print("\nAfter modification, z: ", z);
+}
