@@ -8,7 +8,8 @@
 
 // const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;
-const bool verbose = false;
+// const bool verbose = false;
+const bool verbose = true;
 
 namespace yams
 {
@@ -107,6 +108,8 @@ namespace yams
             // g(i, j).Vm = dVm * Vmi + Vm_prev;
 
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
+
+            g(i, j).Vm = std::min(g(i, j).Vm, std::sqrt(g(i, j).ga * gi.R * g(i, j).Ts));
 
         }
     }
@@ -609,7 +612,7 @@ namespace yams
     }
 
     template <typename T>
-    auto compute_vm_distribution(SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
+    auto compute_vm_distribution(SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate, T Vmi_max=360.)
     {
         auto mf     = solver_case.mf[i];
         auto err_mf = tol_rel_mf * 10.;
@@ -625,7 +628,7 @@ namespace yams
             mf_pre = eq_massflow(vmi - eps, solver_case, i, integrate);
             mf_ = eq_massflow(vmi, solver_case, i, integrate);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
-            vmi = fmin(fmax(1e-3,vmi),360.); // TODO improve test
+            vmi = fmin(fmax(1e-3,vmi),Vmi_max); // TODO improve test
             err_mf = fabs(mf_ - mf) / mf;
             count++;
         }
@@ -633,7 +636,7 @@ namespace yams
         {
             if (count == max_count && err_mf > tol_rel_mf)
             {
-                std::cout << "Warning span: " << i << " did not converged after " << count << " err_mf: " << err_mf * 100 << "%" << std::endl;
+                std::cout << "Warning span: " << i << " did not converged after " << count << " err_mf: " << err_mf * 100 << "%" << "vmi:" << vmi <<"m/s" <<  std::endl;
             }
             if (integrate)
             {
@@ -651,13 +654,15 @@ namespace yams
         size_t ni = g.nRows();
         size_t nj = g.nCols();
         T vmi{};
+        auto j0 = std::round((nj - 1 ) * gi.j_0);
         for (auto i = i0; i < ni; i++)
         {
             if( ( solver_case.inlet.mode != MeridionalBC::INLET_Vm_Ts_Ps_Vu && solver_case.inlet.mode != MeridionalBC::CON )
                     || i != 0 )
             {
-                vmi = g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
-                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate);
+                vmi = g(i, j0).Vm;
+                auto aj  = std::sqrt( g(i, j0).ga * gi.R * g(i, j0).Ts );
+                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate, aj);
             }
             // compute_gas_properties(solver_case,i);
         }
