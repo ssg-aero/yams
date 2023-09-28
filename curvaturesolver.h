@@ -229,8 +229,8 @@ namespace yams
             // TODO update cp
             gp.ga = 1. / (1. - gi.R / gp.Cp);
             // Compute entropy rise
-            // TODO compute elementary entropy rises from different losses and the compute Ps then Pt
-            gp.s = std::log(pow(gp.Ts/gi.Tref,gp.Cp)/std::pow(gp.Ps/gi.Pref,gi.R)) ;
+            // TODO compute elementary entropy rises from different losses and then compute Ps then Pt
+            gp.s = gp.Cp * std::log(gp.Ts / gi.Tref) - gi.R * std::log(gp.Ps/gi.Pref);
         }
     }
 
