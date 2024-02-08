@@ -113,6 +113,7 @@ void print(auto const rem, auto const& range)
     std::cout << '\n';
 }
 
+#ifndef __clang__  
 TEST(tests_turbine, zip)
 {
     auto x = std::vector{ 1, 2, 3, 4 };
@@ -136,3 +137,4 @@ TEST(tests_turbine, zip)
 
     print("\nAfter modification, z: ", z);
 }
+#endif

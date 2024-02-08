@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 // #include <tbb/parallel_for.h>
-#include <gbs/maths.h>
+#include <gbs/math.ixx>
 
 
 #include <vtkChartXY.h>

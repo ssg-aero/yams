@@ -1,5 +1,6 @@
 # pragma once
 #include <array>
+#include <cmath>
 template <typename T>
 auto make_uniform_grid(double l,double h, T &g,double a=0, double b=0,double ri=0.) -> void
 {

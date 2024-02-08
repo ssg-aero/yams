@@ -287,6 +287,7 @@ class gasModel
             t_guess, t_min, t_max, digits
         );
     }
+    virtual ~gasModel(){}
 };
 
 template<std::floating_point T>

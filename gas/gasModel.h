@@ -29,15 +29,15 @@ namespace yams
         {
             return g_;
         }
-        T a(T t, T p)
+        T a(T t, T p) override
         {
             return sqrt(g(t, p) * r_ * t);
         }
-        T rho(T t, T p)
+        T rho(T t, T p) override
         {
             return sqrt(p / (r_ * t));
         }
-        T et(T t, T p , T V)
+        T et(T t, T p , T V) override
         {
             auto a_ = a(t, p);
             g_ = g(t, p); // used storage for gas real

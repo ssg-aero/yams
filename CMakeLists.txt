@@ -62,8 +62,8 @@ include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iges/)
 # Python Dev
 find_package (
     Python3 COMPONENTS 
-    Interpreter 
-    # Development
+        Interpreter 
+        Development
 )
 message("Python3_SITELIB:" ${Python3_SITELIB})
 #
