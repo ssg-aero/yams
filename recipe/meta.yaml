@@ -29,7 +29,7 @@ requirements:
     # - xtl
     # - xtensor
     # - xsimd
-    - gbs>=0.3.3
+    - gbs>0.4
     - eigen
     - boost >=1.74
     - rapidjson
