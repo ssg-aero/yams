@@ -52,6 +52,10 @@ foreach(file_name ${SRC_LIST})
                             TBB::tbb
         )
 
+        target_compile_definitions(${exe_name} PRIVATE
+            -DTEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+
         install(TARGETS ${exe_name})
         if ( MSVC )
         SET_OUT_DIR(${exe_name} ${CMAKE_BINARY_DIR})
