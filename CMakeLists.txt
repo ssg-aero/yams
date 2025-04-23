@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.17.0)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-project(yams LANGUAGES CXX)
+project(yams LANGUAGES C CXX)
 
 #
 # c++ conf

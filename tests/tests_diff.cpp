@@ -331,11 +331,14 @@ TEST(tests_diff, D1_O2_test_001)
     reader->Update();
     auto sgrid = reader->GetOutput();
     auto points= sgrid->GetPoints();
-    auto dims  =sgrid->GetDimensions();
+    int dims[3];
+    sgrid->GetDimensions(dims);
     size_t ni = dims[0];
     size_t nj = dims[1];
+    size_t nk = dims[2];
     ASSERT_TRUE(nj != 0);
     ASSERT_TRUE(ni != 0);
+    ASSERT_TRUE(nk == 0);
     g.resize(ni,nj);
     vtkIdType id {};
     for(size_t j {} ; j < nj ; j++)
