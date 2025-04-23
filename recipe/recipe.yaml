@@ -1,0 +1,48 @@
+
+context:
+  version:  0.4.2
+  # vtk_version: 9.3.0
+  gbs_version: 0.4.2
+
+package:
+  name: yams
+  version: ${{ version }}
+
+source:  
+  path: ../
+
+extra:
+  channels:
+  - url: conda-forge
+  - url: ssg-aero
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - ${{ compiler('cxx') }}
+    - ${{"vs2022_win-64" if win}}
+    - ${{"clangxx" if unix}}
+    - ${{"clang-tools" if unix}} # for scan dep
+    - ninja
+    - cmake >=3.28
+    - python ${{python}}
+  host:
+    - python ${{python}}
+    - python-devtools
+    - pybind11
+    - gbs =${{gbs_version}}
+    - eigen
+    - boost >=1.74
+  run:
+    - python ${{python}}
+    - gbs =${{gbs_version}}
+
+tests:
+  # - package_contents:
+  #     site_packages:
+  #       - pyams
+  - python:
+      imports:
+        - pyams.yams
