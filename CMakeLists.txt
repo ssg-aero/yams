@@ -69,30 +69,30 @@ message("Python3_SITELIB:" ${Python3_SITELIB})
 #
 # VTK
 #
-find_package(VTK REQUIRED)
-# find_package(
-#     VTK REQUIRED
-#     COMPONENTS
-#         CommonCore
-#         CommonColor
-#         CommonDataModel
-#         FiltersSources
-#         InteractionStyle
-#         RenderingCore
-#         RenderingAnnotation
-#         RenderingFreeType
-#         IOXML
-#         ChartsCore
-#         InteractionStyle
-#         RenderingContext2D
-#         RenderingContextOpenGL2
-#         RenderingCore
-#         RenderingFreeType
-#         ViewsContext2D
-#         RenderingOpenGL2 
-#         Python
-#         WrappingPythonCore
-# )
+# find_package(VTK REQUIRED)
+find_package(
+    VTK REQUIRED
+    COMPONENTS
+        CommonCore
+        CommonColor
+        CommonDataModel
+        FiltersSources
+        InteractionStyle
+        RenderingCore
+        RenderingAnnotation
+        RenderingFreeType
+        IOXML
+        ChartsCore
+        InteractionStyle
+        RenderingContext2D
+        RenderingContextOpenGL2
+        RenderingCore
+        RenderingFreeType
+        ViewsContext2D
+        RenderingOpenGL2 
+        Python
+        WrappingPythonCore
+)
 # NLopt
 find_package(NLopt REQUIRED)
 
