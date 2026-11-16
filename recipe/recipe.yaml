@@ -39,9 +39,12 @@ requirements:
     # gbs public headers (e.g. bscanalysis.h) include boost::math
     # gauss_kronrod; header-only so libboost-headers is enough.
     - libboost-headers
+    # CMakeLists: find_package(TBB REQUIRED) on Linux (std::execution::par with libstdc++)
+    - ${{"tbb-devel" if linux}}
   run:
     - python
     - gbs >=${{gbs_min_version}}
+    - ${{"tbb" if linux}}
 
 tests:
   # - package_contents:

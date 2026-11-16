@@ -2,6 +2,7 @@
 .pytest_cache/
 .cache/
 build/
+build-*/
 /doc/*.aux
 /doc/*.bbl
 /doc/*.blg
