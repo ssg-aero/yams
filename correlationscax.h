@@ -1,5 +1,5 @@
 #pragma once
-#include <gbs/maths.h>
+#include <gbs/math.ixx>
 #include <gbs/solvers.h>
 namespace yams
 {

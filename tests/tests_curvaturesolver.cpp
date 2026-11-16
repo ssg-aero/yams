@@ -97,9 +97,14 @@ TEST(tests_curvature_solver, vtk_no_blades)
         auto &gi= *(solver_case.gi);
         auto &g = *(solver_case.gi->g);
         
+        solver_case.inlet.Vm_moy = 0.9* Vm;
         gi.rho_cst = false;
+        // solver_case.gi->RF /= 5.;
+        // solver_case.max_geom = 1000;
         auto start = high_resolution_clock::now();
         curvature_solver(solver_case);
+        // solver_case.gi->RF *= 10.;
+        // curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         cout << "Time taken by meridian computation: "

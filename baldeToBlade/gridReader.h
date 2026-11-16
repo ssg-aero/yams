@@ -60,7 +60,8 @@ namespace yams
         vtkSmartPointer<vtkStructuredGrid> sGrid {reader->GetOutput()};
 
         auto points= sGrid->GetPoints();
-        auto dims = sGrid->GetDimensions();
+        int dims[3];
+        sGrid->GetDimensions(dims);
         size_t ni = dims[0];
         size_t nj = dims[1];
 

@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
         yams::curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
+        std::cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << endl;
 
 

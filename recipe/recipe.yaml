@@ -1,0 +1,55 @@
+
+context:
+  version:  0.1.5
+  gbs_min_version: 0.5.0
+
+package:
+  name: yams
+  version: ${{ version }}
+
+source:  
+  path: ../
+
+extra:
+  channels:
+  - url: conda-forge
+
+build:
+  number: 3
+
+requirements:
+  build:
+    - ${{ compiler('cxx') }}
+    - ${{"vs2022_win-64" if win}}
+    - ${{"clangxx" if unix}}
+    - ${{"clang-tools" if unix}} # for scan dep
+    - ninja
+    - cmake >=3.28
+    - python
+  host:
+    - python
+    - python-devtools
+    - pybind11
+    - gbs >=${{gbs_min_version}}
+    - eigen-abi-devel >=3.3.9
+    - rapidjson
+    # vtk-base 9.6 ships VTK-targets.cmake with hard references to
+    # VTK::IOFFMPEG; this dep installs the matching .lib so configure passes.
+    - vtk-io-ffmpeg
+    # gbs public headers (e.g. bscanalysis.h) include boost::math
+    # gauss_kronrod; header-only so libboost-headers is enough.
+    - libboost-headers
+    # CMakeLists: find_package(TBB REQUIRED) on Linux (std::execution::par with libstdc++)
+    - ${{"tbb-devel" if linux}}
+  run:
+    - python
+    - gbs >=${{gbs_min_version}}
+    - ${{"tbb" if linux}}
+
+tests:
+  # - package_contents:
+  #     site_packages:
+  #       - pyams
+  - python:
+      imports:
+        - pyams.yams

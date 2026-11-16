@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
-#include <xtensor/xarray.hpp>
+#ifdef USE_XT
+    #include <xtensor/xarray.hpp>
+#endif
 #include <execution>
 namespace yams
 {
@@ -80,7 +82,7 @@ namespace yams
             );
         }
     };
-
+#ifdef USE_XT
 // xtensor specialization
     template <typename T>
     class _Array2d<xt::xarray<T>, T>
@@ -102,7 +104,6 @@ namespace yams
         size_t nCols() const noexcept { return container_.shape(1);}
         size_t size() const noexcept  { return container_.size();  }
     };
-
     template <typename T>
     _Array2d<xt::xarray<T>, T>::_Array2d(size_t ni, size_t nj)
     {
@@ -117,13 +118,16 @@ namespace yams
         container_ = xt::xarray<T>(shape, v);
         nj_ = nj;
     }
+#endif
 // Aliases
     template <typename T>
     using Array2d = _Array2d<std::vector<T>,T>;
+#ifdef USE_XT
     template <typename T>
     using ArrayX2d = _Array2d<xt::xarray<T>,T>;
     // template <typename T,size_t ni,size_t nj>
     // using Array2d = Array2dStdArrayBased<T,ni,nj>;
+#endif
 
     template <typename T>
     struct MeridionalGridPoint
@@ -184,8 +188,10 @@ namespace yams
 
     template <typename T>
     using MeridionalGrid = Array2d<MeridionalGridPoint<T>>;
+#ifdef USE_XT
     template <typename T>
     using MeridionalGridX = ArrayX2d<MeridionalGridPoint<T>>;
+#endif
     template <typename T>
     using Grid2dMetrics = Array2d<Grid2dMetricsPoint<T>>;
 

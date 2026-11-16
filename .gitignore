@@ -1,6 +1,8 @@
 .vscode/
 .pytest_cache/
+.cache/
 build/
+build-*/
 /doc/*.aux
 /doc/*.bbl
 /doc/*.blg
@@ -14,3 +16,4 @@ __pycache__
 *_svs.*
 *_dummy.*
 .vs/*
+*.vts

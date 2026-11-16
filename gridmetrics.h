@@ -176,7 +176,8 @@ namespace yams
     template <typename T>
     auto make_grid_info(vtkStructuredGrid* sgrid)
     {
-        auto dims =sgrid->GetDimensions();
+        int dims[3];
+        sgrid->GetDimensions(dims);
         size_t ni = dims[0];
         size_t nj = dims[1];
         double ksi = 1. / (ni-1.);

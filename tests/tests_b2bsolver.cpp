@@ -5,6 +5,7 @@
 #include <baldeToBlade/bladeToBladeCurvatureSolver.h>
 #include <baldeToBlade/gridReader.h>
 #include <gbs/bscbuild.h>
+#include <string>
 TEST(tridiagonal,thomas_vec)
 {
         using namespace std;
@@ -25,12 +26,14 @@ TEST(solver, base_novak)
     using namespace std;
     using T = double;
 
+    auto test_dir = std::string(TEST_DIR);
+    auto f_name = test_dir+std::string("/b2bmsh_medium.vts");
     // auto f_name = "C:/Users/sebastien/workspace/yams/tests/b2bmsh_coarse.vts";
-    auto f_name = "C:/Users/sebastien/workspace/yams/tests/b2bmsh_medium.vts";
+    // auto f_name = "C:/Users/sebastien/workspace/yams/tests/b2bmsh_medium.vts";
     // auto f_name = "C:/Users/sebastien/workspace/yams/tests/b2bmsh.vts";
     // auto f_name = "C:/Users/sebastien/workspace/yams/tests/b2bmsh_finest.vts";
 
-    auto [pts, nj]  = yams::getVtkStructuredGridPoints<T>(f_name);
+    auto [pts, nj]  = yams::getVtkStructuredGridPoints<T>(f_name.c_str());
     auto stream_line = make_shared<gbs::BSCurve<T,2>>( 
         gbs::build_segment<T,2>({0.,1.},{1.,1.})
     );

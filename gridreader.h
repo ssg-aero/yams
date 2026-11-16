@@ -19,7 +19,8 @@ namespace yams
     auto read_vtk_grid(MeridionalGrid<T> &g, const vtkSmartPointer<vtkStructuredGrid> &sgrid)
     {
         auto points= sgrid->GetPoints();
-        auto dims  =sgrid->GetDimensions();
+        int dims[3];
+        sgrid->GetDimensions(dims);
         size_t ni = dims[0];
         size_t nj = dims[1];
 

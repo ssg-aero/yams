@@ -9,6 +9,7 @@
 // const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;
 const bool verbose = false;
+// const bool verbose = true;
 
 namespace yams
 {
@@ -60,8 +61,9 @@ namespace yams
         auto &g = *gi.g;
         auto &g_metrics= *gi.g_metrics;
         auto Vmi    = g(i, j_beg - j_stp).Vm;
-        auto sqVm_max_q2 = 3 * Vmi * Vmi / 2.;
-        sqVm_max_q2 = sqVm_max_q2 * sqVm_max_q2 /2;
+        // auto sqVm_max_q2 = 3 * Vmi * Vmi / 2.;
+        auto sqVm_max_q2 = 9. * Vmi * Vmi / 2.;
+        // sqVm_max_q2 = sqVm_max_q2 * sqVm_max_q2 /2;
         auto nj = gi.nj;
         auto l = g(i,nj-1);
         auto Fjcap = 0.3*Vmi*Vmi/2;
@@ -79,7 +81,7 @@ namespace yams
             // Fjm = std::max<T>(-Fjcap/dl,std::min<T>(Fjcap/dl,Fjm));
             auto sqVmq2_1 = std::fmin(
                 sqVm_max_q2, 
-                std::fmax(0.1,sqVmq2 + Fjm * dl)
+                std::fmax(1.0,sqVmq2 + Fjm * dl)
             );
             // auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl); 
             // auto sqVmq2_1 = sqVmq2 + Fjm * dl;
@@ -89,7 +91,7 @@ namespace yams
             // Fj = std::max<T>(-Fjcap/dl,std::min<T>(Fjcap/dl,Fj));
             auto sqVmq2_2 = std::fmin( 
                 sqVm_max_q2, 
-                std::fmax(0.1,sqVmq2 + Fj * dl)
+                std::fmax(1.0,sqVmq2 + Fj * dl)
             ); 
             // auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // auto sqVmq2_2 = sqVmq2 + Fj * dl; 
@@ -106,6 +108,8 @@ namespace yams
             // g(i, j).Vm = dVm * Vmi + Vm_prev;
 
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
+
+            g(i, j).Vm = std::min(g(i, j).Vm, std::sqrt(g(i, j).ga * gi.R * g(i, j).Ts));
 
         }
     }
@@ -151,15 +155,21 @@ namespace yams
     }
 
     template <typename T>
-    auto compute_massflow(const MeridionalGrid<T> &g, int i)
+    auto compute_massflow(const GridInfo<T> &gi, int i)
     {
+        const auto &g = *gi.g;
         auto nj = g.nCols();
+        auto ni = g.nRows();
         auto mf = 0.;
         for (auto j = 1; j < nj; j++)
         {
-            mf += (f_mf(g(i, j)) + f_mf(g(i, j - 1))) * (g(i, j).l - g(i, j - 1).l) * 0.5;
+            const auto &gp = g(i, j);
+            const auto &gpp= g(i, j -1); 
+            mf += (f_mf(gp) + f_mf(gpp)) * (gp.l - gpp.l) * 0.5;
         }
-        return mf;
+        size_t j_mean_line = std::round(nj / 2.);
+        auto m_rel = g(i, j_mean_line).m / g(ni-1, j_mean_line).m;
+        return mf * (1. - gi.KD(m_rel));
     }
 
     template <typename T>
@@ -221,12 +231,12 @@ namespace yams
             // TODO use Coolprop
             gp.Ts = gp.Tt - f_sqV(gp) / 2. / gp.Cp;
             gp.Ps = gp.Pt * std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
-            // gp.rho = gp.Ps / gi.R / gp.Ts;
+            // gp.rho = gp.rho + 0.01*(gp.Ps / gi.R / gp.Ts-gp.rho);
             // TODO update cp
             gp.ga = 1. / (1. - gi.R / gp.Cp);
             // Compute entropy rise
-            // TODO compute elementary entropy rises from different losses and the compute Ps then Pt
-            gp.s = std::log(pow(gp.Ts/gi.Tref,gp.Cp)/std::pow(gp.Ps/gi.Pref,gi.R)) ;
+            // TODO compute elementary entropy rises from different losses and then compute Ps then Pt
+            gp.s = gp.Cp * std::log(gp.Ts / gi.Tref) - gi.R * std::log(gp.Ps/gi.Pref);
         }
     }
 
@@ -486,7 +496,7 @@ namespace yams
             }
         }
         compute_gas_properties(solver_case,i);
-        return compute_massflow(g, i);
+        return compute_massflow(gi, i);
     }
 
     template <typename T>
@@ -608,7 +618,7 @@ namespace yams
     }
 
     template <typename T>
-    auto compute_vm_distribution(SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate)
+    auto compute_vm_distribution(SolverCase<T> &solver_case, T vmi, size_t i, T tol_rel_mf, T eps, bool integrate, T Vmi_max=360.)
     {
         auto mf     = solver_case.mf[i];
         auto err_mf = tol_rel_mf * 10.;
@@ -624,7 +634,7 @@ namespace yams
             mf_pre = eq_massflow(vmi - eps, solver_case, i, integrate);
             mf_ = eq_massflow(vmi, solver_case, i, integrate);
             vmi = vmi - eps * (mf_ - mf) / (mf_ - mf_pre);
-            vmi = fmin(fmax(1e-3,vmi),360.); // TODO improve test
+            vmi = fmin(fmax(1e-3,vmi),Vmi_max); // TODO improve test
             err_mf = fabs(mf_ - mf) / mf;
             count++;
         }
@@ -632,7 +642,7 @@ namespace yams
         {
             if (count == max_count && err_mf > tol_rel_mf)
             {
-                std::cout << "Warning span: " << i << " did not converged after " << count << " err_mf: " << err_mf * 100 << "%" << std::endl;
+                std::cout << "Warning span: " << i << " did not converged after " << count << " err_mf: " << err_mf * 100 << "%" << "vmi:" << vmi <<"m/s" <<  std::endl;
             }
             if (integrate)
             {
@@ -650,13 +660,15 @@ namespace yams
         size_t ni = g.nRows();
         size_t nj = g.nCols();
         T vmi{};
+        auto j0 = std::round((nj - 1 ) * gi.j_0);
         for (auto i = i0; i < ni; i++)
         {
             if( ( solver_case.inlet.mode != MeridionalBC::INLET_Vm_Ts_Ps_Vu && solver_case.inlet.mode != MeridionalBC::CON )
                     || i != 0 )
             {
-                vmi = g(i, std::round((nj - 1 ) * gi.j_0)).Vm;
-                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate);
+                vmi = g(i, j0).Vm;
+                auto aj  = std::sqrt( g(i, j0).ga * gi.R * g(i, j0).Ts );
+                compute_vm_distribution(solver_case, vmi, i, tol_rel_mf, eps,integrate, aj);
             }
             // compute_gas_properties(solver_case,i);
         }
@@ -688,7 +700,7 @@ namespace yams
                                 gp.Pt = gp.Ps / std::pow(gp.Ts / gp.Tt, gp.ga / (gp.ga - 1));
                               gp.H = gp.Tt * gp.Cp;
                               gp.s = std::log(pow(gp.Ts / Tref, gp.Cp) / std::pow(gp.Ps / Pref, gi.R));
-                          });
+                                                      });
         }
         if(solver_case.inlet.mode == MeridionalBC::INLET_Vm_Ts_Ps_Vu)
         {
@@ -743,7 +755,7 @@ namespace yams
                     gp.Vm=Vm;
                 }
             );
-            solver_case.inlet.Mf = compute_massflow(g, 0);
+            solver_case.inlet.Mf = compute_massflow(gi, 0);
             // std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
         }
         if(solver_case.inlet.mode == MeridionalBC::INLET_Vm_Ts_Ps_Vu)
@@ -754,12 +766,12 @@ namespace yams
                     gp.Vm=solver_case.inlet.Vm(gp.l / l_tot );
                 }
             );
-            solver_case.inlet.Mf = compute_massflow(g, 0);
+            solver_case.inlet.Mf = compute_massflow(gi, 0);
             // std::cout << "Mass flow set to: " << solver_case.inlet.Mf <<std::endl;
         }
         if(solver_case.inlet.mode == MeridionalBC::CON)
         {
-            solver_case.inlet.Mf = compute_massflow(g, 0);
+            solver_case.inlet.Mf = compute_massflow(gi, 0);
         }
         solver_case.mf.resize(ni);
         std::fill(solver_case.mf.begin(),solver_case.mf.end(),solver_case.inlet.Mf); // Todo add leakage and reintroduction
@@ -774,6 +786,24 @@ namespace yams
         auto nj = solver_case.gi->nj;
         auto &gi   = *solver_case.gi;
         auto &g    = *gi.g;
+        
+        // auto span_range = gbs::make_range<size_t>(0,ni-1);
+        // // update density
+        // if( !gi.rho_cst  )
+        // {
+        //     std::for_each(
+        //             // ExPo,
+        //             span_range.begin(), span_range.end(),
+        //             [&](const auto &i){
+        //                 for (size_t j{}; j < nj; j++)
+        //                 {
+        //                     auto rho = g(i, j).Ps / gi.R / g(i,j).Ts;
+        //                     g(i, j).rho = rho;
+        //                     // std::cout<<"i: " << i << " rho: " << rho << std::endl;
+        //                 }
+        //             }
+        //     );
+        // }
     }
 
     template <typename T>
@@ -915,6 +945,7 @@ namespace yams
                             for (size_t j{}; j < nj; j++)
                             {
                                 g(i, j).rho = g(i, j).Ps / gi.R / g(i,j).Ts;
+                                // g(i, j).rho = g(i, j).rho + 0.01 * ( g(i, j).Ps / gi.R / g(i,j).Ts - g(i, j).rho );
                             }
                         }
                 );
@@ -942,6 +973,9 @@ namespace yams
                     return balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );
+            // // apply boundary conditions if static conditions
+            // if(solver_case.inlet.mode != MeridionalBC::INLET_Mf_Tt_Pt_Vu)
+            //     apply_bc(solver_case);
            // update blades info
            apply_blade_info(solver_case);
             // compute residuals

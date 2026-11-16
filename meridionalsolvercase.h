@@ -23,6 +23,7 @@ namespace yams
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =200;
+        std::function<T(T)> KD = [](T m_rel){return T{};};
     };
 
     enum class MeridionalBladeMode
@@ -100,7 +101,7 @@ namespace yams
         std::vector<T> mf;
         SolverLog<T> log;
         size_t max_geom = 200;
-        T eps = 0.001;
+        T eps = T{1}/std::pow<T>(2,10);
         T tol_rel_mf = 1e-4;
         T tol_rel_pos = 1e-5;
         bool relocate = true;

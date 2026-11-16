@@ -511,7 +511,7 @@ TEST(euler2D, SolverData4Perf)
             std::transform(
                 E_EW_start, E_EW_end,
                 Ul,Ur,
-                [g=1.4](const auto &ul, const auto &ur )
+                [g=1.4, half](const auto &ul, const auto &ur )
                 {
                     auto u1 = 0.5 * (ul[0]+ur[0] );
                     auto u2 = 0.5 * (ul[1]+ur[1] );
@@ -531,7 +531,7 @@ TEST(euler2D, SolverData4Perf)
             std::transform(
                 F_EW_start, F_EW_end,
                 Ul,Ur,
-                [g=1.4](const auto &ul, const auto &ur )
+                [g=1.4, half](const auto &ul, const auto &ur )
                 {
                     auto u1 = 0.5 * (ul[0]+ur[0] );
                     auto u2 = 0.5 * (ul[1]+ur[1] );

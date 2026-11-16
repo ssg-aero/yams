@@ -1,0 +1,6 @@
+python:
+# - "3.8" <- Not working with linux
+# - "3.9" <- Not working with linux
+# - "3.10" <- Not working with linux
+- "3.11"
+- "3.12"
