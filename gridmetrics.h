@@ -176,6 +176,8 @@ namespace yams
     template <typename T>
     auto make_grid_info(vtkStructuredGrid* sgrid)
     {
+        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
+            throw std::invalid_argument("yams: make_grid_info called with an empty structured grid");
         int dims[3];
         sgrid->GetDimensions(dims);
         size_t ni = dims[0];
@@ -202,11 +204,7 @@ namespace yams
     template <typename T>
     auto make_grid_info(const std::string &fname)
     {
-        vtkNew<vtkXMLStructuredGridReader> reader;
-        reader->SetFileName(fname.c_str());
-        reader->Update();
-        vtkSmartPointer<vtkStructuredGrid> sgrid {reader->GetOutput()};
-        return make_grid_info<T>( sgrid );
+        return make_grid_info<T>( read_vts_file(fname) );
     }
 
 

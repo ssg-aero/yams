@@ -11,9 +11,30 @@
 #include <gbs/tools/magic_enum.hpp>
 #include <gbs-io/fromjson.h>
 #include <meridionalsolvercase.h>
+#include <filesystem>
+#include <stdexcept>
+#include <string>
 
 namespace yams
 {
+    /**
+     * @brief Read a VTK XML structured grid (.vts) file.
+     *
+     * @throw std::runtime_error if the file does not exist or holds no point
+     * (instead of returning an empty grid the solver would crash on).
+     */
+    inline auto read_vts_file(const std::string &fname) -> vtkSmartPointer<vtkStructuredGrid>
+    {
+        if (!std::filesystem::is_regular_file(fname))
+            throw std::runtime_error("yams: grid file not found: " + fname);
+        vtkNew<vtkXMLStructuredGridReader> reader;
+        reader->SetFileName(fname.c_str());
+        reader->Update();
+        vtkSmartPointer<vtkStructuredGrid> sgrid = reader->GetOutput();
+        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
+            throw std::runtime_error("yams: no structured grid points read from: " + fname);
+        return sgrid;
+    }
 
     template<typename T>
     auto read_vtk_grid(MeridionalGrid<T> &g, const vtkSmartPointer<vtkStructuredGrid> &sgrid)
@@ -54,12 +75,7 @@ namespace yams
     template<typename T>
     auto read_vtk_grid(MeridionalGrid<T> &g, const char *fname)
     {
-        vtkNew<vtkXMLStructuredGridReader> reader;
-        reader->SetFileName(fname);
-        reader->Update();
-
-        vtkSmartPointer<vtkStructuredGrid> sgrid = reader->GetOutput();
-        return read_vtk_grid<T>(g,sgrid);
+        return read_vtk_grid<T>(g, read_vts_file(fname));
     }
 
     template<typename T>
@@ -71,11 +87,7 @@ namespace yams
     template<typename T>
     auto read_vtk_grid(const char *fname)
     {
-        vtkNew<vtkXMLStructuredGridReader> reader;
-        reader->SetFileName(fname);
-        reader->Update();
-
-        return read_vtk_grid<T>(reader->GetOutput());
+        return read_vtk_grid<T>(read_vts_file(fname));
     }
 
     template<typename T>

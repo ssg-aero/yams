@@ -836,7 +836,7 @@ namespace yams
         auto &g_metrics = *gi.g_metrics;
         size_t ni = g.nRows();
         size_t nj = g.nCols();
-        if (ni < 3 && nj < 3)
+        if (ni < 3 || nj < 3)
         {
             throw std::length_error("Grid must have dimensions >= 3");
         }
