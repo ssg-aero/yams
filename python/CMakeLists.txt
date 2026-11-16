@@ -25,6 +25,8 @@ target_link_libraries(
         TBB::tbb 
         NLopt::nlopt
         gbs-render
+        Eigen3::Eigen
+        libIGES::iges
 )
 
 vtk_module_autoinit(

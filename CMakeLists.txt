@@ -47,10 +47,13 @@ link_directories(${bin_dir})
 
 
 # Eigen
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
-include_directories(${EIGEN3_INCLUDE_DIR})
+find_package (Eigen3 REQUIRED NO_MODULE)
+# include_directories(${EIGEN3_INCLUDE_DIR})
+# Silence C++23 deprecation warnings from Eigen (float_denorm_style)
+# add_definitions(-D_SILENCE_CXX23_DENORM_DEPRECATION_WARNING)
 # libIGES
-include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iges/)
+# include_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iges/)
+find_package(libIGES REQUIRED)
 #
 # xtensors
 #
@@ -69,27 +72,28 @@ message("Python3_SITELIB:" ${Python3_SITELIB})
 #
 # VTK
 #
-# find_package(VTK REQUIRED)
+# Listing components explicitly so CMake doesn't try to validate every
+# imported target. conda-forge vtk-base 9.6 ships a VTK-targets.cmake that
+# references VTK::IOFFMPEG (separate optional package), and a bare
+# find_package(VTK REQUIRED) fails configure when that lib is absent.
 find_package(
     VTK REQUIRED
     COMPONENTS
         CommonCore
         CommonColor
         CommonDataModel
+        FiltersCore
         FiltersSources
         InteractionStyle
         RenderingCore
         RenderingAnnotation
         RenderingFreeType
-        IOXML
-        ChartsCore
-        InteractionStyle
         RenderingContext2D
         RenderingContextOpenGL2
-        RenderingCore
-        RenderingFreeType
+        RenderingOpenGL2
         ViewsContext2D
-        RenderingOpenGL2 
+        ChartsCore
+        IOXML
         Python
         WrappingPythonCore
 )
@@ -123,6 +127,8 @@ target_link_libraries(
     gbs-render
     iges
     TBB::tbb
+    Eigen3::Eigen
+    libIGES::iges
 )
 
 vtk_module_autoinit(
