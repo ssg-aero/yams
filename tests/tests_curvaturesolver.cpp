@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <curvaturesolver.h>
 #include <plots.h>
 #include <gridreader.h>
@@ -22,8 +22,7 @@
 
 #include <chrono>
 using namespace yams;
-const bool TESTS_USE_PLOT = true;
-TEST(tests_curvature_solver, vtk_no_blades)
+TEST_CASE("tests_curvature_solver.vtk_no_blades")
 {
     using T = double;
     using namespace std::chrono;
@@ -82,15 +81,16 @@ TEST(tests_curvature_solver, vtk_no_blades)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_cst.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
     {
         // shadowing
@@ -107,15 +107,16 @@ TEST(tests_curvature_solver, vtk_no_blades)
         // curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_var.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 
     {
@@ -132,15 +133,16 @@ TEST(tests_curvature_solver, vtk_no_blades)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_cst.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 
     {
@@ -154,16 +156,17 @@ TEST(tests_curvature_solver, vtk_no_blades)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
             plot_vtkStructuredGrid(structuredGrid,"rho", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 
     // {
@@ -185,8 +188,8 @@ TEST(tests_curvature_solver, vtk_no_blades)
     //     curvature_solver(solver_case);
     //     auto stop = high_resolution_clock::now();
     //     auto duration = duration_cast<microseconds>(stop - start);
-    //     cout << "Time taken by meridian computation: "
-    //          << duration.count() << " microseconds" << endl;
+    //     std::cout << "Time taken by meridian computation: "
+    //          << duration.count() << " microseconds" << std::endl;
 
     //     auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
     //     if (TESTS_USE_PLOT)
@@ -198,7 +201,7 @@ TEST(tests_curvature_solver, vtk_no_blades)
     // }
 }
 
-TEST(tests_curvature_solver, vtk_static_blades1)
+TEST_CASE("tests_curvature_solver.vtk_static_blades1")
 {
     using T = double;
     using namespace std::chrono;
@@ -246,8 +249,8 @@ TEST(tests_curvature_solver, vtk_static_blades1)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         size_t i_bf = 89;
 
@@ -264,20 +267,21 @@ TEST(tests_curvature_solver, vtk_static_blades1)
             auto err_pc = (res - res_analytic) / res_analytic * 100.;
             if(!solver_case.relocate)
             {
-                ASSERT_LT(err_pc, 1.);
+                REQUIRE(err_pc < 1.);
                 std::cout << res << " " << res_analytic << " " << err_pc << "%" << std::endl;
             }
         }
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_002.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", false, true);
         }
+        #endif
     }
 }
 
-TEST(tests_curvature_solver, vtk_static_blades2)
+TEST_CASE("tests_curvature_solver.vtk_static_blades2")
 {
     using T = double;
     using namespace std::chrono;
@@ -339,12 +343,12 @@ TEST(tests_curvature_solver, vtk_static_blades2)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_003.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             plot_vtkStructuredGrid(structuredGrid,"Pt", false, true);
@@ -355,10 +359,11 @@ TEST(tests_curvature_solver, vtk_static_blades2)
             plot_vtkStructuredGrid(structuredGrid,"cur", true, true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 }
 
-TEST(tests_curvature_solver, vtk_static_blades3)
+TEST_CASE("tests_curvature_solver.vtk_static_blades3")
 {
     using T = double;
     using namespace std::chrono;
@@ -414,11 +419,11 @@ TEST(tests_curvature_solver, vtk_static_blades3)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_004.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Pt", true);
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -429,10 +434,11 @@ TEST(tests_curvature_solver, vtk_static_blades3)
             plot_vtkStructuredGrid(structuredGrid,"k", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 }
 
-TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
+TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_stream_dir")
 {
     using T = double;
     using namespace std::chrono;
@@ -486,12 +492,12 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_005.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
@@ -501,10 +507,11 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_stream_dir)
             plot_vtkStructuredGrid(structuredGrid,"sgp", false, true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 }
 
-TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
+TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_span_dir")
 {
     using T = double;
     using namespace std::chrono;
@@ -557,12 +564,12 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_006.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
@@ -570,10 +577,11 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_span_dir)
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 }
 
-TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
+TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_mixed_dir")
 {
     using T = double;
     using namespace std::chrono;
@@ -629,12 +637,12 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_007.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
@@ -649,11 +657,12 @@ TEST(tests_curvature_solver, vtk_non_otrtho_channel_mixed_dir)
             plot_vtkStructuredGrid(structuredGrid,"phi", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 
 }
 
-TEST(tests_curvature_solver, vtk_read_blade_info)
+TEST_CASE("tests_curvature_solver.vtk_read_blade_info")
 {
     using T = double;
     auto Vm = 30.;
@@ -705,12 +714,12 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_004_design.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
@@ -723,12 +732,13 @@ TEST(tests_curvature_solver, vtk_read_blade_info)
             plot_vtkStructuredGrid(structuredGrid,"H", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 
 }
 
 
-TEST(tests_curvature_solver, vtk_fan_design)
+TEST_CASE("tests_curvature_solver.vtk_fan_design")
 {
     using T = double;
     auto Vm = 100.;
@@ -788,12 +798,12 @@ TEST(tests_curvature_solver, vtk_fan_design)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
 
         auto structuredGrid = write_vtk_grid(g,(fname+"_design.vts").c_str());
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             plot_vtkStructuredGrid(structuredGrid,"Ts", true);
@@ -808,6 +818,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
             plot_vtkStructuredGrid(structuredGrid,"H", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 
     rapidjson::Document document;
@@ -846,7 +857,7 @@ TEST(tests_curvature_solver, vtk_fan_design)
     // }
 }
 
-TEST(tests_curvature_solver, vtk_fan_ogv_design)
+TEST_CASE("tests_curvature_solver.vtk_fan_ogv_design")
 {
     using T = double;
     auto Vm = 100.;
@@ -908,12 +919,12 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
 
         auto structuredGrid = write_vtk_grid(g,(fname+"_design.vts").c_str());
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             // plot_vtkStructuredGrid(structuredGrid,"Ps", true);
             // plot_vtkStructuredGrid(structuredGrid,"Ts", true);
@@ -929,10 +940,11 @@ TEST(tests_curvature_solver, vtk_fan_ogv_design)
             // plot_vtkStructuredGrid(structuredGrid,"H", true);
             plot_residual(solver_case.log);
         }
+        #endif
     }
 }
 
-TEST(tests_curvature_solver, Vm_inlet)
+TEST_CASE("tests_curvature_solver.Vm_inlet")
 {
     using T = double;
     using namespace std::chrono;
@@ -986,8 +998,8 @@ TEST(tests_curvature_solver, Vm_inlet)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         auto l_tot = g(0, nj - 1).l;
         std::for_each(
@@ -995,17 +1007,18 @@ TEST(tests_curvature_solver, Vm_inlet)
             [l_tot, &solver_case](auto &gp)
             {
                 auto l_rel = gp.l / l_tot;
-                ASSERT_NEAR( gp.Vm, solver_case.inlet.Vm(l_rel), 1.e-6 );
+                REQUIRE(std::abs(gp.Vm - solver_case.inlet.Vm(l_rel)) <= 1.e-6);
             }
         );
 
 
         auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_sin.vts");
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
             plot_residual(solver_case.log);
         }
+        #endif
 
     }
 }

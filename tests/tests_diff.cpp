@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <diffop.h>
 #include <gridsbuilders.h>
 #include <gridreader.h>
@@ -9,13 +9,12 @@
 using namespace yams;
 
 const double PI = acos(-1.);
-const bool PLOT_ON = true;
 #ifdef _WIN32
     const std::string test_files_path = "C:/Users/sebastien/workspace/tbslib/tests/";
 #else
     const std::string test_files_path = "../../../tbslib/tests/";
 #endif
-TEST(tests_diff, D1_O2)
+TEST_CASE("tests_diff.D1_O2")
 {
     struct gp
     {
@@ -45,14 +44,8 @@ TEST(tests_diff, D1_O2)
         {
             auto di = D1_O2_i(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O2_j(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-3);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-3);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-3);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-3);
         }
     }
 
@@ -70,14 +63,8 @@ TEST(tests_diff, D1_O2)
         {
             auto di = D1_O2_i(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O2_j(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-3);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-3);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-3);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-3);
         }
     }
 
@@ -87,14 +74,8 @@ TEST(tests_diff, D1_O2)
         {
             auto di = D1_O2_i_bw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O2_j_bw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-3);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-3);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-3);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-3);
         }
     }
 
@@ -104,14 +85,8 @@ TEST(tests_diff, D1_O2)
         {
             auto di = D1_O2_i_fw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O2_j_fw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-3);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-3);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-3);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-3);
         }
     }
 
@@ -130,19 +105,13 @@ TEST(tests_diff, D1_O2)
             auto di = D1_O2_i(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             // auto dj = D1_O2_j(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
             // std:: cerr<< di << ' ' << dj << std::endl;
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-3);
-            // ASSERT_NEAR(
-            //     dj,
-            //     dfqdy(g(i,j)),
-            //     1e-3);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-3);
+            // REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-3);
         }
     }
 }
 #ifdef USE_XT
-    TEST(tests_diff, D1_O2_X)
+    TEST_CASE("tests_diff.D1_O2_X")
     {
         struct gp
         {
@@ -174,19 +143,13 @@ TEST(tests_diff, D1_O2)
             {
                 auto di = D1_O2_i(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
                 auto dj = D1_O2_j(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-                ASSERT_NEAR(
-                    di,
-                    dfqdx(g(i,j)),
-                    1e-3);
-                ASSERT_NEAR(
-                    dj,
-                    dfqdy(g(i,j)),
-                    1e-3);
+                REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-3);
+                REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-3);
             }
         }
     }
 #endif
-TEST(tests_diff, D1_O1)
+TEST_CASE("tests_diff.D1_O1")
 {
     struct gp
     {
@@ -216,14 +179,8 @@ TEST(tests_diff, D1_O1)
         {
             auto di = D1_O1_i_bw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O1_j_bw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-1);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-1);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-1);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-1);
         }
     }
 
@@ -233,14 +190,8 @@ TEST(tests_diff, D1_O1)
         {
             auto di = D1_O1_i_fw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O1_j_fw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-1);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-1);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-1);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-1);
         }
     }
 
@@ -258,14 +209,8 @@ TEST(tests_diff, D1_O1)
         {
             auto di = D1_O1_i_bw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O1_j_bw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-1);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-1);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-1);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-1);
         }
     }
 
@@ -275,14 +220,8 @@ TEST(tests_diff, D1_O1)
         {
             auto di = D1_O1_i_fw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
             auto dj = D1_O1_j_fw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
-            ASSERT_NEAR(
-                di,
-                dfqdx(g(i,j)),
-                1e-1);
-            ASSERT_NEAR(
-                dj,
-                dfqdy(g(i,j)),
-                1e-1);
+            REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-1);
+            REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-1);
         }
     }
 
@@ -301,19 +240,13 @@ TEST(tests_diff, D1_O1)
     //         auto di = D1_O1_j_bw(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.x;});
     //         // auto dj = D1_O2_j(g,i,j,[](const auto &g){return g.v;},[](const auto &g){return g.y;});
     //         // std:: cerr<< di << ' ' << dj << std::endl;
-    //         ASSERT_NEAR(
-    //             di,
-    //             dfqdx(g(i,j)),
-    //             1e-1);
-    //         // ASSERT_NEAR(
-    //         //     dj,
-    //         //     dfqdy(g(i,j)),
-    //         //     1e-3);
+    //         REQUIRE(std::abs(di - dfqdx(g(i,j))) <= 1e-1);
+    //         // REQUIRE(std::abs(dj - dfqdy(g(i,j))) <= 1e-3);
     //     }
     // }
 }
 
-TEST(tests_diff, D1_O2_test_001)
+TEST_CASE("tests_diff.D1_O2_test_001")
 {
     struct gp
     {
@@ -336,9 +269,9 @@ TEST(tests_diff, D1_O2_test_001)
     size_t ni = dims[0];
     size_t nj = dims[1];
     size_t nk = dims[2];
-    ASSERT_TRUE(nj != 0);
-    ASSERT_TRUE(ni != 0);
-    ASSERT_TRUE(nk == 0);
+    REQUIRE(nj != 0);
+    REQUIRE(ni != 0);
+    REQUIRE(nk == 0);
     g.resize(ni,nj);
     vtkIdType id {};
     for(size_t j {} ; j < nj ; j++)
@@ -384,21 +317,15 @@ TEST(tests_diff, D1_O2_test_001)
             auto v_y = yams::D1_O2_dx2(g,gp_metrics,i,j,ksi,eth,fv);
             err_max_x = fmax(v_x - dfqdx(g(i, j)), err_max_x);
             err_max_y = fmax(v_y - dfqdy(g(i, j)), err_max_y);
-            ASSERT_NEAR(
-                v_x,
-                dfqdx(g(i, j)),
-                1e-2);
-            ASSERT_NEAR(
-                v_x,
-                dfqdx(g(i, j)),
-                1e-2);
+            REQUIRE(std::abs(v_x - dfqdx(g(i, j))) <= 1e-2);
+            REQUIRE(std::abs(v_x - dfqdx(g(i, j))) <= 1e-2);
         }
     }
 
     std::cout << "err_max: " << err_max_x << " " << err_max_y << std::endl;
 }
 /*
-TEST(tests_diff, D1_O2_test_001_ghost)
+TEST_CASE("tests_diff.D1_O2_test_001_ghost")
 {
     struct gp
     {
@@ -419,8 +346,8 @@ TEST(tests_diff, D1_O2_test_001_ghost)
     auto dims  =sgrid->GetDimensions();
     size_t ni = dims[0];
     size_t nj = dims[1];
-    ASSERT_TRUE(nj != 0);
-    ASSERT_TRUE(ni != 0);
+    REQUIRE(nj != 0);
+    REQUIRE(ni != 0);
     g.resize(ni-2,nj-2);
     vtkIdType id {};
     for(std::intmax_t j {-1} ; j <= nj ; j++)
@@ -466,14 +393,8 @@ TEST(tests_diff, D1_O2_test_001_ghost)
             auto v_y = yams::D1_O2_dx2(g,gp_metrics,i,j,ksi,eth,fv);
             err_max_x = fmax(v_x - dfqdx(g(i, j)), err_max_x);
             err_max_y = fmax(v_y - dfqdy(g(i, j)), err_max_y);
-            ASSERT_NEAR(
-                v_x,
-                dfqdx(g(i, j)),
-                1e-2);
-            ASSERT_NEAR(
-                v_x,
-                dfqdx(g(i, j)),
-                1e-2);
+            REQUIRE(std::abs(v_x - dfqdx(g(i, j))) <= 1e-2);
+            REQUIRE(std::abs(v_x - dfqdx(g(i, j))) <= 1e-2);
         }
     }
 
@@ -481,7 +402,7 @@ TEST(tests_diff, D1_O2_test_001_ghost)
 }
 */
 
-TEST(tests_diff, D1_O2_cir)
+TEST_CASE("tests_diff.D1_O2_cir")
 {
     using T = double;
     size_t ni = 5000;
@@ -515,16 +436,17 @@ TEST(tests_diff, D1_O2_cir)
                                        { return gp.Vm; });
             auto df_Vm_dl_ = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, [](const auto &gp)
                                       { return gp.Vm; }); 
-            if (PLOT_ON)
+            #if YAMS_TESTS_PLOT
             {
                 g(i, j).Vu = df_Vm_dm_; // use variable only for storage
                 g(i, j).H  = df_Vm_dl_;
             }
-            ASSERT_NEAR(df_Vm_dm_, df_Vm_dm(g(i, j)), 1e-5);
-            ASSERT_NEAR(df_Vm_dl_, df_Vm_dl(g(i, j)), 1e-5);
+            #endif
+            REQUIRE(std::abs(df_Vm_dm_ - df_Vm_dm(g(i, j))) <= 1e-5);
+            REQUIRE(std::abs(df_Vm_dl_ - df_Vm_dl(g(i, j))) <= 1e-5);
         }
     }
-    if (PLOT_ON)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "m", [](const auto &gp)
@@ -547,9 +469,10 @@ TEST(tests_diff, D1_O2_cir)
         plot_vtkStructuredGrid(structuredGrid, "dVm_dm_err", false);
         plot_vtkStructuredGrid(structuredGrid, "dVm_dl_err", false);
     }
+    #endif
 }
 
-TEST(tests_diff, D1_O2_bump)
+TEST_CASE("tests_diff.D1_O2_bump")
 {
     using T = double;
     std::vector<std::array<T,2>> poles1{
@@ -622,17 +545,18 @@ TEST(tests_diff, D1_O2_bump)
                                        { return gp.Vm; });
             auto df_Vm_dl_ = D1_O2_dx2(g, g_metrics, i, j, d_ksi, d_eth, [](const auto &gp)
                                       { return gp.Vm; }); 
-            if (PLOT_ON)
+            #if YAMS_TESTS_PLOT
             {
                 g(i, j).Vu = df_Vm_dm_; // use variable only for storage
                 g(i, j).H  = df_Vm_dl_;
             }
-            ASSERT_NEAR(df_Vm_dm_, df_Vm_dm(g(i, j)), 1e-3);
-            ASSERT_NEAR(df_Vm_dl_, df_Vm_dl(g(i, j)), 1e-3);
+            #endif
+            REQUIRE(std::abs(df_Vm_dm_ - df_Vm_dm(g(i, j))) <= 1e-3);
+            REQUIRE(std::abs(df_Vm_dl_ - df_Vm_dl(g(i, j))) <= 1e-3);
         }
     }
 
-    if(PLOT_ON)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "m", [](const auto &gp)
@@ -660,5 +584,6 @@ TEST(tests_diff, D1_O2_bump)
             , sgrid_actor
         );
     }
+    #endif
 
 }

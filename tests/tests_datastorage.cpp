@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <datastorage.h>
 #include <diffop.h>
 #include <gridsbuilders.h>
@@ -11,48 +11,48 @@ using namespace yams;
 
 const double PI = acos(-1.);
 
-TEST(tests_datastorage, Array2d)
+TEST_CASE("tests_datastorage.Array2d")
 {
     Array2d<double> a(3,5);
-    ASSERT_DOUBLE_EQ(a(0,0),0.);
+    REQUIRE(a(0,0) == yams_tests::approx_ulp(0.));
     std::for_each(
         a.begin(0),
         a.end(0),
-        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,0.); }
+        [](const auto &v_){ REQUIRE(v_ == yams_tests::approx_ulp(0.)); }
     );
     
     Array2d<double> b(3,5,1.);
-    ASSERT_DOUBLE_EQ(b(0,0),1.);
+    REQUIRE(b(0,0) == yams_tests::approx_ulp(1.));
     std::for_each(
         b.begin(1),
         b.end(1),
-        [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+        [](const auto &v_){ REQUIRE(v_ == yams_tests::approx_ulp(1.)); }
     );
 }
 
-// TEST(tests_datastorage, ArrayX2d)
+// TEST_CASE("tests_datastorage.ArrayX2d")
 // {
 //     ArrayX2d<double> a(3,5);// on contrary of std::vector, values are not initialized to 0.
-//     ASSERT_NEAR(a(0,0),0.,1e-30);
+//     REQUIRE(std::abs(a(0,0) - 0.) <= 1e-30);
 //     std::for_each(
 //         a.begin(0),
 //         a.end(0),
-//         [](const auto &v_){ ASSERT_NEAR(v_,0.,1e-30); }
+//         [](const auto &v_){ REQUIRE(std::abs(v_ - 0.) <= 1e-30); }
 //     );
     
 //     ArrayX2d<double> b(3,5,1.);
-//     ASSERT_DOUBLE_EQ(b(0,0),1.);
+//     REQUIRE(b(0,0) == yams_tests::approx_ulp(1.));
 //     std::for_each(
 //         b.begin(1),
 //         b.end(1),
-//         [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+//         [](const auto &v_){ REQUIRE(v_ == yams_tests::approx_ulp(1.)); }
 //     );
 
 //     std::for_each(
 //         GBS_PAR_EXEC
 //         b.begin(),
 //         b.end(),
-//         [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
+//         [](const auto &v_){ REQUIRE(v_ == yams_tests::approx_ulp(1.)); }
 //     );
 // }
 
@@ -67,7 +67,7 @@ template <typename T>
 auto r = [](MeridionalGridPoint<T> &gp){return gp.y;};
 template <typename T>
 auto phi = [](MeridionalGridPoint<T> &gp){return gp.phi;};
-TEST(tests_datastorage, Grid)
+TEST_CASE("tests_datastorage.Grid")
 {
     size_t ni = 210;
     size_t nj = 130;
@@ -86,7 +86,7 @@ TEST(tests_datastorage, Grid)
         for(int c = 0 ; c < 1000 ; c++)
         for (auto i = 0; i < ni; i++)
         {
-            ASSERT_NEAR(l<double>(g(i,nj-1)),r1-r2,1e-7);
+            REQUIRE(std::abs((l<double>(g(i,nj-1))) - (r1-r2)) <= 1e-7);
         }
         const auto t2 = std::chrono::high_resolution_clock::now();
         const std::chrono::duration<double, std::milli> ms = t2 - t1;
@@ -99,7 +99,7 @@ TEST(tests_datastorage, Grid)
         for(int c = 0 ; c < 1000 ; c++)
         for (auto i = 0; i < ni; i++)
         {
-            ASSERT_NEAR(g(i, nj - 1).l, r1 - r2, 1e-7);
+            REQUIRE(std::abs(g(i, nj - 1).l - (r1 - r2)) <= 1e-7);
         }
         const auto t2 = std::chrono::high_resolution_clock::now();
         const std::chrono::duration<double, std::milli> ms = t2 - t1;
@@ -107,12 +107,12 @@ TEST(tests_datastorage, Grid)
                   << " took " << ms.count() << " ms\n";
     }
 
-    ASSERT_DOUBLE_EQ(g(0,0).x,0.);
-    ASSERT_DOUBLE_EQ(g(0,0).y,r3);
-    ASSERT_DOUBLE_EQ(g(0,nj-1).x,r1-r2);
-    ASSERT_DOUBLE_EQ(g(0,nj-1).y,r3);
-    ASSERT_DOUBLE_EQ(g(ni-1,0).x,2*z3);
-    ASSERT_DOUBLE_EQ(g(ni-1,0).y,r3);
+    REQUIRE(g(0,0).x == yams_tests::approx_ulp(0.));
+    REQUIRE(g(0,0).y == yams_tests::approx_ulp(r3));
+    REQUIRE(g(0,nj-1).x == yams_tests::approx_ulp(r1-r2));
+    REQUIRE(g(0,nj-1).y == yams_tests::approx_ulp(r3));
+    REQUIRE(g(ni-1,0).x == yams_tests::approx_ulp(2*z3));
+    REQUIRE(g(ni-1,0).y == yams_tests::approx_ulp(r3));
     std::cerr << g(ni/2,0).y << ' ' << g(ni/2,0).x << std::endl;
     MeridionalGridPoint<double> O;
     O.x = z3;
@@ -123,13 +123,13 @@ TEST(tests_datastorage, Grid)
         for (auto j = 0; j < nj; j++)
         {
             auto r = r1 + (r2 - r1) * j / (nj - 1.);
-            ASSERT_NEAR(distance(g(i, j) , O),r,1e-7);
+            REQUIRE(std::abs(distance(g(i, j) , O) - r) <= 1e-7);
         }
     }
 
 }
 
-TEST(tests_datastorage, Grid_Diff)
+TEST_CASE("tests_datastorage.Grid_Diff")
 {
     size_t ni = 100;
     size_t nj = 30;
@@ -140,20 +140,20 @@ TEST(tests_datastorage, Grid_Diff)
     make_uniform_grid(2.,1.,g);
     for (auto j = 0; j < nj; j++)
     {
-        ASSERT_DOUBLE_EQ(g(ni - 1, j).x, 2.);
+        REQUIRE(g(ni - 1, j).x == yams_tests::approx_ulp(2.));
     }
         for (auto i = 0; i < ni; i++)
     {
-        ASSERT_DOUBLE_EQ(g(i, nj - 1).y, 1.);
+        REQUIRE(g(i, nj - 1).y == yams_tests::approx_ulp(1.));
     }
     compute_abscissas(g);
     for (auto j = 0; j < nj; j++)
     {
-        ASSERT_DOUBLE_EQ(g(ni - 1, j).m, 2.);
+        REQUIRE(g(ni - 1, j).m == yams_tests::approx_ulp(2.));
     }
         for (auto i = 0; i < ni; i++)
     {
-        ASSERT_DOUBLE_EQ(g(i, nj - 1).l, 1.);
+        REQUIRE(g(i, nj - 1).l == yams_tests::approx_ulp(1.));
     }
 
     for (auto i = 0; i < ni; i++)
@@ -163,12 +163,12 @@ TEST(tests_datastorage, Grid_Diff)
             double drqdm,dzqdm,drqdl,dzqdl;
             drqdm = D1_O2_i(g,i,j,r<double>,m<double>);
             dzqdm = D1_O2_i(g,i,j,z<double>,m<double>);
-            ASSERT_DOUBLE_EQ(drqdm,0.);
-            ASSERT_DOUBLE_EQ(dzqdm,1.);
+            REQUIRE(drqdm == yams_tests::approx_ulp(0.));
+            REQUIRE(dzqdm == yams_tests::approx_ulp(1.));
             drqdl = D1_O2_j(g,i,j,r<double>,l<double>);
             dzqdl = D1_O2_j(g,i,j,z<double>,l<double>);
-            ASSERT_DOUBLE_EQ(drqdl,1.);
-            ASSERT_DOUBLE_EQ(dzqdl,0.);
+            REQUIRE(drqdl == yams_tests::approx_ulp(1.));
+            REQUIRE(dzqdl == yams_tests::approx_ulp(0.));
         }
     }
 
@@ -178,21 +178,21 @@ TEST(tests_datastorage, Grid_Diff)
     compute_abscissas(g);
     for (auto j = 0; j < nj; j++)
     {
-        // ASSERT_DOUBLE_EQ(g(ni - 1, j).m, 2.);
+        // REQUIRE(g(ni - 1, j).m == yams_tests::approx_ulp(2.));
     }
         for (auto i = 0; i < ni; i++)
     {
-        // ASSERT_DOUBLE_EQ(g(i, nj - 1).l, 1.);
+        // REQUIRE(g(i, nj - 1).l == yams_tests::approx_ulp(1.));
     }
     compute_angles(g);
     for (auto i = 0; i < ni; i++)
     {
         for (auto j = 0; j < nj; j++)
         {
-            ASSERT_LE(fmod(-PI /2  + PI * i / (ni - 1.)-g(i,j).phi,2*PI),1e-5);
+            REQUIRE(fmod(-PI /2  + PI * i / (ni - 1.)-g(i,j).phi,2*PI) <= 1e-5);
             // gam = atan2( dzqdl,drqdl ); // Span line angle
             // std::cerr << gam << ' ' << dzqdl << ' ' << drqdl << std::endl;
-            // ASSERT_NEAR(gam,gam_,1e-5);
+            // REQUIRE(std::abs(gam - gam_) <= 1e-5);
         }
     }
     compute_curvature(g);
@@ -203,12 +203,12 @@ TEST(tests_datastorage, Grid_Diff)
         {
             // DphiDm = D1_O2_i(g, i, j, phi<double>, m<double>);
             DphiDm = g(i,j).cur;
-            ASSERT_NEAR( 1. / DphiDm , r1 + (r2 - r1) * j / (nj - 1.) , 1e-3 );
+            REQUIRE(std::abs((1. / DphiDm) - (r1 + (r2 - r1) * j / (nj - 1.))) <= 1e-3);
         }
     }
 }
 
-TEST(tests_datastorage, GridStd_perfo)
+TEST_CASE("tests_datastorage.GridStd_perfo")
 {
     size_t ni = 2100;
     size_t nj = 1300;
@@ -233,7 +233,7 @@ TEST(tests_datastorage, GridStd_perfo)
 }
 
 #ifdef USE_XT
-TEST(tests_datastorage, GridX_perfo)
+TEST_CASE("tests_datastorage.GridX_perfo")
 {
     size_t ni = 2100;
     size_t nj = 1300;
@@ -256,7 +256,7 @@ TEST(tests_datastorage, GridX_perfo)
         }
     }
 }
-TEST(tests_datastorage, convertion)
+TEST_CASE("tests_datastorage.convertion")
 {
     MeridionalGridPoint<double> gpd;
     MeridionalGridPoint<float> gpf;
@@ -265,8 +265,8 @@ TEST(tests_datastorage, convertion)
 
     size_t n =  sizeof(gpf) / sizeof(float);
     yams::copy(gpf,gpd,n);
-    ASSERT_NEAR(gpd.x, gpd.x, 1e-30);
-    ASSERT_NEAR(gpd.y, gpd.y, 1e-30);
+    REQUIRE(std::abs(gpd.x - gpd.x) <= 1e-30);
+    REQUIRE(std::abs(gpd.y - gpd.y) <= 1e-30);
 
     size_t ni = 21;
     size_t nj = 13;
@@ -299,8 +299,8 @@ TEST(tests_datastorage, convertion)
         for (auto j = 0; j < nj; j++)
         {
             auto r = r1 + (r2 - r1) * j / (nj - 1.);
-            ASSERT_NEAR(g1(i, j).y , r3 - r * sin(th), 1e-6);
-            ASSERT_NEAR(g1(i, j).x , z3 - r * cos(th), 1e-6);
+            REQUIRE(std::abs(g1(i, j).y - (r3 - r * sin(th))) <= 1e-6);
+            REQUIRE(std::abs(g1(i, j).x - (z3 - r * cos(th))) <= 1e-6);
         }
     }
 
@@ -314,7 +314,7 @@ TEST(tests_datastorage, convertion)
 const size_t size_v = 1000000;
 const size_t n_it = 1000;
 
-TEST(tests_datastorage, xsimd_perfo)
+TEST_CASE("tests_datastorage.xsimd_perfo")
 {
     {
         const auto t1 = std::chrono::high_resolution_clock::now();

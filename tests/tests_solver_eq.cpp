@@ -1,11 +1,11 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <datastorage.h>
 #include <eqcurvaturesolver.h>
 #include <gridsbuilders.h>
 #include <gridmetrics.h>
 
 
-TEST(tests_solver_eq, direct_inv_eq)
+TEST_CASE("tests_solver_eq.direct_inv_eq")
 {
     using namespace yams;
     using T = double;
@@ -63,10 +63,6 @@ TEST(tests_solver_eq, direct_inv_eq)
     auto J_    = J(g, g_metrics, i, j, d_ksi, d_eth);
     auto K_    = K(g, g_metrics, i, j, d_ksi, d_eth);
 
-    ASSERT_NEAR( 
-        d_bet, 
-        d_vu, 
-        tol
-    );
+    REQUIRE(std::abs(d_bet - d_vu) <= tol);
 
 }

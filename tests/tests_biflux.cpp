@@ -1,5 +1,5 @@
 #include <vector>
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <gbs/curves>
 #include <gbs-render/vtkGbsRender.h>
 #include <gbs-mesh/tfi.h>
@@ -967,7 +967,7 @@ void main_to_partial_flow(const vector<T> &main_value, vector<T> &partial_flow_v
     }
 }
 
-TEST(solver, design_novak)
+TEST_CASE("solver.design_novak")
 {
  auto [
         pts_main,
@@ -1018,7 +1018,9 @@ TEST(solver, design_novak)
     add_value(solver_main.dat().q(), sgrid, "q");
     add_value(solver_main.dat().Rho(), sgrid, "rho");
     // yams::plot_vtkStructuredGrid(sgrid, "rho", true, true);
+    #if YAMS_TESTS_PLOT
     yams::plot_vtkStructuredGrid(sgrid, "M", true, true);
+    #endif
     
 
     auto f_name = "novak_design_biflux.vts";

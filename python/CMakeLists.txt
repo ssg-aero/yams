@@ -23,7 +23,6 @@ target_link_libraries(
         ${PROJECT_NAME} PRIVATE 
         ${VTK_LIBRARIES}
         TBB::tbb 
-        NLopt::nlopt
         gbs-render
         Eigen3::Eigen
         libIGES::iges

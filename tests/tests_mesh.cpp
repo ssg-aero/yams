@@ -1,12 +1,11 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <meshtools.h>
 #include <gbs-render/vtkcurvesrender.h>
 #include <gbs-render/vtkgridrender.h>
 using T = double;
 const T tol{static_cast<T>(1e-6)};
-const bool PLOT_ON = true;
 
-TEST(tests_mesh, channel)
+TEST_CASE("tests_mesh.channel")
 {
 
     std::vector<std::array<T,2>> poles1{
@@ -43,54 +42,38 @@ TEST(tests_mesh, channel)
     yams::crv_vector<T> crv_lst{crv1, crv2};
     auto [ crv_lst_opp , v] = yams::build_iso_ksi_curves<T>(crv_lst,knots);
 
-    ASSERT_LT(
-        gbs::distance(
+    REQUIRE((gbs::distance(
             crv1->begin(),
-            crv_lst_opp.front()->begin()),
-        tol);
-    ASSERT_LT(
-        gbs::distance(
+            crv_lst_opp.front()->begin())) < tol);
+    REQUIRE((gbs::distance(
             crv1->end(),
-            crv_lst_opp.back()->begin()),
-        tol);
-    ASSERT_LT(
-        gbs::distance(
+            crv_lst_opp.back()->begin())) < tol);
+    REQUIRE((gbs::distance(
             crv2->begin(),
-            crv_lst_opp.front()->end()),
-        tol);
-    ASSERT_LT(
-        gbs::distance(
+            crv_lst_opp.front()->end())) < tol);
+    REQUIRE((gbs::distance(
             crv2->end(),
-            crv_lst_opp.back()->end()),
-        tol);
+            crv_lst_opp.back()->end())) < tol);
 
     size_t nu{30};
     size_t nv{15};
 
     auto [pts, ni, nj, n_iso_eth, n_iso_ksi] = yams::mesh_channel<T>(crv_lst, knots, nv, nu);
 
-    ASSERT_LT(
-        gbs::distance(
+    REQUIRE((gbs::distance(
             crv1->begin(),
-            pts[0]),
-        tol);
-    ASSERT_LT(
-        gbs::distance(
+            pts[0])) < tol);
+    REQUIRE((gbs::distance(
             crv1->end(),
-            pts[ni - 1]),
-        tol);
-    ASSERT_LT(
-        gbs::distance(
+            pts[ni - 1])) < tol);
+    REQUIRE((gbs::distance(
             crv2->begin(),
-            pts[ni * (nj - 1)]),
-        tol);
-    ASSERT_LT(
-        gbs::distance(
+            pts[ni * (nj - 1)])) < tol);
+    REQUIRE((gbs::distance(
             crv2->end(),
-            pts[ni-1 + ni * (nj - 1)]),
-        tol);
+            pts[ni-1 + ni * (nj - 1)])) < tol);
 
-    if(PLOT_ON)
+    #if YAMS_TESTS_PLOT
     {
         auto sgrid_actor = gbs::make_structuredgrid_actor(pts, ni, nj);
         gbs::plot(
@@ -99,9 +82,10 @@ TEST(tests_mesh, channel)
             sgrid_actor
         );
     }
+    #endif
 }
 
-TEST(tests_mesh, channel_arbitrary)
+TEST_CASE("tests_mesh.channel_arbitrary")
 {
     size_t p = 3;
     using T = double;
@@ -171,7 +155,7 @@ TEST(tests_mesh, channel_arbitrary)
 
     yams::smooth_mesh(pts,nj, n_iso_eth);
 
-    if(PLOT_ON)
+    #if YAMS_TESTS_PLOT
     {
         auto sgrid_actor = gbs::make_structuredgrid_actor(pts, ni, nj);
         gbs::plot(
@@ -180,4 +164,5 @@ TEST(tests_mesh, channel_arbitrary)
             crv2
         );
     }
+    #endif
 }

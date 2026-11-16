@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 // #include <tbb/parallel_for.h>
 #include <gbs/math.ixx>
 
@@ -61,7 +61,7 @@ void plotXY(const std::vector<T> &X, const std::vector<std::vector<T>> &Y)
     view->GetInteractor()->Start();
 }
 
-TEST(tests_burgereq, lax)
+TEST_CASE("tests_burgereq.lax")
 {
     auto f_diff_ct_O2 = [](size_t i, const auto &E, const auto &XM)
     {
@@ -216,7 +216,9 @@ TEST(tests_burgereq, lax)
     // auto [It,residual,U] = solve(X,nit,f_lax_scheme);
     auto [It,residual,U] = solve(X,nit,f_mac_cormack);
 
+    #if YAMS_TESTS_PLOT
     plotXY(It,{residual});
     plotXY(X,{U});
+    #endif
 
 }

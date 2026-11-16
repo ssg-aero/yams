@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <chrono>
 #include <iostream>
 #include <vector>
@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <gbs/execution.h>
 // #include <xtensor/xarray.hpp>
-TEST(vectorization, 1d)
+TEST_CASE("vectorization.1d")
 {
 
     // using namespace std;
@@ -47,7 +47,7 @@ TEST(vectorization, 1d)
 
     // for(size_t i{}; i < n; i++)
     // {
-    //     ASSERT_NEAR(Y_xt[i], Y[i], 1e-6);
+    //     REQUIRE(std::abs(Y_xt[i] - Y[i]) <= 1e-6);
     // }
 
     // start = chrono::steady_clock::now();

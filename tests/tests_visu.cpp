@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <datastorage.h>
 #include <diffop.h>
 #include <gridsbuilders.h>
@@ -9,7 +9,7 @@ const double PI = acos(-1.);
 
 using namespace yams;
 
-TEST(tests_visu, render_curvature)
+TEST_CASE("tests_visu.render_curvature")
 {
     size_t ni = 50;
     size_t nj = 15;
@@ -25,6 +25,8 @@ TEST(tests_visu, render_curvature)
 
     auto structuredGrid = make_vtkStructuredGrid(g);
     add_value(g,structuredGrid,"Curvature",[](const auto &gp){return gp.cur;});
+    #if YAMS_TESTS_PLOT
     plot_vtkStructuredGrid(structuredGrid,"Curvature");
+    #endif
 
 }
