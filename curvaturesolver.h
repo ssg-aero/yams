@@ -260,7 +260,7 @@ namespace yams
         for (int j{1}; j < nj; j++)
         {
             g(i, j).dH_dl= ( g(i, j).H - g(i, j-1).H ) / ( g(i, j).l - g(i, j-1).l );
-            g(i, j).dH_dl= ( g(i, j).H - g(i, j-1).H ) / ( g(i, j).l - g(i, j-1).l );
+            g(i, j).dI_dl= ( g(i, j).I - g(i, j-1).I ) / ( g(i, j).l - g(i, j-1).l );
             g(i, j).dS_dl= ( g(i, j).s - g(i, j-1).s ) / ( g(i, j).l - g(i, j-1).l );
             g(i, j).drVu_dl= ( g(i, j).y * g(i, j).Vu - g(i, j-1).y * g(i, j-1).Vu ) / ( g(i, j).l - g(i, j-1).l );
             g(i, j).drTb_dl= ( g(i, j).y * tan(g(i, j).bet) - g(i, j-1).y * tan(g(i, j-1).bet) ) / ( g(i, j).l - g(i, j-1).l );
