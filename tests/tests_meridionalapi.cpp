@@ -28,7 +28,7 @@ namespace
             .metal_angle = [deg](double m, double) { return ((1 - m) * -50. + m * -20.) * deg; },
         });
         pb.inlet.vm_mean = 30.;
-        pb.inlet.Ts = [](double l) { return 288.15 + 10. * l; };
+        pb.inlet.Tt = [](double l) { return 288.15 + 10. * l; };
         pb.options.n_stations = 41;
         return pb;
     }
@@ -58,6 +58,13 @@ TEST_CASE("meridionalapi.rotor")
         REQUIRE(g(i_te, j).bet == doctest::Approx(-20. * std::numbers::pi / 180.));
         REQUIRE(g(i_te, j).I == doctest::Approx(g(i_le - 1, j).I).epsilon(1e-12));
         REQUIRE(g(i_te, j).H > g(i_le - 1, j).H);
+    }
+    // the inlet values are the totals, given at the initial (evenly spread) stream lines
+    for (size_t j = 0; j < nj; j++)
+    {
+        const double l = double(j) / (nj - 1);
+        REQUIRE(g(0, j).Tt == doctest::Approx(288.15 + 10. * l));
+        REQUIRE(g(0, j).Pt == doctest::Approx(1.01325e5));
     }
 }
 

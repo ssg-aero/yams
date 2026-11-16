@@ -42,12 +42,15 @@ namespace yams::api
     };
 
     /// Inlet conditions as functions of the relative span l in [0, 1] (hub to shroud).
-    /// The inlet mean meridional velocity sets the mass flow.
+    /// The inlet mean meridional velocity sets the mass flow; Tt and Pt are the
+    /// inlet total temperature and pressure. The profiles are applied to the
+    /// initial stream lines (evenly spread from hub to shroud), then each stream
+    /// line keeps its values when the solver moves it.
     struct Inlet
     {
         double vm_mean{30.};
-        std::function<double(double)> Ts = [](double) { return 288.15; };
-        std::function<double(double)> Ps = [](double) { return 1.01325e5; };
+        std::function<double(double)> Tt = [](double) { return 288.15; };
+        std::function<double(double)> Pt = [](double) { return 1.01325e5; };
         std::function<double(double)> Vu = [](double) { return 0.; };
     };
 
@@ -235,10 +238,13 @@ namespace yams::api
         auto sc = make_solver_case<double>(std::move(g), blades);
 
         // Boundary conditions, gas and solver settings
+        // INLET_VmMoy_Ts_Ps_Vu sets the inlet totals from its Ts / Ps before the
+        // inlet velocity is computed (Vm = 0): they are the total values, which
+        // the solver keeps. (A static inlet would need its own formulation.)
         sc.inlet.mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu;
         sc.inlet.Vm_moy = pb.inlet.vm_mean;
-        sc.inlet.Ts = pb.inlet.Ts;
-        sc.inlet.Ps = pb.inlet.Ps;
+        sc.inlet.Ts = pb.inlet.Tt;
+        sc.inlet.Ps = pb.inlet.Pt;
         sc.inlet.Vu = pb.inlet.Vu;
         sc.gi->R = pb.gas.R;
         sc.gi->rho_cst = !opt.compressible;
