@@ -1,3 +1,4 @@
+import os
 from test_mesh import channel1, channel2, channel3, channel4
 import pygbs.gbs as gbs
 from pygbs import vtkplot as vbs
@@ -6,7 +7,7 @@ from pytest import approx
 import pytest
 import vtk
 from math import pi, radians, sin
-plot_on = True
+plot_on = bool(os.environ.get("YAMS_TESTS_PLOT"))  # interactive VTK plots, off by default
 
 def config_solver(state, solver_case):
     solver_case.max_geom = state['max_geom']
