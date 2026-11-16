@@ -44,7 +44,7 @@ namespace yams
         auto count = 0;
         while (fabs(delta) > tol_u && fabs(d0) > tol_f && count < it_max)
         {
-            auto d0 = crv(u) - p;
+            d0 = crv(u) - p;
             auto d1 = crv(u, 1);
             auto d2 = crv(u, 2);
             delta = d1 * d0 / (d2 * d0 + d1 * d1);
