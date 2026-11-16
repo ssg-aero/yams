@@ -843,7 +843,7 @@ namespace yams
         size_t max_geom=solver_case.max_geom;
         auto eps = solver_case.eps;
         auto tol_rel_mf =solver_case.tol_rel_mf;
-        auto tol_pos = solver_case.tol_rel_pos * g(0, nj - 1).l;
+        auto tol_pos = solver_case.tol_rel_pos; // delta_pos_array is already relative to the span length
         T vmi;
         int count_geom = 0;
         auto converged = false;
