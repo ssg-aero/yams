@@ -5,6 +5,7 @@
 #include <meshtools.h>
 #include <meridionalsolvercase.h>
 #include <gridmetrics.h>
+#include <gridreader.h>
 #include <gridrender.h>
 #include <gridsbuilders.h>
 #include <numbers>

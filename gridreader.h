@@ -11,6 +11,7 @@
 #include <gbs/tools/magic_enum.hpp>
 #include <gbs-io/fromjson.h>
 #include <meridionalsolvercase.h>
+#include <gridmetrics.h>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
@@ -94,6 +95,35 @@ namespace yams
     auto read_vtk_grid(const std::string &fname)
     {
         return read_vtk_grid<T>(fname.c_str());
+    }
+
+
+    // --- Solver case set up from VTK structured grids (VTK point order: i fastest) ---
+
+    template <typename T>
+    auto make_grid_info(vtkStructuredGrid* sgrid)
+    {
+        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
+            throw std::invalid_argument("yams: make_grid_info called with an empty structured grid");
+        return make_grid_info<T>( read_vtk_grid<T>(sgrid) );
+    }
+
+    template <typename T>
+    auto make_grid_info(const std::string &fname)
+    {
+        return make_grid_info<T>( read_vts_file(fname) );
+    }
+
+    template <typename T, typename F>
+    auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< std::tuple< BladeInfo<T> , F > > &bld_info_lst )
+    {
+        return make_solver_case<T, F>( read_vtk_grid<T>(sgrid), bld_info_lst );
+    }
+
+    template <typename T>
+    auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< BladeInfo<T> > &bld_info_lst )
+    {
+        return make_solver_case<T>( read_vtk_grid<T>(sgrid), bld_info_lst );
     }
 
     template <typename T>

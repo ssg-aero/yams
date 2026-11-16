@@ -1,9 +1,9 @@
 #pragma once
 #include <datastorage.h>
 #include <meridionalsolvercase.h>
-#include <vtkStructuredGrid.h>
-#include <vtkXMLStructuredGridReader.h>
-#include <gridreader.h>
+#include <stdexcept>
+#include <tuple>
+#include <vector>
 #include <diffop.h>
 #include <correlationscax.h>
 namespace yams
@@ -173,27 +173,27 @@ namespace yams
         compute_curvature(g);
     }
 
+    /**
+     * @brief Make the grid info of a meridional grid: abscissas, metrics, angles and curvature.
+     *
+     * @param g grid, g(i, j): i station from inlet to outlet, j stream line from hub to shroud
+     * @throw std::invalid_argument if the grid has less than 3 stations or 3 stream lines
+     */
     template <typename T>
-    auto make_grid_info(vtkStructuredGrid* sgrid)
+    auto make_grid_info(MeridionalGrid<T> g)
     {
-        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
-            throw std::invalid_argument("yams: make_grid_info called with an empty structured grid");
-        int dims[3];
-        sgrid->GetDimensions(dims);
-        size_t ni = dims[0];
-        size_t nj = dims[1];
-        double ksi = 1. / (ni-1.);
-        double eth = 1. / (nj-1.);
-
-        auto g = read_vtk_grid<T>(sgrid);
+        size_t ni = g.nRows();
+        size_t nj = g.size() ? g.nCols() : 0;
+        if (ni < 3 || nj < 3)
+            throw std::invalid_argument("yams: the meridional grid must have at least 3 x 3 points");
         auto g_metrics = Grid2dMetrics<T>{ni,nj};
         compute_grid_metrics(g,g_metrics,fm,fl);
 
         auto gi = GridInfo<T>{
-                .g = std::make_shared<  MeridionalGrid<T> >(g),
+                .g = std::make_shared<  MeridionalGrid<T> >(std::move(g)),
                 .g_metrics = std::make_shared< Grid2dMetrics<T> >( g_metrics ),
-                .d_ksi = ksi,
-                .d_eth = eth,
+                .d_ksi = 1. / (ni-1.),
+                .d_eth = 1. / (nj-1.),
                 .ni = ni,
                 .nj = nj,
             };
@@ -201,18 +201,34 @@ namespace yams
         return std::make_shared<GridInfo<T>>( gi );
     }
 
-    template <typename T>
-    auto make_grid_info(const std::string &fname)
+    /**
+     * @brief Make a meridional grid from (z, r) points, i (station) varying fastest.
+     *
+     * Same point order as a VTK structured grid of dimensions (ni, nj).
+     */
+    template <typename T, typename Point>
+    auto make_meridional_grid(const std::vector<Point> &pts, size_t ni, size_t nj) -> MeridionalGrid<T>
     {
-        return make_grid_info<T>( read_vts_file(fname) );
+        if (pts.size() != ni * nj)
+            throw std::invalid_argument("yams: the number of points is not ni x nj");
+        MeridionalGrid<T> g(ni, nj);
+        for (size_t j{}; j < nj; j++)
+            for (size_t i{}; i < ni; i++)
+            {
+                g(i, j).x = pts[i + ni * j][0];
+                g(i, j).y = pts[i + ni * j][1];
+            }
+        return g;
     }
 
-
+    /**
+     * @brief Make a solver case on a grid, with the metal angle of each blade row given by k(m, l).
+     */
     template <typename T, typename F>
-    auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< std::tuple< BladeInfo<T> , F > > &bld_info_lst )
+    auto make_solver_case( MeridionalGrid<T> grid,  const std::vector< std::tuple< BladeInfo<T> , F > > &bld_info_lst )
     {
         SolverCase<T> solver_case{};
-        solver_case.gi = make_grid_info<T>(sgrid);
+        solver_case.gi = make_grid_info<T>(std::move(grid));
         size_t iB{};
         auto &g = *(solver_case.gi->g);
         for(const auto &[ bld_info, f_k] : bld_info_lst)
@@ -301,13 +317,14 @@ namespace yams
         }
     }
 
+    /**
+     * @brief Make a solver case on a grid, the blade rows being fully described by their BladeInfo.
+     */
     template <typename T>
-    auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< BladeInfo<T> > &bld_info_lst )
+    auto make_solver_case( MeridionalGrid<T> grid,  const std::vector< BladeInfo<T> > &bld_info_lst )
     {
         SolverCase<T> solver_case{};
-        solver_case.gi = make_grid_info<T>(sgrid);
-        size_t iB{};
-        auto &g = *(solver_case.gi->g);
+        solver_case.gi = make_grid_info<T>(std::move(grid));
         for(const auto &bld_info : bld_info_lst)
         {
             solver_case.bld_info_lst.push_back(bld_info);
@@ -315,4 +332,4 @@ namespace yams
         apply_blade_info(solver_case,false);
         return solver_case;
     }
-} // namespace yams
+}
