@@ -194,6 +194,9 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("mf_ref_span",&SolverCase<T>::mf_ref_span)
     .def_readwrite("mf_uniform",&SolverCase<T>::mf_uniform)
     .def_readwrite("use_meridional_grad",&SolverCase<T>::use_meridional_grad)
+    .def_readwrite("on_iteration",&SolverCase<T>::on_iteration)
+    .def_readonly("converged",&SolverCase<T>::converged)
+    .def_readonly("cancelled",&SolverCase<T>::cancelled)
     .def("__copy__",  [](const  SolverCase<T> &self) {
         return  SolverCase<T>(self);
     })

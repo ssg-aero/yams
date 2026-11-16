@@ -847,6 +847,8 @@ namespace yams
         T vmi;
         int count_geom = 0;
         auto converged = false;
+        solver_case.converged = false;
+        solver_case.cancelled = false;
         // auto i_0 = 0;
         // solver_case.log.clear();
         T delta_pos_max {};
@@ -996,8 +998,13 @@ namespace yams
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;
-
+            if (solver_case.on_iteration && !solver_case.on_iteration(count_geom, delta_pos_max, delta_pos_moy))
+            {
+                solver_case.cancelled = true;
+                break;
+            }
         }
+        solver_case.converged = converged;
     }
 
 }
