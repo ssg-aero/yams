@@ -8,16 +8,14 @@
 #include <vtkXMLStructuredGridWriter.h>
 
 
-#ifdef _WIN32
-    const std::string test_files_path = "../tests/";
-#else
-    const std::string test_files_path = "../../../tbslib/tests/";
-#endif
+// Input grids: tests/data (see tests/data/README.md); outputs: working directory
+const std::string test_files_path = yams_tests::data_dir();
+const std::string out_path = "./";
 
 #include <chrono>
 using namespace yams;
 
-TEST_CASE("tests_turbine.vtk_no_blades")
+TEST_CASE("tests_turbine.vtk_no_blades" * doctest::skip(yams_tests::data_missing("turbine_grid.vts")))
 {
     using T = double;
     using namespace std::chrono;

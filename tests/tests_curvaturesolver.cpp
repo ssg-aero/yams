@@ -14,21 +14,19 @@
 
 // #include <CoolPropLib.h>
 
-#ifdef _WIN32
-    const std::string test_files_path = "C:/Users/sebastien/workspace/tbslib/tests/";
-#else
-    const std::string test_files_path = "../../../tbslib/tests/";
-#endif
+// Input grids: tests/data (see tests/data/README.md); outputs: working directory
+const std::string test_files_path = yams_tests::data_dir();
+const std::string out_path = "./";
 
 #include <chrono>
 using namespace yams;
-TEST_CASE("tests_curvature_solver.vtk_no_blades")
+TEST_CASE("tests_curvature_solver.vtk_no_blades" * doctest::skip(yams_tests::data_missing("test_001.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    // auto g = read_vtk_grid<T>(test_files_path+"out/test_001_250x21.vts");
-    auto g = read_vtk_grid<T>(test_files_path+"out/test_001.vts");
+    // auto g = read_vtk_grid<T>(test_files_path+"test_001_250x21.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_001.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     auto Pt = 133337.02;
@@ -84,7 +82,7 @@ TEST_CASE("tests_curvature_solver.vtk_no_blades")
         std::cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << std::endl;
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_cst.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_001_Vm_rho_cst.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
@@ -110,7 +108,7 @@ TEST_CASE("tests_curvature_solver.vtk_no_blades")
         std::cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << std::endl;
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_rho_var.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_001_Vm_rho_var.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);
@@ -136,7 +134,7 @@ TEST_CASE("tests_curvature_solver.vtk_no_blades")
         std::cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << std::endl;
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_cst.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_001_Vm_swirl_rho_cst.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
@@ -159,7 +157,7 @@ TEST_CASE("tests_curvature_solver.vtk_no_blades")
         std::cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << std::endl;
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_001_Vm_swirl_rho_var.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vu", true);
@@ -191,7 +189,7 @@ TEST_CASE("tests_curvature_solver.vtk_no_blades")
     //     std::cout << "Time taken by meridian computation: "
     //          << duration.count() << " microseconds" << std::endl;
 
-    //     auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_swirl_rho_var_Tt_ramp.vts");
+    //     auto structuredGrid = write_vtk_grid(g,out_path+"test_001_Vm_swirl_rho_var_Tt_ramp.vts");
     //     if (TESTS_USE_PLOT)
     //     {
     //         plot_vtkStructuredGrid(structuredGrid,"Ts", true, true);
@@ -201,12 +199,12 @@ TEST_CASE("tests_curvature_solver.vtk_no_blades")
     // }
 }
 
-TEST_CASE("tests_curvature_solver.vtk_static_blades1")
+TEST_CASE("tests_curvature_solver.vtk_static_blades1" * doctest::skip(yams_tests::data_missing("test_002.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = read_vtk_grid<T>(test_files_path+"in/test_002.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -272,7 +270,7 @@ TEST_CASE("tests_curvature_solver.vtk_static_blades1")
             }
         }
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_002.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_002.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", false, true);
@@ -281,12 +279,12 @@ TEST_CASE("tests_curvature_solver.vtk_static_blades1")
     }
 }
 
-TEST_CASE("tests_curvature_solver.vtk_static_blades2")
+TEST_CASE("tests_curvature_solver.vtk_static_blades2" * doctest::skip(yams_tests::data_missing("test_003.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = read_vtk_grid<T>(test_files_path+"in/test_003.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_003.vts");
     auto Vm = 20.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
@@ -347,7 +345,7 @@ TEST_CASE("tests_curvature_solver.vtk_static_blades2")
              << duration.count() << " microseconds" << std::endl;
 
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_003.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_003.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -363,12 +361,12 @@ TEST_CASE("tests_curvature_solver.vtk_static_blades2")
     }
 }
 
-TEST_CASE("tests_curvature_solver.vtk_static_blades3")
+TEST_CASE("tests_curvature_solver.vtk_static_blades3" * doctest::skip(yams_tests::data_missing("test_004.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = read_vtk_grid<T>(test_files_path+"in/test_004.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_004.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -422,7 +420,7 @@ TEST_CASE("tests_curvature_solver.vtk_static_blades3")
         std::cout << "Time taken by meridian computation: "
              << duration.count() << " microseconds" << std::endl;
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_004.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_004.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Pt", true);
@@ -438,12 +436,12 @@ TEST_CASE("tests_curvature_solver.vtk_static_blades3")
     }
 }
 
-TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_stream_dir")
+TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_stream_dir" * doctest::skip(yams_tests::data_missing("test_005.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = read_vtk_grid<T>(test_files_path+"in/test_005.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_005.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -496,7 +494,7 @@ TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_stream_dir")
              << duration.count() << " microseconds" << std::endl;
 
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_005.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_005.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -511,12 +509,12 @@ TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_stream_dir")
     }
 }
 
-TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_span_dir")
+TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_span_dir" * doctest::skip(yams_tests::data_missing("test_006.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = read_vtk_grid<T>(test_files_path+"in/test_006.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_006.vts");
     auto Vm = 30.;
     auto Ps = 1.2e5;
     auto dH = 1004. * 10.;
@@ -568,7 +566,7 @@ TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_span_dir")
              << duration.count() << " microseconds" << std::endl;
 
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_006.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_006.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -581,12 +579,12 @@ TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_span_dir")
     }
 }
 
-TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_mixed_dir")
+TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_mixed_dir" * doctest::skip(yams_tests::data_missing("test_007.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = read_vtk_grid<T>(test_files_path+"in/test_007.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_007.vts");
     auto Vm = 150.;
     auto Ps = 1.2e5;
     // auto dH = 1004. * 10.;
@@ -641,7 +639,7 @@ TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_mixed_dir")
              << duration.count() << " microseconds" << std::endl;
 
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_007.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_007.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -662,12 +660,12 @@ TEST_CASE("tests_curvature_solver.vtk_non_otrtho_channel_mixed_dir")
 
 }
 
-TEST_CASE("tests_curvature_solver.vtk_read_blade_info")
+TEST_CASE("tests_curvature_solver.vtk_read_blade_info" * doctest::skip(yams_tests::data_missing("test_004_bld.json")))
 {
     using T = double;
     auto Vm = 30.;
 
-    std::string fname { test_files_path+"in/test_004" };
+    std::string fname { test_files_path+"test_004" };
     auto g = read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
@@ -718,7 +716,7 @@ TEST_CASE("tests_curvature_solver.vtk_read_blade_info")
              << duration.count() << " microseconds" << std::endl;
 
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_004_design.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_004_design.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Ps", true);
@@ -738,12 +736,12 @@ TEST_CASE("tests_curvature_solver.vtk_read_blade_info")
 }
 
 
-TEST_CASE("tests_curvature_solver.vtk_fan_design")
+TEST_CASE("tests_curvature_solver.vtk_fan_design" * doctest::skip(yams_tests::data_missing("test_008_bld.json")))
 {
     using T = double;
     auto Vm = 100.;
 
-    std::string fname { test_files_path+"in/test_008" };
+    std::string fname { test_files_path+"test_008" };
     auto g = read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
@@ -857,12 +855,12 @@ TEST_CASE("tests_curvature_solver.vtk_fan_design")
     // }
 }
 
-TEST_CASE("tests_curvature_solver.vtk_fan_ogv_design")
+TEST_CASE("tests_curvature_solver.vtk_fan_ogv_design" * doctest::skip(yams_tests::data_missing("test_009.vts")))
 {
     using T = double;
     auto Vm = 100.;
 
-    std::string fname { test_files_path+"in/test_009" };
+    std::string fname { test_files_path+"test_009" };
     auto g = read_vtk_grid<T>( (fname+".vts").c_str() );
 
     size_t ni = g.nRows();
@@ -944,12 +942,12 @@ TEST_CASE("tests_curvature_solver.vtk_fan_ogv_design")
     }
 }
 
-TEST_CASE("tests_curvature_solver.Vm_inlet")
+TEST_CASE("tests_curvature_solver.Vm_inlet" * doctest::skip(yams_tests::data_missing("test_001.vts")))
 {
     using T = double;
     using namespace std::chrono;
 
-    auto g = read_vtk_grid<T>(test_files_path+"out/test_001.vts");
+    auto g = read_vtk_grid<T>(test_files_path+"test_001.vts");
     auto Vm = 10.;
     auto dH = 1004. * 10.;
     auto Pt = 133337.02;
@@ -1012,7 +1010,7 @@ TEST_CASE("tests_curvature_solver.Vm_inlet")
         );
 
 
-        auto structuredGrid = write_vtk_grid(g,test_files_path+"out/test_001_Vm_sin.vts");
+        auto structuredGrid = write_vtk_grid(g,out_path+"test_001_Vm_sin.vts");
         #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"Vm", true);

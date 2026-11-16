@@ -9,11 +9,9 @@
 using namespace yams;
 
 const double PI = acos(-1.);
-#ifdef _WIN32
-    const std::string test_files_path = "C:/Users/sebastien/workspace/tbslib/tests/";
-#else
-    const std::string test_files_path = "../../../tbslib/tests/";
-#endif
+// Input grids: tests/data (see tests/data/README.md); outputs: working directory
+const std::string test_files_path = yams_tests::data_dir();
+const std::string out_path = "./";
 TEST_CASE("tests_diff.D1_O2")
 {
     struct gp
@@ -246,7 +244,7 @@ TEST_CASE("tests_diff.D1_O1")
     // }
 }
 
-TEST_CASE("tests_diff.D1_O2_test_001")
+TEST_CASE("tests_diff.D1_O2_test_001" * doctest::skip(yams_tests::data_missing("test_001_250x21.vts")))
 {
     struct gp
     {
@@ -259,7 +257,7 @@ TEST_CASE("tests_diff.D1_O2_test_001")
 
     Array2d<gp>   g;
     vtkNew<vtkXMLStructuredGridReader> reader;
-    reader->SetFileName((test_files_path+"/out/test_001_250x21.vts").c_str());
+    reader->SetFileName((test_files_path+"test_001_250x21.vts").c_str());
     // reader->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_250x21.vts");
     reader->Update();
     auto sgrid = reader->GetOutput();
@@ -325,7 +323,7 @@ TEST_CASE("tests_diff.D1_O2_test_001")
     std::cout << "err_max: " << err_max_x << " " << err_max_y << std::endl;
 }
 /*
-TEST_CASE("tests_diff.D1_O2_test_001_ghost")
+TEST_CASE("tests_diff.D1_O2_test_001_ghost" * doctest::skip(yams_tests::data_missing("test_001_250x21.vts")))
 {
     struct gp
     {
@@ -338,7 +336,7 @@ TEST_CASE("tests_diff.D1_O2_test_001_ghost")
 
     Array2d<gp,1,1>   g;
     vtkNew<vtkXMLStructuredGridReader> reader;
-    reader->SetFileName((test_files_path+"/out/test_001_250x21.vts").c_str());
+    reader->SetFileName((test_files_path+"test_001_250x21.vts").c_str());
     // reader->SetFileName("C:/Users/sebastien/workspace/tbslib/tests/out/test_001_250x21.vts");
     reader->Update();
     auto sgrid = reader->GetOutput();

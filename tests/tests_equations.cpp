@@ -975,12 +975,12 @@ TEST_CASE("tests_eq.solve_straight_cmp")
 
 #include "yams_doctest.h"
 #include <gridreader.h>
-TEST_CASE("tests_gridreader.vtk_no_blades")
+TEST_CASE("tests_gridreader.vtk_no_blades" * doctest::skip(yams_tests::data_missing("test_001.vts")))
 {
     using T = double;
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
-    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"alpx001.vts");
+    auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_001.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     // init values
@@ -996,19 +996,19 @@ TEST_CASE("tests_gridreader.vtk_no_blades")
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
-        writer->SetFileName("../../../tbslib/tests/out/test_001_Vm.vts");
+        writer->SetFileName("test_001_Vm.vts");
         // writer->SetFileName("../../../tbslib/tests/out/test_002_Vm.vts");
         writer->SetInputData(structuredGrid);
         writer->Write();
     }
     #endif
 }
-TEST_CASE("tests_gridreader.vtk_no_blades_2")
+TEST_CASE("tests_gridreader.vtk_no_blades_2" * doctest::skip(yams_tests::data_missing("test_001.vts")))
 {
     using T = double;
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
-    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"alpx001.vts");
+    auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_001.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -1109,7 +1109,7 @@ TEST_CASE("tests_gridreader.vtk_no_blades_2")
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
-        writer->SetFileName("../../../tbslib/tests/out/test_001_Vm.vts");
+        writer->SetFileName("test_001_Vm.vts");
         // writer->SetFileName("../../../tbslib/tests/out/test_002_Vm.vts");
         writer->SetInputData(structuredGrid);
         writer->Write();
@@ -1117,10 +1117,10 @@ TEST_CASE("tests_gridreader.vtk_no_blades_2")
     #endif
 }
 
-TEST_CASE("tests_gridreader.derivates")
+TEST_CASE("tests_gridreader.derivates" * doctest::skip(yams_tests::data_missing("alpx001.vts")))
 {
     using T = double;
-    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
+    auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"alpx001.vts");
 
     std::transform(
         g.begin(),g.end(),g.begin(),
