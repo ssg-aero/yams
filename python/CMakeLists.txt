@@ -7,7 +7,7 @@ project(pyams LANGUAGES CXX)
 find_package(Python 
     COMPONENTS 
         Interpreter 
-        Developement
+        Development
 )
 message("Python3_SITELIB:" ${Python3_SITELIB})
 find_package(pybind11 REQUIRED)
@@ -23,7 +23,6 @@ target_link_libraries(
         ${PROJECT_NAME} PRIVATE 
         ${VTK_LIBRARIES}
         TBB::tbb 
-        NLopt::nlopt
         gbs-render
         Eigen3::Eigen
         libIGES::iges

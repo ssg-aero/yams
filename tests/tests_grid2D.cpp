@@ -1,18 +1,18 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <gbs/curves>
 #include <gbs-render/vtkcurvesrender.h>
 #include <gbs-render/vtkgridrender.h>
 #include <meshtools.h>
 #include <meridionalsolvercase.h>
 #include <gridmetrics.h>
+#include <gridreader.h>
 #include <gridrender.h>
 #include <gridsbuilders.h>
 #include <numbers>
 using T = double;
 using namespace yams;
-const bool PLOT_ON = false;
 const T tol_ang{static_cast<T>(1e-3)};
-TEST(grid_2d, grid_angle_phi)
+TEST_CASE("grid_2d.grid_angle_phi")
 {
     const T phi{std::numbers::pi_v<T>/3.};
     std::vector<std::array<T,2>> poles1{
@@ -55,13 +55,13 @@ TEST(grid_2d, grid_angle_phi)
     {
         for(size_t j{}; j < nj; j++)
         {
-            ASSERT_NEAR(phi * 180 / std::numbers::pi_v<T> ,g(i, j).phi * 180 / std::numbers::pi_v<T>, tol_ang);
-            ASSERT_NEAR( 0. ,g(i, j).gam * 180 / std::numbers::pi_v<T>, tol_ang);
+            REQUIRE(std::abs((phi * 180 / std::numbers::pi_v<T>) - (g(i, j).phi * 180 / std::numbers::pi_v<T>)) <= tol_ang);
+            REQUIRE(std::abs(0. - (g(i, j).gam * 180 / std::numbers::pi_v<T>)) <= tol_ang);
         }
     }
 
 
-    if(PLOT_ON)
+    #if YAMS_TESTS_PLOT
     {
         sgrid = make_vtk_grid(g);
         plot_vtkStructuredGrid(sgrid,"phi");
@@ -71,9 +71,10 @@ TEST(grid_2d, grid_angle_phi)
             sgrid_actor
         );
     }
+    #endif
 }
 
-TEST(grid_2d, grid_angle_gam)
+TEST_CASE("grid_2d.grid_angle_gam")
 {
     const T gam{std::numbers::pi_v<T>/3.};
     std::vector<std::array<T,2>> poles1{
@@ -116,12 +117,12 @@ TEST(grid_2d, grid_angle_gam)
     {
         for(size_t j{}; j < nj; j++)
         {
-            ASSERT_NEAR(gam * 180 / std::numbers::pi_v<T> ,g(i, j).gam * 180 / std::numbers::pi_v<T>, tol_ang);
+            REQUIRE(std::abs((gam * 180 / std::numbers::pi_v<T>) - (g(i, j).gam * 180 / std::numbers::pi_v<T>)) <= tol_ang);
         }
     }
 
 
-    if(PLOT_ON)
+    #if YAMS_TESTS_PLOT
     {
         sgrid = make_vtk_grid(g);
         plot_vtkStructuredGrid(sgrid,"gam");
@@ -131,9 +132,10 @@ TEST(grid_2d, grid_angle_gam)
             sgrid_actor
         );
     }
+    #endif
 }
 
-TEST(grid_2d, grid_angle_gam_phi)
+TEST_CASE("grid_2d.grid_angle_gam_phi")
 {
 
     size_t ni = 5000;
@@ -154,13 +156,13 @@ TEST(grid_2d, grid_angle_gam_phi)
         for (size_t j{}; j < nj ; j++)
         {
             const auto &gp = g(i, j);
-            ASSERT_NEAR(fmod(gam * 180 / std::numbers::pi_v<T> + 360, 360), fmod(gp.gam * 180 / std::numbers::pi_v<T> + 360, 360), 0.1);
-            ASSERT_NEAR(fmod(phi * 180 / std::numbers::pi_v<T> + 360, 360), fmod(gp.phi * 180 / std::numbers::pi_v<T> + 360, 360), 0.1);
-            ASSERT_NEAR(0., gp.sgp, 0.01);
-            ASSERT_NEAR(1., gp.cgp, 0.01);
+            REQUIRE(std::abs(fmod(gam * 180 / std::numbers::pi_v<T> + 360, 360) - fmod(gp.gam * 180 / std::numbers::pi_v<T> + 360, 360)) <= 0.1);
+            REQUIRE(std::abs(fmod(phi * 180 / std::numbers::pi_v<T> + 360, 360) - fmod(gp.phi * 180 / std::numbers::pi_v<T> + 360, 360)) <= 0.1);
+            REQUIRE(std::abs(0. - gp.sgp) <= 0.01);
+            REQUIRE(std::abs(1. - gp.cgp) <= 0.01);
         }
     }
-    if (PLOT_ON)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "phi", [](const auto &gp)
@@ -176,4 +178,5 @@ TEST(grid_2d, grid_angle_gam_phi)
         plot_vtkStructuredGrid(structuredGrid, "cgp");
         plot_vtkStructuredGrid(structuredGrid, "sgp");
     }
+    #endif
 }

@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <datastorage.h>
 #include <diffop.h>
 #include <gridsbuilders.h>
@@ -13,7 +13,6 @@
 #include <vtkXMLStructuredGridWriter.h>
 const double PI = acos(-1.);
 
-const bool TESTS_USE_PLOT = true;
 const double c_r = 287.04;
 
 using namespace yams;
@@ -189,7 +188,7 @@ template <typename Iterator>
 inline void compute_static_values(Iterator begin, Iterator end)
 {
     std::for_each(
-        std::execution::par,
+        GBS_PAR_EXEC
         begin, end,
         [](auto &gp) {
             gp.Ts = gp.Tt - f_sqVmq2(gp) / gp.Cp;
@@ -301,7 +300,7 @@ inline auto streamsheet_value_vector(const MeridionalGrid<T> &g, size_t i, size_
 {
     std::vector<T> vec(g.nCols());
     std::transform(
-        std::execution::par,
+        GBS_PAR_EXEC
         g.begin(i),
         g.end(i),
         g.begin(i + stride),
@@ -315,7 +314,7 @@ inline auto streamsheet_value_vector(const MeridionalGrid<T> &g, size_t i, _Func
 {
     std::vector<T> vec(g.nCols());
     std::transform(
-        std::execution::par,
+        GBS_PAR_EXEC
         g.begin(i),
         g.end(i),
         vec.begin(),
@@ -328,7 +327,7 @@ inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, _Func f)
 {
     auto vec = streamsheet_value_vector(g,i,f);
     return *std::max_element(
-        std::execution::par,
+        GBS_PAR_EXEC
         vec.begin(),
         vec.end());
 }
@@ -338,7 +337,7 @@ inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, size_t st
 {
     auto vec = streamsheet_value_vector(g,i,stride,f);
     return *std::max_element(
-        std::execution::par,
+        GBS_PAR_EXEC
         vec.begin(),
         vec.end());
 }
@@ -516,7 +515,7 @@ inline auto solve_grid(MeridionalGrid<T> &g,size_t max_geom = 500)
     }
     return converged;
 }
-TEST(tests_eq, mass_flow)
+TEST_CASE("tests_eq.mass_flow")
 {
     size_t ni = 50;
     size_t nj = 11;
@@ -534,10 +533,10 @@ TEST(tests_eq, mass_flow)
     compute_massflow_distribution(g.begin(0), g.end(0));
     auto S = 2 * PI * 3.;
     auto MF = S * 10. * 1.225;
-    ASSERT_NEAR(MF, (*(g.end(0) - 1)).q, 1e-6);
+    REQUIRE(std::abs(MF - (*(g.end(0) - 1)).q) <= 1e-6);
 }
 
-TEST(tests_eq, functions)
+TEST_CASE("tests_eq.functions")
 {
     size_t ni = 50;
     size_t nj = 11;
@@ -552,10 +551,10 @@ TEST(tests_eq, functions)
     compute_curvature(g);
     // init values
     std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=10.;gp.rho=1.225; });
-    ASSERT_NEAR(f_sqVmq2(g(0, 0)), 50., 1e-6);
+    REQUIRE(std::abs(f_sqVmq2(g(0, 0)) - 50.) <= 1e-6);
 }
 
-TEST(tests_eq, eq_Vu)
+TEST_CASE("tests_eq.eq_Vu")
 {
     size_t ni = 50;
     size_t nj = 15;
@@ -584,7 +583,7 @@ TEST(tests_eq, eq_Vu)
         else
         {
             std::transform(
-                std::execution::par,
+                GBS_PAR_EXEC
                 g.begin(i - 1),
                 g.end(i - 1),
                 g.begin(i),
@@ -602,7 +601,7 @@ TEST(tests_eq, eq_Vu)
     }
 }
 
-TEST(tests_eq, forced_vector_flow)
+TEST_CASE("tests_eq.forced_vector_flow")
 {
     size_t ni = 10;
     size_t nj = 500;
@@ -627,7 +626,7 @@ TEST(tests_eq, forced_vector_flow)
             g.end(i),
             [&](const auto &gp) {
                 auto vm_exact = sqrt(2 * K_ * K_ * (r1 - gp.y * gp.y) + vmi * vmi);
-                ASSERT_LT((gp.Vm - vm_exact) / vm_exact * 100, 5e-5); //less than 0.00005 %
+                REQUIRE(((gp.Vm - vm_exact) / vm_exact * 100) < 5e-5); //less than 0.00005 %
                 //  std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
         compute_massflow_distribution(g.begin(i), g.end(i));
@@ -635,13 +634,13 @@ TEST(tests_eq, forced_vector_flow)
         {
             for (auto j = 0; j < nj; j++)
             {
-                ASSERT_LT(fabs(g(i,j).q-g(i-1,j).q),1e-5);
+                REQUIRE(fabs(g(i,j).q-g(i-1,j).q) < 1e-5);
             }
         }
     }
 }
 
-TEST(tests_eq, constant_flow_angle)
+TEST_CASE("tests_eq.constant_flow_angle")
 {
     size_t ni = 10;
     size_t nj = 500;
@@ -666,7 +665,7 @@ TEST(tests_eq, constant_flow_angle)
             g.end(i),
             [&](const auto &gp) {
                 auto vm_exact = vmi * pow(r1/gp.y,sin(PI/6.)*sin(PI/6.));
-                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 5e-5); //less than 0.00005 %
+                REQUIRE(((gp.Vm -vm_exact) / vm_exact * 100) < 5e-5); //less than 0.00005 %
                 // std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
         compute_massflow_distribution(g.begin(i), g.end(i));
@@ -674,20 +673,21 @@ TEST(tests_eq, constant_flow_angle)
         {
             for (auto j = 0; j < nj; j++)
             {
-                ASSERT_LT(fabs(g(i,j).q-g(i-1,j).q),1e-5);
+                REQUIRE(fabs(g(i,j).q-g(i-1,j).q) < 1e-5);
             }
         }
     }
 
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
+    #endif
 }
 
-TEST(tests_eq, constant_flow_angle_clustered_grid)
+TEST_CASE("tests_eq.constant_flow_angle_clustered_grid")
 {
     size_t ni = 10;
     size_t nj = 10;
@@ -712,7 +712,7 @@ TEST(tests_eq, constant_flow_angle_clustered_grid)
             g.end(i),
             [&](const auto &gp) {
                 auto vm_exact = vmi * pow(r1/gp.y,sin(PI/6.)*sin(PI/6.));
-                ASSERT_LT((gp.Vm -vm_exact) / vm_exact * 100 , 1e-1); //less than 0.1 % on coarse grid
+                REQUIRE(((gp.Vm -vm_exact) / vm_exact * 100) < 1e-1); //less than 0.1 % on coarse grid
                 // std::cerr << 100* (gp.Vm -vm_exact) / vm_exact << std::endl;
             });
         compute_massflow_distribution(g.begin(i), g.end(i));
@@ -720,20 +720,21 @@ TEST(tests_eq, constant_flow_angle_clustered_grid)
         {
             for (auto j = 0; j < nj; j++)
             {
-                ASSERT_LT(fabs(g(i,j).q-g(i-1,j).q),1e-5);
+                REQUIRE(fabs(g(i,j).q-g(i-1,j).q) < 1e-5);
             }
         }
     }
     
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
+    #endif
 }
 
-TEST(tests_eq, constant_flow_vortex_circular)
+TEST_CASE("tests_eq.constant_flow_vortex_circular")
 {
     size_t ni = 50;
     size_t nj = 15;
@@ -771,15 +772,16 @@ TEST(tests_eq, constant_flow_vortex_circular)
         // std::cerr << compute_massflow(g,i) << std::endl;
     }
 
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
+    #endif
 }
 
-TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
+TEST_CASE("tests_eq.constant_flow_vortex_circular_mass_flow_balance")
 {
     size_t ni = 60;
     size_t nj = 15;
@@ -819,7 +821,7 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
                 err_mf = fabs(mf_ - mf) / mf;
                 count++;
             }
-            ASSERT_LT(fabs(compute_massflow(g,i)-mf)/mf,tol_rel_mf);
+            REQUIRE((fabs(compute_massflow(g,i)-mf)/mf) < tol_rel_mf);
         }
         for (auto i = 0; i < ni; i++) // TODO run in //
         {
@@ -836,17 +838,18 @@ TEST(tests_eq, constant_flow_vortex_circular_mass_flow_balance)
         count_geom++;
     }while (delta_pos_moy > 0.001 * g(0,nj-1).l && count_geom < count_geom_max);
 
-    ASSERT_LT(count_geom , count_geom_max);
+    REQUIRE(count_geom < count_geom_max);
 
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
+    #endif
 }
 
-TEST(tests_eq, solve_circular_grid)
+TEST_CASE("tests_eq.solve_circular_grid")
 {
     size_t ni = 60;
     size_t nj = 15;
@@ -859,17 +862,18 @@ TEST(tests_eq, solve_circular_grid)
     // init values
     std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=30;gp.H=gp.Cp*gp.Tt; });
 
-    ASSERT_TRUE(solve_grid(g));
+    REQUIRE(solve_grid(g));
 
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
+    #endif
 }
 
-TEST(tests_eq, solve_igv)
+TEST_CASE("tests_eq.solve_igv")
 {
     // size_t ni = 60;
     // size_t nj = 15;
@@ -885,19 +889,20 @@ TEST(tests_eq, solve_igv)
     // init values
     std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
 
-    ASSERT_TRUE(solve_grid(g));
+    REQUIRE(solve_grid(g));
 
-    ASSERT_TRUE(g(ni-1,0).Vm>g(ni-1,nj-1).Vm);
+    REQUIRE(g(ni-1,0).Vm>g(ni-1,nj-1).Vm);
 
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
     }
+    #endif
 }
 
-TEST(tests_eq, streamsheet_value)
+TEST_CASE("tests_eq.streamsheet_value")
 {
     size_t ni = 60;
     size_t nj = 15;
@@ -911,9 +916,9 @@ TEST(tests_eq, streamsheet_value)
     // init values
     std::for_each(g.begin(), g.end(), [](auto &gp) {gp.Vm=100.;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
     auto Vm0 = streamsheet_value_vector(g,0,f_Vm);
-    std::for_each(Vm0.begin(),Vm0.end(),[](const auto &v){ASSERT_LT(fabs(v-100.),1e-6);});
+    std::for_each(Vm0.begin(),Vm0.end(),[](const auto &v){REQUIRE(fabs(v-100.) < 1e-6);});
     auto dVm1 = streamsheet_value_vector(g,1,-1,f_Vm);
-    std::for_each(dVm1.begin(),dVm1.end(),[](const auto &v){ASSERT_LT(fabs(v),1e-6);});
+    std::for_each(dVm1.begin(),dVm1.end(),[](const auto &v){REQUIRE(fabs(v) < 1e-6);});
     for (auto j = 0; j < nj; j++)
     {
         g(0, j).Vm = 100. * j / (nj - 1.);
@@ -921,15 +926,15 @@ TEST(tests_eq, streamsheet_value)
     Vm0 = streamsheet_value_vector(g,0,f_Vm);
     for (auto j = 0; j < nj; j++)
     {
-        ASSERT_LT(fabs(Vm0[j]-100.* j / (nj - 1.)),1e-6);
+        REQUIRE(fabs(Vm0[j]-100.* j / (nj - 1.)) < 1e-6);
     }
     auto Vm_max = find_streamsheet_max(g,0,f_Vm);
-    ASSERT_LT(fabs(Vm_max-100.),1e-6);
+    REQUIRE(fabs(Vm_max-100.) < 1e-6);
     auto dVm_max = find_streamsheet_max(g,1,-1,f_Vm);
-    ASSERT_LT(fabs(dVm_max-100.),1e-6);
+    REQUIRE(fabs(dVm_max-100.) < 1e-6);
 }
 
-TEST(tests_eq, solve_straight_cmp)
+TEST_CASE("tests_eq.solve_straight_cmp")
 {
     // size_t ni = 60;
     // size_t nj = 15;
@@ -946,7 +951,7 @@ TEST(tests_eq, solve_straight_cmp)
     // init values
     std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
 
-    ASSERT_TRUE(solve_grid(g,1));
+    REQUIRE(solve_grid(g,1));
     // for (auto i = 0; i < ni; i++)
     // {
     //     for (auto j = 0; j < nj; j++)
@@ -956,7 +961,7 @@ TEST(tests_eq, solve_straight_cmp)
     //     std::cerr << std::endl;
     // }
 
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
@@ -965,23 +970,24 @@ TEST(tests_eq, solve_straight_cmp)
         // structuredGrid->GetPointData()->SetActiveScalars("beta_metal_deg");
         plot_vtkStructuredGrid(structuredGrid, "Vm", true);
     }
+    #endif
 }
 
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <gridreader.h>
-TEST(tests_gridreader, vtk_no_blades)
+TEST_CASE("tests_gridreader.vtk_no_blades" * doctest::skip(yams_tests::data_missing("test_001.vts")))
 {
     using T = double;
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
-    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"alpx001.vts");
+    auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_001.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     // init values
     std::for_each(g.begin(), g.end(), [&Vm](auto &gp) {gp.Vm=Vm;gp.Vu=0.;gp.H=gp.Cp*gp.Tt; });
     // compute_metrics(g);
-    ASSERT_TRUE(solve_grid(g));
-    if (TESTS_USE_PLOT)
+    REQUIRE(solve_grid(g));
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
@@ -990,18 +996,19 @@ TEST(tests_gridreader, vtk_no_blades)
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
-        writer->SetFileName("../../../tbslib/tests/out/test_001_Vm.vts");
+        writer->SetFileName("test_001_Vm.vts");
         // writer->SetFileName("../../../tbslib/tests/out/test_002_Vm.vts");
         writer->SetInputData(structuredGrid);
         writer->Write();
     }
+    #endif
 }
-TEST(tests_gridreader, vtk_no_blades_2)
+TEST_CASE("tests_gridreader.vtk_no_blades_2" * doctest::skip(yams_tests::data_missing("test_001.vts")))
 {
     using T = double;
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
-    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_001.vts");
-    // auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/test_002.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"alpx001.vts");
+    auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_001.vts");
+    // auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"test_002.vts");
     auto Vm = 30.;
     auto dH = 1004. * 10.;
     size_t max_geom=500;
@@ -1093,7 +1100,7 @@ TEST(tests_gridreader, vtk_no_blades_2)
         std::cerr << count_geom << " " << delta_pos_max << " " << delta_pos_moy << std::endl;
     }
 
-    if (TESTS_USE_PLOT)
+    #if YAMS_TESTS_PLOT
     {
         auto structuredGrid = make_vtkStructuredGrid(g);
         add_value(g, structuredGrid, "Vm", [](const auto &gp) { return gp.Vm; });
@@ -1102,17 +1109,18 @@ TEST(tests_gridreader, vtk_no_blades_2)
         plot_vtkStructuredGrid(structuredGrid,"Vm", true);
 
         vtkNew<vtkXMLStructuredGridWriter> writer;
-        writer->SetFileName("../../../tbslib/tests/out/test_001_Vm.vts");
+        writer->SetFileName("test_001_Vm.vts");
         // writer->SetFileName("../../../tbslib/tests/out/test_002_Vm.vts");
         writer->SetInputData(structuredGrid);
         writer->Write();
     }
+    #endif
 }
 
-TEST(tests_gridreader, derivates)
+TEST_CASE("tests_gridreader.derivates" * doctest::skip(yams_tests::data_missing("alpx001.vts")))
 {
     using T = double;
-    auto g = yams::read_vtk_grid<T>("../../../tbslib/tests/out/alpx001.vts");
+    auto g = yams::read_vtk_grid<T>(yams_tests::data_dir()+"alpx001.vts");
 
     std::transform(
         g.begin(),g.end(),g.begin(),

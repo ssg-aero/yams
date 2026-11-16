@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <curvaturesolver.h>
 #include <plots.h>
 #include <gridreader.h>
@@ -8,17 +8,14 @@
 #include <vtkXMLStructuredGridWriter.h>
 
 
-#ifdef _WIN32
-    const std::string test_files_path = "../tests/";
-#else
-    const std::string test_files_path = "../../../tbslib/tests/";
-#endif
+// Input grids: tests/data (see tests/data/README.md); outputs: working directory
+const std::string test_files_path = yams_tests::data_dir();
+const std::string out_path = "./";
 
 #include <chrono>
 using namespace yams;
-const bool TESTS_USE_PLOT = true;
 
-TEST(tests_turbine, vtk_no_blades)
+TEST_CASE("tests_turbine.vtk_no_blades" * doctest::skip(yams_tests::data_missing("turbine_grid.vts")))
 {
     using T = double;
     using namespace std::chrono;
@@ -85,15 +82,16 @@ TEST(tests_turbine, vtk_no_blades)
         curvature_solver(solver_case);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        cout << "Time taken by meridian computation: "
-             << duration.count() << " microseconds" << endl;
+        std::cout << "Time taken by meridian computation: "
+             << duration.count() << " microseconds" << std::endl;
 
         auto structuredGrid = make_vtk_grid(g);
-        if (TESTS_USE_PLOT)
+        #if YAMS_TESTS_PLOT
         {
             plot_vtkStructuredGrid(structuredGrid,"rho", true);
             // plot_residual(solver_case.log);
         }
+        #endif
     }
 
 }
@@ -114,7 +112,7 @@ void print(auto const rem, auto const& range)
 }
 
 #ifndef __clang__  
-TEST(tests_turbine, zip)
+TEST_CASE("tests_turbine.zip")
 {
     auto x = std::vector{ 1, 2, 3, 4 };
     auto y = std::list<std::string>{ "alpha", "beta", "gamma", "delat", "epsilon" };

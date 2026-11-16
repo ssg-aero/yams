@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <chrono>
 #include <iostream>
 
@@ -6,7 +6,7 @@
 #include <baldeToBlade/gridReader.h>
 #include <gbs/bscbuild.h>
 #include <string>
-TEST(tridiagonal,thomas_vec)
+TEST_CASE("tridiagonal.thomas_vec")
 {
         using namespace std;
         using T = double;
@@ -18,10 +18,10 @@ TEST(tridiagonal,thomas_vec)
         thomas_algorithm(a, b, c, d);
 
         for(int i{}; i < 4 ;i++)
-            ASSERT_NEAR(d[i], r[i], 1e-9);
+            REQUIRE(std::abs(d[i] - r[i]) <= 1e-9);
 }
 
-TEST(solver, base_novak)
+TEST_CASE("solver.base_novak")
 {
     using namespace std;
     using T = double;
@@ -92,7 +92,9 @@ TEST(solver, base_novak)
     auto elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
     cout << elapsed << endl;
     // yams::plot(solver.mesh(), solver.data().W,"Relative Speed");
+    #if YAMS_TESTS_PLOT
     yams::plot(solver.mesh(), solver.data().MW,"Relative Mach Number");
+    #endif
     // yams::plot(solver.mesh(), solver.data().Vm,"Vm");
     // yams::plot(solver.mesh(), solver.data().S,"S");
     // yams::plot(solver.mesh(), solver.data().PS,"PS");

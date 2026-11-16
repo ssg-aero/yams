@@ -3,7 +3,7 @@
 #ifdef USE_XT
     #include <xtensor/xarray.hpp>
 #endif
-#include <execution>
+#include <gbs/execution.h>
 namespace yams
 {
     template <typename Container,typename T>
@@ -76,7 +76,7 @@ namespace yams
         void init(const T &v)
         {
             std::fill(
-                std::execution::par,
+                GBS_PAR_EXEC
                 container_.begin(), container_.end(),
                 v
             );
@@ -224,7 +224,7 @@ namespace yams
         static_assert(sizeof(b(0,0)) == n*sizeof(T2));
 
         std::transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             a.begin(),
             a.end(),
             b.begin(),

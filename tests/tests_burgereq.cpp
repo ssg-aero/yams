@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 // #include <tbb/parallel_for.h>
 #include <gbs/math.ixx>
 
@@ -61,7 +61,7 @@ void plotXY(const std::vector<T> &X, const std::vector<std::vector<T>> &Y)
     view->GetInteractor()->Start();
 }
 
-TEST(tests_burgereq, lax)
+TEST_CASE("tests_burgereq.lax")
 {
     auto f_diff_ct_O2 = [](size_t i, const auto &E, const auto &XM)
     {
@@ -108,7 +108,7 @@ TEST(tests_burgereq, lax)
         //                       }
         //                   });
         std::transform( // <- seems faster
-            // std::execution::par, // even faster if not //
+            // GBS_PAR_EXEC // even faster if not //
             U.begin(),U.end(),E.begin(),f_E
         );
 
@@ -141,7 +141,7 @@ TEST(tests_burgereq, lax)
     )
     {
         std::transform( 
-            // std::execution::par, // <- seems faster
+            // GBS_PAR_EXEC // <- seems faster
             U.begin(),U.end(),E.begin(),f_E
         );
 
@@ -152,7 +152,7 @@ TEST(tests_burgereq, lax)
             U_[i] = U[i] - dt  * f_diff_fw_O1(i,E,Xm);
         }
         std::transform( 
-            // std::execution::par, // <- seems faster
+            // GBS_PAR_EXEC // <- seems faster
             U_.begin(),U_.end(),E.begin(),f_E
         );
 
@@ -167,7 +167,7 @@ TEST(tests_burgereq, lax)
     auto f_init = [](auto &U,const auto &X)
     {
         std::transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             X.begin(),X.end(),U.begin(),[](auto x){return x < 2.0 ? 1. : 0.;}
         );
     };
@@ -216,7 +216,9 @@ TEST(tests_burgereq, lax)
     // auto [It,residual,U] = solve(X,nit,f_lax_scheme);
     auto [It,residual,U] = solve(X,nit,f_mac_cormack);
 
+    #if YAMS_TESTS_PLOT
     plotXY(It,{residual});
     plotXY(X,{U});
+    #endif
 
 }

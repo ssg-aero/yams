@@ -151,7 +151,7 @@ namespace yams
         std::fill(bip.primary().mf.begin(),bip.primary().mf.end(),bip.primary().inlet.Mf); // Todo add leakage and reintroduction
         std::fill(bip.secondary().mf.begin(),bip.secondary().mf.end(),bip.secondary().inlet.Mf); // Todo add leakage and reintroduction
     }  
-    template <typename T, auto ExPo = std::execution::par>
+    template <typename T>
     auto curvature_solver(SolverCaseBiPass<T> &bip_case)
     {
         auto &prim = bip_case.primary();
@@ -197,14 +197,14 @@ namespace yams
             compute_vm_distribution(sec, tol_rel_mf, eps, true, 0 );
             // Compute mass flow distribution
            std::for_each(
-                ExPo,
+                GBS_PAR_EXEC
                 span_range_prim.begin(), span_range_prim.end(),
                 [&](const auto &i){
                     compute_massflow_distribution(prim.gi->g->begin(i), prim.gi->g->end(i));
                 }
            );
            std::for_each(
-                ExPo,
+                GBS_PAR_EXEC
                 span_range_sec.begin(), span_range_sec.end(),
                 [&](const auto &i){
                     compute_massflow_distribution(sec.gi->g->begin(i), sec.gi->g->end(i));
@@ -212,7 +212,7 @@ namespace yams
            );
             // relocate streams to balance mass flow
            std::transform(
-                // ExPo,
+                // GBS_PAR_EXEC
                 span_range_prim.begin(),
                 std::next(span_range_prim.begin(), bip_case.iBip()),
                 delta_pos_array_prim.begin(),
@@ -222,7 +222,7 @@ namespace yams
                 }
            );
             std::transform(
-                // ExPo,
+                // GBS_PAR_EXEC
                 std::next(span_range_prim.begin(), bip_case.iBip()+1),
                 span_range_prim.end(),
                 std::next(delta_pos_array_prim.begin(), bip_case.iBip()+1),
@@ -232,7 +232,7 @@ namespace yams
                 }
            );
            std::transform(
-                // ExPo,
+                // GBS_PAR_EXEC
                 std::next(span_range_sec.begin(), bip_case.iBip()+1),
                 span_range_sec.end(),
                 std::next(delta_pos_array_sec.begin(), bip_case.iBip()+1),
@@ -250,7 +250,7 @@ namespace yams
 
 
 
-    template <typename T, auto ExPo = std::execution::par>
+    template <typename T>
     auto compute_vm_distribution2(SolverCase<T> &solver_case, T tol_rel_mf, T eps, bool integrate)
     {
         auto &gi = *solver_case.gi;
@@ -262,7 +262,7 @@ namespace yams
         auto indexes = gbs::make_range<size_t>(0, ni - 1);
 
         std::transform(
-            ExPo,
+            GBS_PAR_EXEC
             indexes.begin(), indexes.end(),
             vmi.begin(),
             [nj, &g, &gi] (size_t i)
@@ -278,18 +278,18 @@ namespace yams
             for(size_t i{}; i < ni; i++)
             {
                 std::copy(
-                    ExPo,
+                    GBS_PAR_EXEC
                     vmi.begin(), vmi.end(),vmi_1.begin()
                 );
                 std::copy(
-                    ExPo,
+                    GBS_PAR_EXEC
                     vmi.begin(), vmi.end(),vmi_2.begin()
                 );
                 vmi_1(i) -= eps * 0.5;
                 vmi_2(i) += eps * 0.5;
                 // for(size_t j{}; j < ni; j++)
                 std::for_each(
-                    ExPo,
+                    GBS_PAR_EXEC
                     indexes.begin(), indexes.end(),
                     [&](size_t j)
                         {
@@ -346,7 +346,7 @@ namespace yams
         }
     }
 
-    template <typename T, auto ExPo = std::execution::par>
+    template <typename T>
     auto curvature_solver(SolverCaseSet<T> &set)
     {
         auto solver_case_in = set.cases().front();
@@ -413,7 +413,7 @@ namespace yams
                     auto span_range = gbs::make_range<size_t>(0,ni-1);
                     // Compute mass flow distribution
                     std::for_each(
-                            ExPo,
+                            GBS_PAR_EXEC
                             span_range.begin(), span_range.end(),
                             [&](const auto &i){
                                 compute_massflow_distribution(g.begin(i), g.end(i));
@@ -422,7 +422,7 @@ namespace yams
                     // relocate streams to balance mass flow
                     // std::transform(
                     std::for_each(
-                            ExPo,
+                            GBS_PAR_EXEC
                             span_range.begin(),
                             span_range.end(),
                             // delta_pos_array.begin(),

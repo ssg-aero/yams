@@ -20,31 +20,31 @@ namespace yams
 
     const bool cap_vm_rk2 = false;
 
-    auto f_sqV = [](const auto &gp)
+    inline auto f_sqV = [](const auto &gp)
     {
         return gp.Vm * gp.Vm + gp.Vu * gp.Vu;
     };
 
-    auto f_sqW = [](const auto &gp)
+    inline auto f_sqW = [](const auto &gp)
     {
         auto Wu = gp.Vu - gp.omg * gp.y;
         return gp.Vm * gp.Vm + Wu * Wu;
     };
 
-    auto f_Tt = [](const auto &gp)
+    inline auto f_Tt = [](const auto &gp)
     { 
         return gp.Ts + f_sqV(gp)  / 2. / gp.Cp; 
     };
 
     template <typename T>
-    auto newton_solve = [](const auto &crv, auto p, T u0, T u1, T u2, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max = 100, T factor = 1.0)
+    inline auto newton_solve = [](const auto &crv, auto p, T u0, T u1, T u2, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max = 100, T factor = 1.0)
     {
         auto delta = tol_u * 10., d0 = tol_f * 10.;
         auto u = u0;
         auto count = 0;
         while (fabs(delta) > tol_u && fabs(d0) > tol_f && count < it_max)
         {
-            auto d0 = crv(u) - p;
+            d0 = crv(u) - p;
             auto d1 = crv(u, 1);
             auto d2 = crv(u, 2);
             delta = d1 * d0 / (d2 * d0 + d1 * d1);
@@ -260,7 +260,7 @@ namespace yams
         for (int j{1}; j < nj; j++)
         {
             g(i, j).dH_dl= ( g(i, j).H - g(i, j-1).H ) / ( g(i, j).l - g(i, j-1).l );
-            g(i, j).dH_dl= ( g(i, j).H - g(i, j-1).H ) / ( g(i, j).l - g(i, j-1).l );
+            g(i, j).dI_dl= ( g(i, j).I - g(i, j-1).I ) / ( g(i, j).l - g(i, j-1).l );
             g(i, j).dS_dl= ( g(i, j).s - g(i, j-1).s ) / ( g(i, j).l - g(i, j-1).l );
             g(i, j).drVu_dl= ( g(i, j).y * g(i, j).Vu - g(i, j-1).y * g(i, j-1).Vu ) / ( g(i, j).l - g(i, j-1).l );
             g(i, j).drTb_dl= ( g(i, j).y * tan(g(i, j).bet) - g(i, j-1).y * tan(g(i, j-1).bet) ) / ( g(i, j).l - g(i, j-1).l );
@@ -523,7 +523,7 @@ namespace yams
     // {
     //     std::vector<T> vec(g.nCols());
     //     std::transform(
-    //         std::execution::par,
+    //         GBS_PAR_EXEC
     //         g.begin(i),
     //         g.end(i),
     //         vec.begin(),
@@ -536,7 +536,7 @@ namespace yams
     // {
     //     auto vec = streamsheet_value_vector(g,i,f);
     //     return *std::max_element(
-    //         std::execution::par,
+    //         GBS_PAR_EXEC
     //         vec.begin(),
     //         vec.end());
     // }
@@ -546,7 +546,7 @@ namespace yams
     // {
     //     auto vec = streamsheet_value_vector(g,i,stride,f);
     //     return *std::max_element(
-    //         std::execution::par,
+    //         GBS_PAR_EXEC
     //         vec.begin(),
     //         vec.end());
     // }
@@ -707,7 +707,7 @@ namespace yams
            std::for_each(g.begin(0), g.end(0), [l_tot, Tref, Pref, &inlet, &gi](auto &gp)
                           {
                             auto l_rel = gp.l / l_tot;
-                            gp.Vu = inlet.Vm(l_rel);
+                            gp.Vm = inlet.Vm(l_rel);
                             gp.Vu = inlet.Vu(l_rel);
                             gp.Ts = inlet.Ts(l_rel);
                             gp.Ps = inlet.Ps(l_rel);
@@ -777,7 +777,7 @@ namespace yams
         std::fill(solver_case.mf.begin(),solver_case.mf.end(),solver_case.inlet.Mf); // Todo add leakage and reintroduction
     }  
 
-    template <typename T, auto ExPo = std::execution::par>
+    template <typename T>
     auto init_values(SolverCase<T> &solver_case, T tol_rel_mf, T eps)
     {
         compute_vm_distribution(solver_case, tol_rel_mf, eps, false, 0);
@@ -792,7 +792,7 @@ namespace yams
         // if( !gi.rho_cst  )
         // {
         //     std::for_each(
-        //             // ExPo,
+        //             // GBS_PAR_EXEC
         //             span_range.begin(), span_range.end(),
         //             [&](const auto &i){
         //                 for (size_t j{}; j < nj; j++)
@@ -827,7 +827,7 @@ namespace yams
         }
     }
 
-    template <typename T, auto ExPo = std::execution::par>
+    template <typename T>
     auto curvature_solver(SolverCase<T> &solver_case)
     {
         // init values
@@ -836,17 +836,19 @@ namespace yams
         auto &g_metrics = *gi.g_metrics;
         size_t ni = g.nRows();
         size_t nj = g.nCols();
-        if (ni < 3 && nj < 3)
+        if (ni < 3 || nj < 3)
         {
             throw std::length_error("Grid must have dimensions >= 3");
         }
         size_t max_geom=solver_case.max_geom;
         auto eps = solver_case.eps;
         auto tol_rel_mf =solver_case.tol_rel_mf;
-        auto tol_pos = solver_case.tol_rel_pos * g(0, nj - 1).l;
+        auto tol_pos = solver_case.tol_rel_pos; // delta_pos_array is already relative to the span length
         T vmi;
         int count_geom = 0;
         auto converged = false;
+        solver_case.converged = false;
+        solver_case.cancelled = false;
         // auto i_0 = 0;
         // solver_case.log.clear();
         T delta_pos_max {};
@@ -877,7 +879,7 @@ namespace yams
                 if(solver_case.use_meridional_grad)
                 {
                     std::for_each( // update meridional gradients
-                        ExPo,
+                        GBS_PAR_EXEC
                         span_range.begin(), span_range.end(),
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
@@ -916,9 +918,9 @@ namespace yams
                                 {
                                     auto dm1 =  g(i+1, j).m -  g(i, j).m;
                                     auto dm2 =  g(i, j).m -  g(i-1, j).m;
-                                    auto gp1 = g(i+1, j);
-                                    auto gp2 = g(i , j);
-                                    auto gp3 = g(i-1, j);
+                                    const auto &gp1 = g(i+1, j);
+                                    const auto &gp2 = g(i , j);
+                                    const auto &gp3 = g(i-1, j);
                                     g(i, j).dsqVm_dm_2 = ( ( f_sqVmq2(gp1) - f_sqVmq2(gp2) ) / dm1 + ( f_sqVmq2(gp2) - f_sqVmq2(gp3) )/dm2 )/2;
                                     g(i, j).ds_dm      = ( ( f_S_(gp1) - f_S_(gp2) ) / dm1 + ( f_S_(gp2) - f_S_(gp3) )/dm2 )/2;
                                     g(i,j).drtb_dm     = ( ( f_rTanBeta(gp1) - f_rTanBeta(gp2) ) / dm1 + ( f_rTanBeta(gp2) - f_rTanBeta(gp3) )/dm2 )/2;
@@ -939,7 +941,7 @@ namespace yams
             if(!gi.rho_cst && delta_pos_moy < 1e-2 )
             {
                 std::for_each(
-                        ExPo,
+                        GBS_PAR_EXEC
                         span_range.begin(), span_range.end(),
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
@@ -952,7 +954,7 @@ namespace yams
             }
             // Compute mass flow distribution
            std::for_each(
-                ExPo,
+                GBS_PAR_EXEC
                 span_range.begin(), span_range.end(),
                 [&](const auto &i){
                     compute_massflow_distribution(g.begin(i), g.end(i));
@@ -964,7 +966,7 @@ namespace yams
            );
            // relocate streams to balance mass flow
            std::transform(
-                ExPo,
+                GBS_PAR_EXEC
                 span_range.begin(),
                 span_range.end(),
                 delta_pos_array.begin(),
@@ -980,7 +982,7 @@ namespace yams
            apply_blade_info(solver_case);
             // compute residuals
             delta_pos_moy = std::reduce(
-                    ExPo,
+                    GBS_PAR_EXEC
                     delta_pos_array.begin(),delta_pos_array.end()
             ) / delta_pos_array.size();
 
@@ -996,8 +998,13 @@ namespace yams
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;
-
+            if (solver_case.on_iteration && !solver_case.on_iteration(count_geom, delta_pos_max, delta_pos_moy))
+            {
+                solver_case.cancelled = true;
+                break;
+            }
         }
+        solver_case.converged = converged;
     }
 
 }

@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <gbs/curves>
 
 
@@ -84,7 +84,7 @@ using gbs::operator+;
 
 auto assert_nan_container(const auto array){std::for_each(array.begin(),array.end(),[](const auto &v_){assert(v_==v_);});}
 
-TEST(tests_euler1D, explicit_rk4)
+TEST_CASE("tests_euler1D.explicit_rk4")
 {
     using T  = double;
     T R = 1716.;
@@ -329,8 +329,10 @@ TEST(tests_euler1D, explicit_rk4)
 
     std::vector<T> u(n);
     std::transform(Q.begin(),Q.end(),u.begin(),Q_to_M);
+    #if YAMS_TESTS_PLOT
     plotXY(X,u);
     plotXY(It,Res);
+    #endif
     // plotXY(X,S);
     // plotXY(X,Sx);
 }

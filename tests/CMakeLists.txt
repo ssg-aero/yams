@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.17.0)
 
-find_package(GTest REQUIRED)
+project(yams_tests LANGUAGES CXX)
 
-project(quiss_tests LANGUAGES CXX)
+find_package(doctest REQUIRED)
+
+option(YAMS_TESTS_PLOT "Open the interactive VTK plots of the C++ tests (blocks until each window is closed)" OFF)
+
 if(MSVC)
     add_compile_options(/bigobj)
 endif()
@@ -10,115 +13,48 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-nan-infinity-disabled ")
 endif()
 
-message(${CMAKE_CURRENT_SOURCE_DIR}/../)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" )
-    set(VECTORIZATION_FLAGS 
-        /arch:AVX2 
-        # /O2
-        # /Qpar
-        # /openmp
-        /fp:fast
-        # /fp:precise /fp:contract
-        /Qvec-report:1
-        # /Qpar-report:2
-    )
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
-    set(VECTORIZATION_FLAGS 
-        # -Rpass=loop-vectorize
-        # -Wno-nan-infinity-disabled
-        # -stdlib=libstdc++
-    )
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(VECTORIZATION_FLAGS /arch:AVX2 /fp:fast /Qvec-report:1)
 endif()
+# Tests built with VECTORIZATION_FLAGS (MSVC only)
+set(VECTORIZED_TESTS tests_b2bsolver tests_vectorization tests_euler2D tests_biflux)
 
-message(STATUS "${VTK_LIBRARIES} " ${VTK_LIBRARIES})
-
-file(GLOB SRC_LIST "tests_*")
+# One executable per tests_*.cpp; doctest provides main().
+file(GLOB SRC_LIST "tests_*.cpp")
 foreach(file_name ${SRC_LIST})
-        get_filename_component(exe_name ${file_name} NAME_WE  )
-        add_executable(${exe_name} ${file_name})
+    get_filename_component(exe_name ${file_name} NAME_WE)
+    add_executable(${exe_name} ${file_name})
 
-        target_link_libraries(${exe_name} 
-                            GTest::gtest
-                            GTest::gtest_main
-                            # xtensor 
-                            # xtensor::optimize 
-                            # xtensor::use_xsimd
-                            ${VTK_LIBRARIES}
-                            NLopt::nlopt
-                            gbs-render
-                            iges
-                            TBB::tbb
-        )
+    target_link_libraries(${exe_name}
+        doctest::doctest
+        ${VTK_LIBRARIES}
+        gbs-render
+        iges
+        TBB::tbb
+        Eigen3::Eigen
+        libIGES::iges
+    )
 
-        target_compile_definitions(${exe_name} PRIVATE
-            -DTEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        )
+    target_compile_definitions(${exe_name} PRIVATE
+        DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+        TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        YAMS_TESTS_PLOT=$<BOOL:${YAMS_TESTS_PLOT}>
+    )
 
-        install(TARGETS ${exe_name})
-        if ( MSVC )
+    if(MSVC)
         SET_OUT_DIR(${exe_name} ${CMAKE_BINARY_DIR})
-        endif ( MSVC )
-        vtk_module_autoinit(
-                TARGETS ${exe_name}
-                MODULES ${VTK_LIBRARIES}
-                )
-        
-        if(exe_name STREQUAL "tests_b2bsolver")
-            target_compile_options(${exe_name} PRIVATE
-                # /arch:AVX2 
-                # # /O2
-                # # /Qpar
-                # # /openmp
-                # /fp:fast
-                # # /fp:precise /fp:contract
-                # /Qvec-report:1
-                # # /Qpar-report:2
-                ${VECTORIZATION_FLAGS}
-            )
-        endif()
+    endif()
+    vtk_module_autoinit(
+        TARGETS ${exe_name}
+        MODULES ${VTK_LIBRARIES}
+    )
 
-        if(exe_name STREQUAL "tests_vectorization")
-            target_compile_options(${exe_name} PRIVATE
-                # /arch:AVX2
-                # # /O2
-                # # /Qpar
-                # # /openmp
-                # /fp:fast
-                # # /fp:precise /fp:contract
-                # # /Qvec-report:2
-                # # /Qpar-report:2
-                ${VECTORIZATION_FLAGS}
-            )
-        endif()
+    if(exe_name IN_LIST VECTORIZED_TESTS)
+        target_compile_options(${exe_name} PRIVATE ${VECTORIZATION_FLAGS})
+    endif()
 
-        if(exe_name STREQUAL "tests_euler2D")
-            target_compile_options(${exe_name} PRIVATE
-                # /arch:AVX2 
-                # # /O2
-                # # /Qpar
-                # /openmp
-                # /fp:fast
-                # # /fp:precise /fp:contract
-                # /Qvec-report:1
-                # # /Qpar-report:1
-                ${VECTORIZATION_FLAGS}
-            )
-        endif()
-
-        if(exe_name STREQUAL "tests_biflux")
-            target_compile_options(${exe_name} PRIVATE
-                # /arch:AVX2 
-                # # /O2
-                # # /Qpar
-                # /openmp
-                # /fp:fast
-                # # /fp:precise /fp:contract
-                # # /Qvec-report:2
-                # # /Qpar-report:1
-                ${VECTORIZATION_FLAGS}
-            )
-        endif()
-        
+    add_test(NAME ${exe_name} COMMAND ${exe_name} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    install(TARGETS ${exe_name})
 endforeach()

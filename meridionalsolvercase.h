@@ -108,6 +108,13 @@ namespace yams
         size_t mf_ref_span = 0;
         bool mf_uniform = false;
         bool use_meridional_grad=false;
+        /// Called after each geometric iteration with (iteration, delta_pos_max, delta_pos_moy);
+        /// returning false stops the computation (cancelled = true).
+        std::function<bool(size_t, T, T)> on_iteration;
+        /// Set by curvature_solver: stream lines positions converged within tol_rel_pos
+        bool converged = false;
+        /// Set by curvature_solver: stopped by on_iteration
+        bool cancelled = false;
     };
 
 }

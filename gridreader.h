@@ -11,9 +11,31 @@
 #include <gbs/tools/magic_enum.hpp>
 #include <gbs-io/fromjson.h>
 #include <meridionalsolvercase.h>
+#include <gridmetrics.h>
+#include <filesystem>
+#include <stdexcept>
+#include <string>
 
 namespace yams
 {
+    /**
+     * @brief Read a VTK XML structured grid (.vts) file.
+     *
+     * @throw std::runtime_error if the file does not exist or holds no point
+     * (instead of returning an empty grid the solver would crash on).
+     */
+    inline auto read_vts_file(const std::string &fname) -> vtkSmartPointer<vtkStructuredGrid>
+    {
+        if (!std::filesystem::is_regular_file(fname))
+            throw std::runtime_error("yams: grid file not found: " + fname);
+        vtkNew<vtkXMLStructuredGridReader> reader;
+        reader->SetFileName(fname.c_str());
+        reader->Update();
+        vtkSmartPointer<vtkStructuredGrid> sgrid = reader->GetOutput();
+        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
+            throw std::runtime_error("yams: no structured grid points read from: " + fname);
+        return sgrid;
+    }
 
     template<typename T>
     auto read_vtk_grid(MeridionalGrid<T> &g, const vtkSmartPointer<vtkStructuredGrid> &sgrid)
@@ -54,12 +76,7 @@ namespace yams
     template<typename T>
     auto read_vtk_grid(MeridionalGrid<T> &g, const char *fname)
     {
-        vtkNew<vtkXMLStructuredGridReader> reader;
-        reader->SetFileName(fname);
-        reader->Update();
-
-        vtkSmartPointer<vtkStructuredGrid> sgrid = reader->GetOutput();
-        return read_vtk_grid<T>(g,sgrid);
+        return read_vtk_grid<T>(g, read_vts_file(fname));
     }
 
     template<typename T>
@@ -71,17 +88,50 @@ namespace yams
     template<typename T>
     auto read_vtk_grid(const char *fname)
     {
-        vtkNew<vtkXMLStructuredGridReader> reader;
-        reader->SetFileName(fname);
-        reader->Update();
-
-        return read_vtk_grid<T>(reader->GetOutput());
+        return read_vtk_grid<T>(read_vts_file(fname));
     }
 
     template<typename T>
     auto read_vtk_grid(const std::string &fname)
     {
         return read_vtk_grid<T>(fname.c_str());
+    }
+
+
+    // --- Solver case set up from VTK structured grids (VTK point order: i fastest) ---
+
+    /// @throw std::invalid_argument if the structured grid is null or holds no point
+    inline void require_structured_grid(vtkStructuredGrid* sgrid)
+    {
+        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
+            throw std::invalid_argument("yams: the structured grid is null or empty");
+    }
+
+    template <typename T>
+    auto make_grid_info(vtkStructuredGrid* sgrid)
+    {
+        require_structured_grid(sgrid);
+        return make_grid_info<T>( read_vtk_grid<T>(sgrid) );
+    }
+
+    template <typename T>
+    auto make_grid_info(const std::string &fname)
+    {
+        return make_grid_info<T>( read_vts_file(fname) );
+    }
+
+    template <typename T, typename F>
+    auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< std::tuple< BladeInfo<T> , F > > &bld_info_lst )
+    {
+        require_structured_grid(sgrid);
+        return make_solver_case<T, F>( read_vtk_grid<T>(sgrid), bld_info_lst );
+    }
+
+    template <typename T>
+    auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< BladeInfo<T> > &bld_info_lst )
+    {
+        require_structured_grid(sgrid);
+        return make_solver_case<T>( read_vtk_grid<T>(sgrid), bld_info_lst );
     }
 
     template <typename T>

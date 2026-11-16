@@ -1,3 +1,4 @@
+import os
 import pygbs.gbs as gbs
 from pygbs import vtkplot as vbs
 import pyams.yams as yams
@@ -5,7 +6,7 @@ from pytest import approx
 import pytest
 from math import cos, sin, radians
 
-plot_on = True
+plot_on = bool(os.environ.get("YAMS_TESTS_PLOT"))  # interactive VTK plots, off by default
 
 @pytest.fixture
 def channel1():

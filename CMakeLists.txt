@@ -97,15 +97,13 @@ find_package(
         Python
         WrappingPythonCore
 )
-# NLopt
-find_package(NLopt REQUIRED)
-
 if(LINUX)
     # add_definitions(-D__TBB_show_deprecation_message_task_H))
     find_package(TBB REQUIRED)
 endif()
 
 if(${BUILD_TESTS})
+    enable_testing()
     add_subdirectory(tests)
 endif()
 
@@ -114,12 +112,11 @@ if(${BUILD_PYTHON_BINDING})
 endif()
 
 add_executable(
-    yams MACOSX_BUNDLE 
+    yams
     yams.cpp
 )
 target_link_libraries(
     yams 
-    NLopt::nlopt
     ${VTK_LIBRARIES}
     # xtensor 
     # xtensor::optimize 

@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "yams_doctest.h"
 #include <gbs/curves>
 #include <gbs-mesh/tfi.h>
 #include <gbs-mesh/smoothing.h>
@@ -15,45 +15,45 @@ using namespace yams;
 
 #include <euler2d/solverData.h>
 
-TEST(euler2D, SolverData4Init)
+TEST_CASE("euler2D.SolverData4Init")
 {
     using T = double;
     size_t ni{11};
     size_t nj{5};
     auto n = ni * nj;
     SolverData4<T> U{ni, nj};
-    ASSERT_EQ(U.ni,ni);
-    ASSERT_EQ(U.nj,nj);
+    REQUIRE(U.ni == ni);
+    REQUIRE(U.nj == nj);
     T u1{1.}, u2{2.}, u3{3.}, u4{4.};
     U.init(u1, u2, u3, u4);
     auto & [ U1, U2, U3, U4] = U.d;
-    ASSERT_EQ(U1.size(),n);
-    ASSERT_EQ(U2.size(),n);
-    ASSERT_EQ(U3.size(),n);
-    ASSERT_EQ(U4.size(),n);
+    REQUIRE(U1.size() == n);
+    REQUIRE(U2.size() == n);
+    REQUIRE(U3.size() == n);
+    REQUIRE(U4.size() == n);
     std::for_each(U1.begin(), U1.end(),
         [u1](auto u){
-            ASSERT_LT( std::abs(u-u1), std::numeric_limits<T>::epsilon());
+            REQUIRE(std::abs(u-u1) < (std::numeric_limits<T>::epsilon()));
         }
     );
     std::for_each(U2.begin(), U2.end(),
         [u2](auto u){
-            ASSERT_LT( std::abs(u-u2), std::numeric_limits<T>::epsilon());
+            REQUIRE(std::abs(u-u2) < (std::numeric_limits<T>::epsilon()));
         }
     );
     std::for_each(U3.begin(), U3.end(),
         [u3](auto u){
-            ASSERT_LT( std::abs(u-u3), std::numeric_limits<T>::epsilon());
+            REQUIRE(std::abs(u-u3) < (std::numeric_limits<T>::epsilon()));
         }
     );
     std::for_each(U4.begin(), U4.end(),
         [u4](auto u){
-            ASSERT_LT( std::abs(u-u4), std::numeric_limits<T>::epsilon());
+            REQUIRE(std::abs(u-u4) < (std::numeric_limits<T>::epsilon()));
         }
     );
 }
 
-TEST(euler2D, SolverData4Perf)
+TEST_CASE("euler2D.SolverData4Perf")
 {
     using T = double;
     const T half = 0.5;
@@ -274,7 +274,7 @@ TEST(euler2D, SolverData4Perf)
         // std::vector<size_t> idx_j(nj);
         // std::generate(idx_j.begin(), idx_j.end(), [n=0]() mutable{return n++;});
         // std::for_each(
-        //     std::execution::par,
+        //     GBS_PAR_EXEC
         //     idx_j.begin(),idx_j.end(),[&](auto j)
         {
             auto p1gamma =gamma.data()+offset1;
@@ -363,7 +363,7 @@ TEST(euler2D, SolverData4Perf)
 
         vector<T> g(nip), u1(nip), u2(nip), u3(nip), u4(nip), p(nip);
         std::for_each(
-            // std::execution::par,
+            // GBS_PAR_EXEC
             idx_j.begin(),idx_j.end(),[&](auto j)
         {
 
@@ -443,7 +443,7 @@ TEST(euler2D, SolverData4Perf)
 
         
         std::for_each(
-            // std::execution::par,
+            // GBS_PAR_EXEC
             idx_j.begin(),idx_j.end(),[&](auto j)
         {
 
@@ -764,14 +764,14 @@ inline auto build_channel_mesh(size_t ni_ = 30,size_t nj_ = 30, T bump = 0.1, T 
 //     }
 // };
 
-// TEST(tests_euler2D, rk_integrator)
+// TEST_CASE("tests_euler2D.rk_integrator")
 // {
 
 // }
 
 
 
-TEST(tests_euler2D, gris_access_speeds)
+TEST_CASE("tests_euler2D.gris_access_speeds")
 {
     using T = double;
     const T half = 0.5;
@@ -811,8 +811,8 @@ TEST(tests_euler2D, gris_access_speeds)
     // compute gog and volume
 
     vector<T> V(nm),X(n),Y(n),Xc(nm),Yc(nm);
-    std::transform(std::execution::par, pts.begin(), pts.end(),X.begin(),[](const auto &pt){return pt[0];});
-    std::transform(std::execution::par, pts.begin(), pts.end(),Y.begin(),[](const auto &pt){return pt[1];});
+    std::transform(GBS_PAR_EXEC pts.begin(), pts.end(),X.begin(),[](const auto &pt){return pt[0];});
+    std::transform(GBS_PAR_EXEC pts.begin(), pts.end(),Y.begin(),[](const auto &pt){return pt[1];});
     
     {    
         auto start = std::chrono::steady_clock::now();
@@ -962,7 +962,7 @@ TEST(tests_euler2D, gris_access_speeds)
     //     auto start = std::chrono::steady_clock::now();
     //     // size_t id{};
     //     std::for_each(
-    //         // std::execution::par,
+    //         // GBS_PAR_EXEC
     //         ids_jp.begin(), ids_jp.end(),
     //         [&](auto j)
     //         {
@@ -1076,13 +1076,15 @@ TEST(tests_euler2D, gris_access_speeds)
 
 
 
+    #if YAMS_TESTS_PLOT
     plot(
         make_structuredgrid_actor(pts, ni, nj)
         , pts_c
     );
+    #endif
 }
 
-TEST(tests_euler2D, base_solver)
+TEST_CASE("tests_euler2D.base_solver")
 {
     using T = double;
     size_t ni_{51}, nj_{25};
@@ -1100,10 +1102,10 @@ TEST(tests_euler2D, base_solver)
         T t = 364;
         auto U = solver.U({u, v, t, p}, 1.39);
         auto P = solver.P(U, 1.39);
-        ASSERT_NEAR( std::get<0>(P), u, 1e-7);
-        ASSERT_NEAR( std::get<1>(P), v, 1e-7);
-        ASSERT_NEAR( std::get<2>(P), t, 1e-7);
-        ASSERT_NEAR( std::get<3>(P), p, 1e-7);
+        REQUIRE(std::abs((std::get<0>(P)) - u) <= 1e-7);
+        REQUIRE(std::abs((std::get<1>(P)) - v) <= 1e-7);
+        REQUIRE(std::abs((std::get<2>(P)) - t) <= 1e-7);
+        REQUIRE(std::abs((std::get<3>(P)) - p) <= 1e-7);
     }
     {
         auto start = std::chrono::steady_clock::now();
