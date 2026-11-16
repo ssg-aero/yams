@@ -35,7 +35,7 @@ namespace yams
         return Ksh * Kti * i + n * th;
     }
 
-    auto m10_naca65 = [](auto b1)
+    inline auto m10_naca65 = [](auto b1)
     {
         auto x = b1 / 100;
         return 0.17 * 0.0333 * x + 0.333 * x * x;

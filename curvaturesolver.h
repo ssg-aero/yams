@@ -20,24 +20,24 @@ namespace yams
 
     const bool cap_vm_rk2 = false;
 
-    auto f_sqV = [](const auto &gp)
+    inline auto f_sqV = [](const auto &gp)
     {
         return gp.Vm * gp.Vm + gp.Vu * gp.Vu;
     };
 
-    auto f_sqW = [](const auto &gp)
+    inline auto f_sqW = [](const auto &gp)
     {
         auto Wu = gp.Vu - gp.omg * gp.y;
         return gp.Vm * gp.Vm + Wu * Wu;
     };
 
-    auto f_Tt = [](const auto &gp)
+    inline auto f_Tt = [](const auto &gp)
     { 
         return gp.Ts + f_sqV(gp)  / 2. / gp.Cp; 
     };
 
     template <typename T>
-    auto newton_solve = [](const auto &crv, auto p, T u0, T u1, T u2, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max = 100, T factor = 1.0)
+    inline auto newton_solve = [](const auto &crv, auto p, T u0, T u1, T u2, T tol_f = 1.e-3, T tol_u = 1.e-4, size_t it_max = 100, T factor = 1.0)
     {
         auto delta = tol_u * 10., d0 = tol_f * 10.;
         auto u = u0;

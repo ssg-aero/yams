@@ -23,40 +23,40 @@ namespace yams
 
     const double c_r = 287.04;
 
-    auto f_sqVmq2 = [](const auto &gp)
+    inline auto f_sqVmq2 = [](const auto &gp)
     { return 0.5 * gp.Vm * gp.Vm; };
 
-    auto f_mf = [](const auto &gp)
+    inline auto f_mf = [](const auto &gp)
     {
         // return gp.Vm * gp.rho * cos(gp.phi + gp.gam) * ( 2 * std::numbers::pi - gp.th_ ) * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
         return gp.Vm * gp.rho * gp.cgp * ( 2 * std::numbers::pi - gp.th_ ) * gp.y; //Schobeiri p. 273 adapted to Novak 1977 angle convention
     };
 
-    auto f_I = [](const auto &gp)
+    inline auto f_I = [](const auto &gp)
     { return gp.I; };
-    auto f_H = [](const auto &gp)
+    inline auto f_H = [](const auto &gp)
     { return gp.H; };
-    auto f_S_ = [](const auto &gp)
+    inline auto f_S_ = [](const auto &gp)
     { return gp.s; };
-    auto f_rVu = [](const auto &gp)
+    inline auto f_rVu = [](const auto &gp)
     { return gp.y * gp.Vu; };
-    auto f_rTanBeta = [](const auto &gp)
+    inline auto f_rTanBeta = [](const auto &gp)
     { return gp.y * tan(gp.bet); };
-    auto f_l = [](const auto &gp)
+    inline auto f_l = [](const auto &gp)
     { return gp.l; };
-    auto f_m = [](const auto &gp)
+    inline auto f_m = [](const auto &gp)
     { return gp.m; };
-    auto f_Mm = [](const auto &gp)
+    inline auto f_Mm = [](const auto &gp)
     { return gp.Vm / sqrt(gp.ga * c_r * gp.Ts); };
-    auto f_Vm = [](const auto &gp)
+    inline auto f_Vm = [](const auto &gp)
     { return gp.Vm; };
-    auto f_Wu = [](const auto &gp)
+    inline auto f_Wu = [](const auto &gp)
     { return gp.Vu - gp.omg * gp.y; };
-    auto f_rWu = [](const auto &gp)
+    inline auto f_rWu = [](const auto &gp)
     { return f_Wu(gp) * gp.y; };
 
 
-    auto D = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    inline auto D = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
         auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improves speed
@@ -72,7 +72,7 @@ namespace yams
         return cb * cb * (D1 + D2 + D3);
     };
 
-    auto E = [](const auto &gp)
+    inline auto E = [](const auto &gp)
     {
         auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improves speed
         auto te = tan(gp.eps);
@@ -82,7 +82,7 @@ namespace yams
         return 2. * gp.omg * cb * cb * (te * sp - cg * tb);
     };
 
-    auto F = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    inline auto F = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
         auto cb = cos(gp.bet); //TODO check if caching value cos(beta) tan(beta) cos(phi+gam)... improves speed
@@ -100,19 +100,19 @@ namespace yams
         return F1 + F2 * F3;
     };
 
-    auto G = [](const auto &gp)
+    inline auto G = [](const auto &gp)
     {
         return gp.cgp * gp.cur;
     };
 
-    auto J = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    inline auto J = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
         auto te = tan(gp.eps);
         return gp.y > 0. ? te / gp.y * gp.drVu_dm : 0.;
     };
 
-    auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    inline auto K = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
         auto beta = abs(gp.Vm) > 1e-1 ? atan2(gp.Vu, gp.Vm) : std::numbers::pi / 2.;
@@ -139,14 +139,14 @@ namespace yams
         return K1 + K2 + K3 + K4;
     };
 
-    auto eq_bet = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    inline auto eq_bet = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
         const auto Vm = gp.Vm;
         return D(g, g_metrics, i, j, d_ksi, d_eth) * Vm * Vm + E(gp) * Vm + F(g, g_metrics, i, j, d_ksi, d_eth);
     };
 
-    auto eq_vu = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
+    inline auto eq_vu = [](const auto &g, const auto &g_metrics, size_t i, size_t j, auto d_ksi, auto d_eth)
     {
         const auto &gp = g(i, j);
         auto Vm = gp.Vm;
