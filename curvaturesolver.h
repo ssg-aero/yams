@@ -707,7 +707,7 @@ namespace yams
            std::for_each(g.begin(0), g.end(0), [l_tot, Tref, Pref, &inlet, &gi](auto &gp)
                           {
                             auto l_rel = gp.l / l_tot;
-                            gp.Vu = inlet.Vm(l_rel);
+                            gp.Vm = inlet.Vm(l_rel);
                             gp.Vu = inlet.Vu(l_rel);
                             gp.Ts = inlet.Ts(l_rel);
                             gp.Ps = inlet.Ps(l_rel);
