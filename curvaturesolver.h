@@ -916,9 +916,9 @@ namespace yams
                                 {
                                     auto dm1 =  g(i+1, j).m -  g(i, j).m;
                                     auto dm2 =  g(i, j).m -  g(i-1, j).m;
-                                    auto gp1 = g(i+1, j);
-                                    auto gp2 = g(i , j);
-                                    auto gp3 = g(i-1, j);
+                                    const auto &gp1 = g(i+1, j);
+                                    const auto &gp2 = g(i , j);
+                                    const auto &gp3 = g(i-1, j);
                                     g(i, j).dsqVm_dm_2 = ( ( f_sqVmq2(gp1) - f_sqVmq2(gp2) ) / dm1 + ( f_sqVmq2(gp2) - f_sqVmq2(gp3) )/dm2 )/2;
                                     g(i, j).ds_dm      = ( ( f_S_(gp1) - f_S_(gp2) ) / dm1 + ( f_S_(gp2) - f_S_(gp3) )/dm2 )/2;
                                     g(i,j).drtb_dm     = ( ( f_rTanBeta(gp1) - f_rTanBeta(gp2) ) / dm1 + ( f_rTanBeta(gp2) - f_rTanBeta(gp3) )/dm2 )/2;
