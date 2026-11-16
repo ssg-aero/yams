@@ -1,8 +1,7 @@
 
 context:
   version:  0.1.5
-  # vtk_version: 9.3.0
-  gbs_version: 0.4.2
+  gbs_min_version: 0.5.0
 
 package:
   name: yams
@@ -14,10 +13,9 @@ source:
 extra:
   channels:
   - url: conda-forge
-  - url: ssg-aero
 
 build:
-  number: 0
+  number: 3
 
 requirements:
   build:
@@ -27,17 +25,23 @@ requirements:
     - ${{"clang-tools" if unix}} # for scan dep
     - ninja
     - cmake >=3.28
-    - python ${{python}}
+    - python
   host:
-    - python ${{python}}
+    - python
     - python-devtools
     - pybind11
-    - gbs =${{gbs_version}}
-    - eigen
-    - boost >=1.74
+    - gbs >=${{gbs_min_version}}
+    - eigen-abi-devel >=3.3.9
+    - rapidjson
+    # vtk-base 9.6 ships VTK-targets.cmake with hard references to
+    # VTK::IOFFMPEG; this dep installs the matching .lib so configure passes.
+    - vtk-io-ffmpeg
+    # gbs public headers (e.g. bscanalysis.h) include boost::math
+    # gauss_kronrod; header-only so libboost-headers is enough.
+    - libboost-headers
   run:
-    - python ${{python}}
-    - gbs =${{gbs_version}}
+    - python
+    - gbs >=${{gbs_min_version}}
 
 tests:
   # - package_contents:

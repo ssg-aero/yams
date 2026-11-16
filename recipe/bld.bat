@@ -9,7 +9,9 @@ cmake .. ^
 -D CMAKE_INSTALL_PREFIX=%LIBRARY_PREFIX% ^
 -G "Ninja" ^
 -Wno-dev
+if errorlevel 1 exit /b 1
 
 ninja install
+if errorlevel 1 exit /b 1
 
 cd ..
