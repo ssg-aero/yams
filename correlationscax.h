@@ -38,7 +38,7 @@ namespace yams
     inline auto m10_naca65 = [](auto b1)
     {
         auto x = b1 / 100;
-        return 0.17 * 0.0333 * x + 0.333 * x * x;
+        return 0.17 - 0.0333 * x + 0.333 * x * x;
     };
 
     auto slope_param(const auto m10, auto b1, auto sig)
