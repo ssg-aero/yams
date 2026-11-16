@@ -182,8 +182,9 @@ namespace yams
     template <typename T>
     auto make_grid_info(MeridionalGrid<T> g)
     {
-        size_t ni = g.nRows();
+        // nRows() divides by the number of columns: an empty grid must not reach it
         size_t nj = g.size() ? g.nCols() : 0;
+        size_t ni = nj ? g.nRows() : 0;
         if (ni < 3 || nj < 3)
             throw std::invalid_argument("yams: the meridional grid must have at least 3 x 3 points");
         auto g_metrics = Grid2dMetrics<T>{ni,nj};

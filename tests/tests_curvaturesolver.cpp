@@ -1020,3 +1020,15 @@ TEST_CASE("tests_curvature_solver.Vm_inlet" * doctest::skip(yams_tests::data_mis
 
     }
 }
+
+TEST_CASE("tests_curvature_solver.null_or_empty_vtk_grid")
+{
+    // explicit error instead of a crash, for every VTK entry point
+    vtkStructuredGrid *null_grid = nullptr;
+    vtkNew<vtkStructuredGrid> empty_grid;
+    std::vector<yams::BladeInfo<double>> no_blade;
+    REQUIRE_THROWS_AS(yams::make_grid_info<double>(null_grid), std::invalid_argument);
+    REQUIRE_THROWS_AS(yams::make_grid_info<double>(empty_grid.Get()), std::invalid_argument);
+    REQUIRE_THROWS_AS(yams::make_solver_case<double>(null_grid, no_blade), std::invalid_argument);
+    REQUIRE_THROWS_AS(yams::make_solver_case<double>(empty_grid.Get(), no_blade), std::invalid_argument);
+}

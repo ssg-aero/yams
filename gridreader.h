@@ -100,11 +100,17 @@ namespace yams
 
     // --- Solver case set up from VTK structured grids (VTK point order: i fastest) ---
 
+    /// @throw std::invalid_argument if the structured grid is null or holds no point
+    inline void require_structured_grid(vtkStructuredGrid* sgrid)
+    {
+        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
+            throw std::invalid_argument("yams: the structured grid is null or empty");
+    }
+
     template <typename T>
     auto make_grid_info(vtkStructuredGrid* sgrid)
     {
-        if (!sgrid || sgrid->GetNumberOfPoints() == 0)
-            throw std::invalid_argument("yams: make_grid_info called with an empty structured grid");
+        require_structured_grid(sgrid);
         return make_grid_info<T>( read_vtk_grid<T>(sgrid) );
     }
 
@@ -117,12 +123,14 @@ namespace yams
     template <typename T, typename F>
     auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< std::tuple< BladeInfo<T> , F > > &bld_info_lst )
     {
+        require_structured_grid(sgrid);
         return make_solver_case<T, F>( read_vtk_grid<T>(sgrid), bld_info_lst );
     }
 
     template <typename T>
     auto make_solver_case( vtkStructuredGrid* sgrid,  const std::vector< BladeInfo<T> > &bld_info_lst )
     {
+        require_structured_grid(sgrid);
         return make_solver_case<T>( read_vtk_grid<T>(sgrid), bld_info_lst );
     }
 

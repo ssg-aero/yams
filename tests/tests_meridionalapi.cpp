@@ -93,3 +93,33 @@ TEST_CASE("meridionalapi.invalid_problems")
     pb.hub = straight(1., 0.5, 0., 0.5); // z decreasing along the hub
     REQUIRE_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
 }
+
+TEST_CASE("meridionalapi.stations_on_hard_positions")
+{
+    // Bounds for which z_in + (z_out - z_in) * n / n rounds one ulp above z_out:
+    // the outlet station must be z_out itself, not outside the channel.
+    yams::api::Problem pb;
+    pb.hub = straight(0.12, 0.5, 1.43, 0.5);
+    pb.shroud = straight(0.12, 1.0, 1.43, 1.0);
+    pb.options.n_stations = 21;
+    auto sc = yams::api::make_case(pb);
+    const auto &g = *sc.gi->g;
+    REQUIRE(g.nRows() == 21);
+    REQUIRE(g(0, 0).x == 0.12);
+    REQUIRE(g(g.nRows() - 1, 0).x == 1.43);
+
+    // row edges are exactly on their stations
+    std::vector<yams::api::RowStations> rows;
+    sc = yams::api::make_case(annulus_rotor(), &rows);
+    REQUIRE((*sc.gi->g)(rows[0].i_le, 0).x == 0.4);
+    REQUIRE((*sc.gi->g)(rows[0].i_te, 0).x == 0.6);
+}
+
+TEST_CASE("meridionalapi.empty_grid")
+{
+    // an empty grid is an explicit error, not a division by zero
+    REQUIRE_THROWS_AS(yams::make_grid_info<double>(yams::MeridionalGrid<double>{}), std::invalid_argument);
+    REQUIRE_THROWS_AS(
+        yams::make_solver_case<double>(yams::MeridionalGrid<double>{}, std::vector<yams::BladeInfo<double>>{}),
+        std::invalid_argument);
+}

@@ -194,8 +194,11 @@ namespace yams::api
         std::vector<size_t> i_hard{0};
         for (size_t b = 0; b < counts.size(); b++)
         {
-            for (size_t k = 1; k <= counts[b]; k++)
-                z_stations.push_back(z_hard[b] + (z_hard[b + 1] - z_hard[b]) * k / counts[b]);
+            // the last station of a block is the hard position itself: recomputing it
+            // can land one ulp past it, i.e. outside the channel at the outlet
+            for (size_t k = 1; k < counts[b]; k++)
+                z_stations.push_back(std::min(z_hard[b + 1], z_hard[b] + (z_hard[b + 1] - z_hard[b]) * k / counts[b]));
+            z_stations.push_back(z_hard[b + 1]);
             i_hard.push_back(z_stations.size() - 1);
         }
         const size_t ni = z_stations.size();
