@@ -7,7 +7,7 @@ project(pyams LANGUAGES CXX)
 find_package(Python 
     COMPONENTS 
         Interpreter 
-        Developement
+        Development
 )
 message("Python3_SITELIB:" ${Python3_SITELIB})
 find_package(pybind11 REQUIRED)

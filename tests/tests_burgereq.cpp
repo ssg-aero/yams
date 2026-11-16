@@ -108,7 +108,7 @@ TEST(tests_burgereq, lax)
         //                       }
         //                   });
         std::transform( // <- seems faster
-            // std::execution::par, // even faster if not //
+            // GBS_PAR_EXEC // even faster if not //
             U.begin(),U.end(),E.begin(),f_E
         );
 
@@ -141,7 +141,7 @@ TEST(tests_burgereq, lax)
     )
     {
         std::transform( 
-            // std::execution::par, // <- seems faster
+            // GBS_PAR_EXEC // <- seems faster
             U.begin(),U.end(),E.begin(),f_E
         );
 
@@ -152,7 +152,7 @@ TEST(tests_burgereq, lax)
             U_[i] = U[i] - dt  * f_diff_fw_O1(i,E,Xm);
         }
         std::transform( 
-            // std::execution::par, // <- seems faster
+            // GBS_PAR_EXEC // <- seems faster
             U_.begin(),U_.end(),E.begin(),f_E
         );
 
@@ -167,7 +167,7 @@ TEST(tests_burgereq, lax)
     auto f_init = [](auto &U,const auto &X)
     {
         std::transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             X.begin(),X.end(),U.begin(),[](auto x){return x < 2.0 ? 1. : 0.;}
         );
     };

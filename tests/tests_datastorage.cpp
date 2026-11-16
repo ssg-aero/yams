@@ -3,7 +3,7 @@
 #include <diffop.h>
 #include <gridsbuilders.h>
 #include <gridmetrics.h>
-#include <execution>
+#include <gbs/execution.h>
 #include <algorithm>
 #include <chrono>
 
@@ -49,7 +49,7 @@ TEST(tests_datastorage, Array2d)
 //     );
 
 //     std::for_each(
-//         std::execution::par,
+//         GBS_PAR_EXEC
 //         b.begin(),
 //         b.end(),
 //         [](const auto &v_){ ASSERT_DOUBLE_EQ(v_,1.); }
@@ -324,7 +324,7 @@ TEST(tests_datastorage, xsimd_perfo)
         vector_type c(size_v);
         for (auto i = 0; i < n_it; i++)
             xsimd::transform(
-                // std::execution::par, // not working
+                // GBS_PAR_EXEC // not working
                 a.begin(), a.end(), b.begin(), c.begin(),
                 [](const auto &x, const auto &y) { return (x + y) / 2.; });
         const auto t2 = std::chrono::high_resolution_clock::now();
@@ -353,7 +353,7 @@ TEST(tests_datastorage, xsimd_perfo)
         std::vector<double> c(size_v);
         for (auto i = 0; i < n_it; i++)
             std::transform(
-                std::execution::par,
+                GBS_PAR_EXEC
                 a.begin(), a.end(), b.begin(), c.begin(),
                 [](const auto &x, const auto &y) { return (x + y) / 2.; });
         const auto t2 = std::chrono::high_resolution_clock::now();

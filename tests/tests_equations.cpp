@@ -189,7 +189,7 @@ template <typename Iterator>
 inline void compute_static_values(Iterator begin, Iterator end)
 {
     std::for_each(
-        std::execution::par,
+        GBS_PAR_EXEC
         begin, end,
         [](auto &gp) {
             gp.Ts = gp.Tt - f_sqVmq2(gp) / gp.Cp;
@@ -301,7 +301,7 @@ inline auto streamsheet_value_vector(const MeridionalGrid<T> &g, size_t i, size_
 {
     std::vector<T> vec(g.nCols());
     std::transform(
-        std::execution::par,
+        GBS_PAR_EXEC
         g.begin(i),
         g.end(i),
         g.begin(i + stride),
@@ -315,7 +315,7 @@ inline auto streamsheet_value_vector(const MeridionalGrid<T> &g, size_t i, _Func
 {
     std::vector<T> vec(g.nCols());
     std::transform(
-        std::execution::par,
+        GBS_PAR_EXEC
         g.begin(i),
         g.end(i),
         vec.begin(),
@@ -328,7 +328,7 @@ inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, _Func f)
 {
     auto vec = streamsheet_value_vector(g,i,f);
     return *std::max_element(
-        std::execution::par,
+        GBS_PAR_EXEC
         vec.begin(),
         vec.end());
 }
@@ -338,7 +338,7 @@ inline auto find_streamsheet_max(const MeridionalGrid<T> &g, size_t i, size_t st
 {
     auto vec = streamsheet_value_vector(g,i,stride,f);
     return *std::max_element(
-        std::execution::par,
+        GBS_PAR_EXEC
         vec.begin(),
         vec.end());
 }
@@ -584,7 +584,7 @@ TEST(tests_eq, eq_Vu)
         else
         {
             std::transform(
-                std::execution::par,
+                GBS_PAR_EXEC
                 g.begin(i - 1),
                 g.end(i - 1),
                 g.begin(i),

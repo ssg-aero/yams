@@ -523,7 +523,7 @@ namespace yams
     // {
     //     std::vector<T> vec(g.nCols());
     //     std::transform(
-    //         std::execution::par,
+    //         GBS_PAR_EXEC
     //         g.begin(i),
     //         g.end(i),
     //         vec.begin(),
@@ -536,7 +536,7 @@ namespace yams
     // {
     //     auto vec = streamsheet_value_vector(g,i,f);
     //     return *std::max_element(
-    //         std::execution::par,
+    //         GBS_PAR_EXEC
     //         vec.begin(),
     //         vec.end());
     // }
@@ -546,7 +546,7 @@ namespace yams
     // {
     //     auto vec = streamsheet_value_vector(g,i,stride,f);
     //     return *std::max_element(
-    //         std::execution::par,
+    //         GBS_PAR_EXEC
     //         vec.begin(),
     //         vec.end());
     // }
@@ -777,7 +777,7 @@ namespace yams
         std::fill(solver_case.mf.begin(),solver_case.mf.end(),solver_case.inlet.Mf); // Todo add leakage and reintroduction
     }  
 
-    template <typename T, auto ExPo = std::execution::par>
+    template <typename T>
     auto init_values(SolverCase<T> &solver_case, T tol_rel_mf, T eps)
     {
         compute_vm_distribution(solver_case, tol_rel_mf, eps, false, 0);
@@ -792,7 +792,7 @@ namespace yams
         // if( !gi.rho_cst  )
         // {
         //     std::for_each(
-        //             // ExPo,
+        //             // GBS_PAR_EXEC
         //             span_range.begin(), span_range.end(),
         //             [&](const auto &i){
         //                 for (size_t j{}; j < nj; j++)
@@ -827,7 +827,7 @@ namespace yams
         }
     }
 
-    template <typename T, auto ExPo = std::execution::par>
+    template <typename T>
     auto curvature_solver(SolverCase<T> &solver_case)
     {
         // init values
@@ -877,7 +877,7 @@ namespace yams
                 if(solver_case.use_meridional_grad)
                 {
                     std::for_each( // update meridional gradients
-                        ExPo,
+                        GBS_PAR_EXEC
                         span_range.begin(), span_range.end(),
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
@@ -939,7 +939,7 @@ namespace yams
             if(!gi.rho_cst && delta_pos_moy < 1e-2 )
             {
                 std::for_each(
-                        ExPo,
+                        GBS_PAR_EXEC
                         span_range.begin(), span_range.end(),
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
@@ -952,7 +952,7 @@ namespace yams
             }
             // Compute mass flow distribution
            std::for_each(
-                ExPo,
+                GBS_PAR_EXEC
                 span_range.begin(), span_range.end(),
                 [&](const auto &i){
                     compute_massflow_distribution(g.begin(i), g.end(i));
@@ -964,7 +964,7 @@ namespace yams
            );
            // relocate streams to balance mass flow
            std::transform(
-                ExPo,
+                GBS_PAR_EXEC
                 span_range.begin(),
                 span_range.end(),
                 delta_pos_array.begin(),
@@ -980,7 +980,7 @@ namespace yams
            apply_blade_info(solver_case);
             // compute residuals
             delta_pos_moy = std::reduce(
-                    ExPo,
+                    GBS_PAR_EXEC
                     delta_pos_array.begin(),delta_pos_array.end()
             ) / delta_pos_array.size();
 

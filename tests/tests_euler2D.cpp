@@ -274,7 +274,7 @@ TEST(euler2D, SolverData4Perf)
         // std::vector<size_t> idx_j(nj);
         // std::generate(idx_j.begin(), idx_j.end(), [n=0]() mutable{return n++;});
         // std::for_each(
-        //     std::execution::par,
+        //     GBS_PAR_EXEC
         //     idx_j.begin(),idx_j.end(),[&](auto j)
         {
             auto p1gamma =gamma.data()+offset1;
@@ -363,7 +363,7 @@ TEST(euler2D, SolverData4Perf)
 
         vector<T> g(nip), u1(nip), u2(nip), u3(nip), u4(nip), p(nip);
         std::for_each(
-            // std::execution::par,
+            // GBS_PAR_EXEC
             idx_j.begin(),idx_j.end(),[&](auto j)
         {
 
@@ -443,7 +443,7 @@ TEST(euler2D, SolverData4Perf)
 
         
         std::for_each(
-            // std::execution::par,
+            // GBS_PAR_EXEC
             idx_j.begin(),idx_j.end(),[&](auto j)
         {
 
@@ -811,8 +811,8 @@ TEST(tests_euler2D, gris_access_speeds)
     // compute gog and volume
 
     vector<T> V(nm),X(n),Y(n),Xc(nm),Yc(nm);
-    std::transform(std::execution::par, pts.begin(), pts.end(),X.begin(),[](const auto &pt){return pt[0];});
-    std::transform(std::execution::par, pts.begin(), pts.end(),Y.begin(),[](const auto &pt){return pt[1];});
+    std::transform(GBS_PAR_EXEC pts.begin(), pts.end(),X.begin(),[](const auto &pt){return pt[0];});
+    std::transform(GBS_PAR_EXEC pts.begin(), pts.end(),Y.begin(),[](const auto &pt){return pt[1];});
     
     {    
         auto start = std::chrono::steady_clock::now();
@@ -962,7 +962,7 @@ TEST(tests_euler2D, gris_access_speeds)
     //     auto start = std::chrono::steady_clock::now();
     //     // size_t id{};
     //     std::for_each(
-    //         // std::execution::par,
+    //         // GBS_PAR_EXEC
     //         ids_jp.begin(), ids_jp.end(),
     //         [&](auto j)
     //         {

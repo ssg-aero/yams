@@ -31,7 +31,7 @@ namespace yams
             vtkSmartPointer<vtkPoints>::New();
 
         std::for_each(
-            // std::execution::par,
+            // GBS_PAR_EXEC
             g.begin(),
             g.end(),
             [&](const auto &gp) {
@@ -54,7 +54,7 @@ namespace yams
         // phi->Allocate(g.size());
 
         std::for_each(
-            // std::execution::par,
+            // GBS_PAR_EXEC
             g.begin(),
             g.end(),
             [&](const auto &gp) {

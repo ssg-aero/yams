@@ -4,7 +4,7 @@
 #include <vector>
 #include <array>
 #include <algorithm>
-#include <execution>
+#include <gbs/execution.h>
 // #include <xtensor/xarray.hpp>
 TEST(vectorization, 1d)
 {
@@ -75,7 +75,7 @@ TEST(vectorization, 1d)
     // start = chrono::steady_clock::now();
 
     // std::transform(
-    //     std::execution::par,
+    //     GBS_PAR_EXEC
     //     X.begin(), X.end(), Y.begin(), f_sin
     // );
 

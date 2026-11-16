@@ -4,6 +4,7 @@
 #include <gbs/bscanalysis.h>
 #include <matrix/tridiagonal.h>
 #include <numbers>
+#include <gbs/execution.h>
 
 namespace yams
 {
@@ -328,14 +329,14 @@ namespace yams
         // compute beta
         f_grad(msh.G1, msh.TH, msh.M);
         transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             msh.G1.begin(), msh.G1.end(),
             msh.R.begin(),
             msh.BT.begin(),
             [](auto g, auto r)
             { return atan(r * g); });
         transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             msh.BT.begin(), msh.BT.end(),
             msh.R.begin(),
             msh.RTB.begin(),
@@ -346,37 +347,37 @@ namespace yams
         f_grad(msh.G4, msh.R, msh.Z);
         // angles trigonometry
         transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             msh.G4.begin(), msh.G4.end(),
             msh.PH.begin(),
             [](auto d_r_d_z)
             { return atan(d_r_d_z); });
         transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             msh.PH.begin(), msh.PH.end(),
             msh.SP.begin(),
             [](auto phi)
             { return sin(phi); });
         transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             msh.PH.begin(), msh.PH.end(),
             msh.CP.begin(),
             [](auto phi)
             { return cos(phi); });
         transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             msh.BT.begin(), msh.BT.end(),
             msh.CB.begin(),
             [](auto beta)
             { return cos(beta); });
         transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             msh.BT.begin(), msh.BT.end(),
             msh.SB.begin(),
             [](auto beta)
             { return sin(beta); });
         std::for_each(
-            std::execution::par,
+            GBS_PAR_EXEC
             computational_planes_offsets.begin(),
             computational_planes_offsets.end(),
             [ni=ni, &DTH=msh.DTH, &TH=msh.TH](auto id_start)
@@ -463,7 +464,7 @@ namespace yams
     void BladeToBladeCurvatureSolver<T>::computeVm()
     {
         std::transform(
-            std::execution::par,
+            GBS_PAR_EXEC
             dat.W.begin(), dat.W.end(),
             msh.BT.begin(),
             dat.Vm.begin(),
@@ -490,7 +491,7 @@ namespace yams
         {
             // Compute W profile on each plane
             std::for_each(
-                std::execution::par,
+                GBS_PAR_EXEC
                 computational_planes_offsets.begin(),
                 computational_planes_offsets.end(),
                 [this](auto id_start)
@@ -502,7 +503,7 @@ namespace yams
             computeFlowGrads();
             // Eval flow convergence
             std::transform(
-                std::execution::par,
+                GBS_PAR_EXEC
                 compressibility_residual.begin(), compressibility_residual.end(),
                 dat.R.begin(),
                 // dat.G1.begin(),
@@ -510,7 +511,7 @@ namespace yams
                 [](auto rho_prev, auto rho)
                 { return std::abs((rho_prev - rho) / rho); });
             residual_rho = std::reduce(
-                                std::execution::par, compressibility_residual.begin(), compressibility_residual.end()) /
+                                GBS_PAR_EXEC compressibility_residual.begin(), compressibility_residual.end()) /
                             compressibility_residual.size();
             // std::cout << residual_rho << std::endl;
             compressibility_residual_avg.push_back( residual_rho );
@@ -562,7 +563,7 @@ namespace yams
                 // std::cout << "residual_per_le: " << residual_per_te << " residual_per_te: " << residual_per_te << std::endl;
 
                 std::for_each(
-                    std::execution::par,
+                    GBS_PAR_EXEC
                     std::next(computational_planes_offsets.begin()),
                     computational_planes_offsets.end(),
                     [this](auto id_start){
@@ -570,7 +571,7 @@ namespace yams
                     }
                 );
                 // residual_geom_ = *std::max_element(residual_geom.begin(), residual_geom.end());
-                residual_geom_ =  std::reduce(residual_geom.begin(), residual_geom.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / residual_geom.size();
+                residual_geom_ =  std::reduce(residual_geom.begin(), residual_geom.end(), T{}, [](auto a, auto b) { return std::abs(a) + std::abs(b);}) / residual_geom.size();
                 residual_geom_max.push_back( residual_geom_ );
                 // std::cout << "residual_geom: " << *std::max_element(residual_geom.begin(), residual_geom.end()) << std::endl;
                 
@@ -747,7 +748,7 @@ namespace yams
         }
 
         // return std::abs(*std::max_element(DELTA_TH.begin(), DELTA_TH.end(),[](auto a, auto b) { return std::abs(a) < std::abs(b);}));
-        return std::reduce(DELTA_TH.begin(), DELTA_TH.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / DELTA_TH.size() / ( 2 * std::numbers::pi_v<T> / z_);
+        return std::reduce(DELTA_TH.begin(), DELTA_TH.end(), T{}, [](auto a, auto b) { return std::abs(a) + std::abs(b);}) / DELTA_TH.size() / ( 2 * std::numbers::pi_v<T> / z_);
 
     }
 
@@ -774,7 +775,7 @@ namespace yams
         }
 
         // return std::abs(*std::max_element(DELTA_TH.begin(), DELTA_TH.end(),[](auto a, auto b) { return std::abs(a) < std::abs(b);}));
-        return std::reduce(DELTA_TH.begin(), DELTA_TH.end(), T{}, [](auto a, auto b) { return std::abs<T>(a) + std::abs<T>(b);}) / DELTA_TH.size() / ( 2 * std::numbers::pi_v<T> / z_);
+        return std::reduce(DELTA_TH.begin(), DELTA_TH.end(), T{}, [](auto a, auto b) { return std::abs(a) + std::abs(b);}) / DELTA_TH.size() / ( 2 * std::numbers::pi_v<T> / z_);
 
     }
 

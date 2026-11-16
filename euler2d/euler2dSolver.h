@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <gbs/execution.h>
 #include <gas/gasModel.h>
 
 namespace yams{
@@ -76,8 +77,8 @@ namespace yams{
             gamma(np, 1.4)
         {
             // assert pts.size() == n;
-            std::transform(std::execution::par, pts.begin(), pts.end(),X.begin(),[](const auto &pt){return pt[0];});
-            std::transform(std::execution::par, pts.begin(), pts.end(),Y.begin(),[](const auto &pt){return pt[1];});
+            std::transform(GBS_PAR_EXEC pts.begin(), pts.end(),X.begin(),[](const auto &pt){return pt[0];});
+            std::transform(GBS_PAR_EXEC pts.begin(), pts.end(),Y.begin(),[](const auto &pt){return pt[1];});
         }
 
         void init()

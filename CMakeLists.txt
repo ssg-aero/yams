@@ -114,7 +114,7 @@ if(${BUILD_PYTHON_BINDING})
 endif()
 
 add_executable(
-    yams MACOSX_BUNDLE 
+    yams
     yams.cpp
 )
 target_link_libraries(

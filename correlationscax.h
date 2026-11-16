@@ -1,6 +1,8 @@
 #pragma once
 #include <gbs/math.ixx>
-#include <gbs/solvers.h>
+#include <boost/math/tools/minima.hpp>
+#include <cstdint>
+#include <limits>
 namespace yams
 {
     auto Kti(auto tb, auto c)
@@ -88,22 +90,18 @@ namespace yams
 
         // auto i1_opt_lieblein = gbs::newton_solve<T>(eq_a1_opt_lieblein, 0, b1) - k1;
 
-        auto eq_i_opt_lieblein = [=](const auto &x)
+        // b1_opt (deg) such that i_opt_lieblein(b1_opt) == b1_opt - k1, searched in [-85, 85]
+        auto eq_i_opt_lieblein = [=](T x)
         {
-            return std::abs(i_opt_lieblein(th12, x[0], sig12, Kti(tb12, c12), Ksh) - (x[0] - k1));
+            return std::abs(i_opt_lieblein(th12, x, sig12, Kti(tb12, c12), Ksh) - (x - k1));
         };
-        std::vector<T> x{T{}};
-        std::vector<T> lb{T(-85)};
-        std::vector<T> hb{T( 85)};
-        auto fMin = gbs::solve_N_nlop(
+        std::uintmax_t max_iter{200};
+        auto [b1_opt, fMin] = boost::math::tools::brent_find_minima(
             eq_i_opt_lieblein,
-            x,
-            lb,
-            hb,
-            T(1e-4),
-            nlopt::LN_COBYLA
+            T(-85), T(85),
+            std::numeric_limits<T>::digits / 2,
+            max_iter
         );
-        auto b1_opt = x[0];
         auto i1_opt_lieblein = b1_opt - k1;
 
         auto d2_opt = d_opt(sig12, b1_opt, th12, Ktd(tb12, c12), Ksh, m10_naca65);
