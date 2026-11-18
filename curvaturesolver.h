@@ -589,6 +589,10 @@ namespace yams
         }
 
         auto [f_X, u] = compute_span_curve(g,i);
+        // the station's own curve, if the case gives it: the points stay on it
+        const bool fixed_shape = !solver_case.station_curves.empty();
+        if (fixed_shape)
+            u = solver_case.station_params[i];
         auto f_Q = gbs::interpolate(q, u, f_X.degree());
 
         auto span_geom_residual = 0.;
@@ -606,11 +610,23 @@ namespace yams
             auto q  = solver_case.mf_uniform ? (solver_case.inlet.Mf * j) / count : g(i_ref, j).q;
             auto [l, delta, count] = newton_solve<T>(f_Q, q, u[j], u1, u2, tol_f, tol_u);
             
-            auto X = f_X.value(l);
+            auto X = fixed_shape ? solver_case.station_curves[i].value(l) : f_X.value(l);
             auto dx = g(i, j).x - X[0];
             auto dy = g(i, j).y - X[1];
-            g(i, j).x += RF * (X[0] - g(i, j).x);
-            g(i, j).y += RF * (X[1] - g(i, j).y);
+            if (fixed_shape)
+            {
+                // relax along the curve, not along the chord to the target
+                auto &u_j = solver_case.station_params[i][j];
+                u_j += RF * (l - u_j);
+                auto P = solver_case.station_curves[i].value(u_j);
+                g(i, j).x = P[0];
+                g(i, j).y = P[1];
+            }
+            else
+            {
+                g(i, j).x += RF * (X[0] - g(i, j).x);
+                g(i, j).y += RF * (X[1] - g(i, j).y);
+            }
             
             span_geom_residual = fmax(fmax(fabs(dx), fabs(dy)), span_geom_residual);
         }
@@ -839,6 +855,13 @@ namespace yams
         if (ni < 3 || nj < 3)
         {
             throw std::length_error("Grid must have dimensions >= 3");
+        }
+        if (!solver_case.station_curves.empty())
+        {
+            const auto &params = solver_case.station_params;
+            if (solver_case.station_curves.size() != ni || params.size() != ni ||
+                std::any_of(params.begin(), params.end(), [nj](const auto &p) { return p.size() != nj; }))
+                throw std::invalid_argument("yams: station_curves and station_params must give one curve and nj parameters per station");
         }
         size_t max_geom=solver_case.max_geom;
         auto eps = solver_case.eps;

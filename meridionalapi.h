@@ -12,6 +12,8 @@
  * traces when they are given (BladeRow::le_trace / te_trace), else they are lines of
  * constant z; the inlet and outlet stations are lines of constant z, and the stations
  * in between blend their two neighbouring edges' (or the inlet's, the outlet's).
+ * The stations keep their shapes while the solver moves the stream lines along them
+ * (SolverCase::station_curves).
  *
  * Limits:
  * - the hub and shroud z must increase along the curves, and the stations' ends along
@@ -25,6 +27,7 @@
 #include <array>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <numbers>
 #include <optional>
 #include <stdexcept>
@@ -41,17 +44,18 @@ namespace yams::api
         std::string name;
         double z_le{};          ///< leading edge axial position (without le_trace)
         double z_te{};          ///< trailing edge axial position (without te_trace)
-        /// Meridional traces of the edges, (z, r) curves from hub to shroud (either
-        /// way). When given, the edge's computing station follows it, its ends put
-        /// on the hub and the shroud at the trace's ends' z, and z_le / z_te are not
-        /// used.
-        std::optional<Curve2d> le_trace;
-        std::optional<Curve2d> te_trace;
         double rpm{};           ///< rotation speed, 0 for a stator
         size_t blade_count{2};
         /// Metal angle (rad, yams convention: beta = atan2(Wu, Vm), Wu = Vu - omega r),
         /// m in [0, 1] from leading to trailing edge, l in [0, 1] from hub to shroud.
         std::function<double(double m, double l)> metal_angle;
+        /// Meridional traces of the edges, (z, r) curves from hub to shroud (either
+        /// way). When given, the edge's computing station follows the part of the
+        /// trace between the hub and the shroud, and z_le / z_te are not used. A trace
+        /// going beyond a wall is cut there; one stopping short of it (a tip gap) is
+        /// prolonged along its end's tangent.
+        std::optional<Curve2d> le_trace;
+        std::optional<Curve2d> te_trace;
     };
 
     /// Inlet conditions as functions of the relative span l in [0, 1] (hub to shroud).
@@ -77,7 +81,10 @@ namespace yams::api
     struct Options
     {
         size_t n_streams{11};       ///< stream lines from hub to shroud (>= 3)
-        size_t n_stations{61};      ///< indicative number of computing stations from inlet to outlet
+        /// Indicative number of computing stations from inlet to outlet. Stations too
+        /// close for the span make the stream lines unstable (the limit of the
+        /// streamline curvature method): see Result::station_spacing.
+        size_t n_stations{61};
         size_t max_geom{300};       ///< maximal number of stream lines relocations
         double relax_factor{0.05};  ///< stream lines relocation relaxation
         double tol_rel_pos{1e-5};   ///< convergence on stream lines positions, relative to the span
@@ -125,6 +132,10 @@ namespace yams::api
     {
         Status status{Status::NotConverged};
         size_t iterations{};
+        /// Smallest distance between two stations along the mid stream line of the
+        /// initial grid, relative to the span there. Below about 0.05 to 0.1 the stream
+        /// lines oscillate and the solver does not converge: use fewer stations.
+        double station_spacing{};
         std::vector<double> residual_max;   ///< per iteration, relative to the span
         std::vector<double> residual_mean;
         std::vector<RowStations> rows;
@@ -136,35 +147,58 @@ namespace yams::api
 
     namespace detail
     {
-        /// Parameter of the point of a curve at axial position z (z increasing along the curve).
-        inline double param_at_z(const Curve2d &crv, double z, const char *name)
-        {
-            auto [u1, u2] = crv.bounds();
-            const size_t n_check = 64;
-            double z_prev = crv(u1)[0];
-            for (size_t k = 1; k <= n_check; k++)
-            {
-                double z_k = crv(u1 + (u2 - u1) * k / n_check)[0];
-                if (!(z_k > z_prev))
-                    throw std::invalid_argument(std::string("yams: the ") + name + " z must increase along the curve (axial or mixed flow channel)");
-                z_prev = z_k;
-            }
-            if (z < crv(u1)[0] || z > crv(u2)[0])
-                throw std::invalid_argument(std::string("yams: z = ") + std::to_string(z) + " is outside the " + name);
-            double a = u1, b = u2;
-            for (int it = 0; it < 200 && (b - a) > 1e-14 * (u2 - u1); it++)
-            {
-                double c = 0.5 * (a + b);
-                (crv(c)[0] < z ? a : b) = c;
-            }
-            return 0.5 * (a + b);
-        }
-
         using Vec2 = std::array<double, 2>;
 
+        /// A wall of the channel (the hub or the shroud): a (z, r) curve, z increasing along it.
+        class Wall
+        {
+            const Curve2d &crv_;
+            const char *name_;
+            double u1_{}, u2_{}, z1_{}, z2_{};
+
+        public:
+            /// @throw std::invalid_argument if z does not increase along the curve
+            Wall(const Curve2d &crv, const char *name) : crv_{crv}, name_{name}
+            {
+                auto [u1, u2] = crv.bounds();
+                u1_ = u1;
+                u2_ = u2;
+                const size_t n_check = 64;
+                double z_prev = crv(u1)[0];
+                for (size_t k = 1; k <= n_check; k++)
+                {
+                    double z_k = crv(u1 + (u2 - u1) * k / n_check)[0];
+                    if (!(z_k > z_prev))
+                        throw std::invalid_argument(std::string("yams: the ") + name + " z must increase along the curve (axial or mixed flow channel)");
+                    z_prev = z_k;
+                }
+                z1_ = crv(u1)[0];
+                z2_ = crv(u2)[0];
+            }
+            double z_begin() const { return z1_; }
+            double z_end() const { return z2_; }
+            /// The point of the wall at axial position z.
+            /// @throw std::invalid_argument if z is outside the wall
+            Vec2 at(double z) const
+            {
+                if (!(z >= z1_ && z <= z2_))
+                    throw std::invalid_argument(std::string("yams: z = ") + std::to_string(z) + " is outside the " + name_);
+                double a = u1_, b = u2_;
+                for (int it = 0; it < 200 && (b - a) > 1e-14 * (u2_ - u1_); it++)
+                {
+                    double c = 0.5 * (a + b);
+                    (crv_(c)[0] < z ? a : b) = c;
+                }
+                auto p = crv_(0.5 * (a + b));
+                return {p[0], p[1]};
+            }
+            /// The radius of the wall at z, at its nearest end's for a z outside it.
+            double r(double z) const { return at(std::clamp(z, z1_, z2_))[1]; }
+        };
+
         /// A computing station: its ends on the hub and the shroud at z_hub and
-        /// z_shroud, its points (span fractions t_j = j / (nj - 1)) the chord's between
-        /// them plus dev[j], the station's departure from its chord (none for a
+        /// z_shroud, its points (span fractions t_k = k / (n - 1)) the chord's between
+        /// them plus dev[k], the station's departure from its chord (none for a
         /// station of constant z).
         struct StationShape
         {
@@ -173,47 +207,103 @@ namespace yams::api
             std::vector<Vec2> dev;
         };
 
-        inline StationShape constant_z(double z, size_t nj) { return {z, z, std::vector<Vec2>(nj, Vec2{0., 0.})}; }
+        inline StationShape constant_z(double z, size_t n) { return {z, z, std::vector<Vec2>(n, Vec2{0., 0.})}; }
 
-        /// The station of an edge trace: sampled at nj points evenly spread along its
-        /// length, from its hub end (its end of smaller r) to its shroud end.
-        inline StationShape trace_station(const Curve2d &trace, size_t nj)
+        /// The point where the segment a -> b leaves a region: inside(a), not inside(b).
+        template <typename Inside>
+        inline Vec2 crossing(Vec2 a, Vec2 b, const Inside &inside)
+        {
+            for (int it = 0; it < 60; it++)
+            {
+                const Vec2 c{0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1])};
+                (inside(c) ? a : b) = c;
+            }
+            return {0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1])};
+        }
+
+        /// The station of an edge trace: the part of the trace between the hub and the
+        /// shroud, sampled at n points evenly spread along its length from the hub.
+        /// A trace going beyond a wall is cut there; one stopping short of a wall (a
+        /// tip gap) is prolonged along its end's tangent, by its own length at most.
+        /// @throw std::invalid_argument if the trace does not cross the channel
+        inline StationShape trace_station(const Curve2d &trace, const Wall &hub, const Wall &shroud, size_t n)
         {
             auto [u1, u2] = trace.bounds();
-            const size_t n = 400;
-            std::vector<Vec2> pts(n + 1);
-            std::vector<double> len(n + 1, 0.);
-            for (size_t k = 0; k <= n; k++)
+            const size_t n_trace = 400;
+            std::vector<Vec2> pts(n_trace + 1);
+            double length = 0.;
+            for (size_t k = 0; k <= n_trace; k++)
             {
-                auto p = trace(u1 + (u2 - u1) * k / n);
+                auto p = trace(u1 + (u2 - u1) * k / n_trace);
                 pts[k] = {p[0], p[1]};
                 if (k > 0)
-                    len[k] = len[k - 1] + std::hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
+                    length += std::hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
             }
-            if (!(len[n] > 0.))
+            if (!(length > 0.))
                 throw std::invalid_argument("yams: an edge trace has no length");
-            if (pts.front()[1] > pts.back()[1])
+            // From the hub to the shroud: by its ends' positions across the channel,
+            // not by their radii (the walls' radii differ from one end's z to the other's)
+            auto across = [&](const Vec2 &p)
             {
+                const double r_hub = hub.r(p[0]);
+                return (p[1] - r_hub) / (shroud.r(p[0]) - r_hub);
+            };
+            if (across(pts.front()) > across(pts.back()))
                 std::reverse(pts.begin(), pts.end());
-                for (auto &l : len)
-                    l = len[n] - l;
-                std::reverse(len.begin(), len.end());
-            }
-            std::vector<Vec2> e(nj);
-            size_t k = 0;
-            for (size_t j = 0; j < nj; j++)
+
+            // Prolonged at both ends, then cut at the walls
+            auto prolonged = [length](const Vec2 &end, const Vec2 &before) -> Vec2
             {
-                const double s = len[n] * j / (nj - 1);
-                while (k + 1 < n && len[k + 1] < s)
+                const double d = std::hypot(end[0] - before[0], end[1] - before[1]);
+                if (!(d > 0.))
+                    return end;
+                return {end[0] + (end[0] - before[0]) * length / d, end[1] + (end[1] - before[1]) * length / d};
+            };
+            std::vector<Vec2> q;
+            q.reserve(pts.size() + 2);
+            q.push_back(prolonged(pts.front(), pts[1]));
+            q.insert(q.end(), pts.begin(), pts.end());
+            q.push_back(prolonged(pts.back(), pts[n_trace - 1]));
+            auto above_hub = [&](const Vec2 &p) { return p[1] > hub.r(p[0]); };
+            auto below_shroud = [&](const Vec2 &p) { return p[1] < shroud.r(p[0]); };
+            const size_t mid = q.size() / 2;
+            if (!(above_hub(q[mid]) && below_shroud(q[mid])))
+                throw std::invalid_argument("yams: an edge trace must cross the channel from the hub to the shroud");
+            size_t k_hub = mid, k_shroud = mid;
+            while (k_hub > 0 && above_hub(q[k_hub - 1]))
+                k_hub--;
+            while (k_shroud + 1 < q.size() && below_shroud(q[k_shroud + 1]))
+                k_shroud++;
+            if (k_hub == 0 || k_shroud + 1 == q.size())
+                throw std::invalid_argument("yams: an edge trace does not reach the hub or the shroud");
+            std::vector<Vec2> cut;
+            cut.reserve(k_shroud - k_hub + 3);
+            cut.push_back(crossing(q[k_hub], q[k_hub - 1], above_hub));
+            cut.insert(cut.end(), q.begin() + k_hub, q.begin() + k_shroud + 1);
+            cut.push_back(crossing(q[k_shroud], q[k_shroud + 1], below_shroud));
+
+            // Evenly spread along the length
+            const size_t n_cut = cut.size() - 1;
+            std::vector<double> len(n_cut + 1, 0.);
+            for (size_t k = 1; k <= n_cut; k++)
+                len[k] = len[k - 1] + std::hypot(cut[k][0] - cut[k - 1][0], cut[k][1] - cut[k - 1][1]);
+            if (!(len[n_cut] > 0.))
+                throw std::invalid_argument("yams: an edge trace has no length between the hub and the shroud");
+            std::vector<Vec2> e(n);
+            size_t k = 0;
+            for (size_t j = 0; j < n; j++)
+            {
+                const double s = len[n_cut] * j / (n - 1);
+                while (k + 1 < n_cut && len[k + 1] < s)
                     k++;
                 const double dl = len[k + 1] - len[k];
                 const double w = dl > 0. ? std::clamp((s - len[k]) / dl, 0., 1.) : 0.;
-                e[j] = {pts[k][0] + w * (pts[k + 1][0] - pts[k][0]), pts[k][1] + w * (pts[k + 1][1] - pts[k][1])};
+                e[j] = {cut[k][0] + w * (cut[k + 1][0] - cut[k][0]), cut[k][1] + w * (cut[k + 1][1] - cut[k][1])};
             }
-            StationShape st{e.front()[0], e.back()[0], std::vector<Vec2>(nj)};
-            for (size_t j = 0; j < nj; j++)
+            StationShape st{e.front()[0], e.back()[0], std::vector<Vec2>(n)};
+            for (size_t j = 0; j < n; j++)
             {
-                const double t = double(j) / (nj - 1);
+                const double t = double(j) / (n - 1);
                 for (int c = 0; c < 2; c++)
                     st.dev[j][c] = e[j][c] - (e.front()[c] + t * (e.back()[c] - e.front()[c]));
             }
@@ -231,21 +321,19 @@ namespace yams::api
         }
 
         /// The points of a station on the channel.
-        inline std::vector<Vec2> station_points(const Problem &pb, const StationShape &st)
+        inline std::vector<Vec2> station_points(const Wall &hub, const Wall &shroud, const StationShape &st)
         {
-            auto h = pb.hub(param_at_z(pb.hub, st.z_hub, "hub"));
-            auto s = pb.shroud(param_at_z(pb.shroud, st.z_shroud, "shroud"));
+            // z from the station's own: a station of constant z exactly at its z
+            const Vec2 h{st.z_hub, hub.at(st.z_hub)[1]}, s{st.z_shroud, shroud.at(st.z_shroud)[1]};
             if (!(s[1] > h[1]))
                 throw std::invalid_argument("yams: the shroud must be above the hub");
-            const size_t nj = st.dev.size();
-            std::vector<Vec2> pts(nj);
-            // z from the station's own: a station of constant z exactly at its z
-            const Vec2 h_ = {st.z_hub, h[1]}, s_ = {st.z_shroud, s[1]};
-            for (size_t j = 0; j < nj; j++)
+            const size_t n = st.dev.size();
+            std::vector<Vec2> pts(n);
+            for (size_t j = 0; j < n; j++)
             {
-                const double t = double(j) / (nj - 1);
+                const double t = double(j) / (n - 1);
                 for (int c = 0; c < 2; c++)
-                    pts[j][c] = h_[c] + t * (s_[c] - h_[c]) + st.dev[j][c];
+                    pts[j][c] = h[c] + t * (s[c] - h[c]) + st.dev[j][c];
             }
             return pts;
         }
@@ -276,26 +364,31 @@ namespace yams::api
             throw std::invalid_argument("yams: at least 3 stream lines are needed");
 
         const size_t nj = opt.n_streams;
+        // The stations' shapes are held on more points than there are stream lines
+        // (about a hundred intervals): the grid points are every n_sub-th of them.
+        const size_t n_sub = (100 + nj - 2) / (nj - 1);
+        const size_t n_shape = (nj - 1) * n_sub + 1;
+        const detail::Wall hub{pb.hub, "hub"}, shroud{pb.shroud, "shroud"};
 
         // Hard stations: inlet, rows edges, outlet
-        double z_in = std::max(pb.hub(pb.hub.bounds()[0])[0], pb.shroud(pb.shroud.bounds()[0])[0]);
-        double z_out = std::min(pb.hub(pb.hub.bounds()[1])[0], pb.shroud(pb.shroud.bounds()[1])[0]);
-        std::vector<detail::StationShape> hard{detail::constant_z(z_in, nj)};
+        double z_in = std::max(hub.z_begin(), shroud.z_begin());
+        double z_out = std::min(hub.z_end(), shroud.z_end());
+        std::vector<detail::StationShape> hard{detail::constant_z(z_in, n_shape)};
         for (const auto &row : pb.rows)
         {
             if (!row.metal_angle)
                 throw std::invalid_argument("yams: blade row " + row.name + " has no metal angle");
-            hard.push_back(row.le_trace ? detail::trace_station(*row.le_trace, nj) : detail::constant_z(row.z_le, nj));
-            hard.push_back(row.te_trace ? detail::trace_station(*row.te_trace, nj) : detail::constant_z(row.z_te, nj));
+            hard.push_back(row.le_trace ? detail::trace_station(*row.le_trace, hub, shroud, n_shape) : detail::constant_z(row.z_le, n_shape));
+            hard.push_back(row.te_trace ? detail::trace_station(*row.te_trace, hub, shroud, n_shape) : detail::constant_z(row.z_te, n_shape));
         }
-        hard.push_back(detail::constant_z(z_out, nj));
-        // In order along the hub, the shroud and every initial stream line
+        hard.push_back(detail::constant_z(z_out, n_shape));
+        // In order along the hub, the shroud and in between
         std::vector<std::vector<detail::Vec2>> hard_pts;
         for (const auto &st : hard)
-            hard_pts.push_back(detail::station_points(pb, st));
+            hard_pts.push_back(detail::station_points(hub, shroud, st));
         for (size_t k = 1; k < hard.size(); k++)
-            for (size_t j = 0; j < nj; j++)
-                if (!(hard_pts[k][j][0] > hard_pts[k - 1][j][0]))
+            for (size_t d = 0; d < n_shape; d++)
+                if (!(hard_pts[k][d][0] > hard_pts[k - 1][d][0]))
                     throw std::invalid_argument("yams: blade rows must be inside the channel, in axial order, with their leading edge before their trailing edge and no overlap");
 
         // Stations, counted per block along the mean of the hub and shroud z
@@ -303,28 +396,31 @@ namespace yams::api
         for (const auto &st : hard)
             z_mean.push_back(0.5 * (st.z_hub + st.z_shroud));
         auto counts = detail::block_intervals(z_mean, opt.n_stations);
-        std::vector<detail::StationShape> shapes{hard.front()};
+        std::vector<std::vector<detail::Vec2>> pts{hard_pts.front()};
         std::vector<size_t> i_hard{0};
         for (size_t b = 0; b < counts.size(); b++)
         {
             // the last station of a block is the hard one itself: recomputing it can
             // land one ulp past it, i.e. outside the channel at the outlet
             for (size_t k = 1; k < counts[b]; k++)
-                shapes.push_back(detail::blend(hard[b], hard[b + 1], double(k) / counts[b]));
-            shapes.push_back(hard[b + 1]);
-            i_hard.push_back(shapes.size() - 1);
+                pts.push_back(detail::station_points(hub, shroud, detail::blend(hard[b], hard[b + 1], double(k) / counts[b])));
+            pts.push_back(hard_pts[b + 1]);
+            i_hard.push_back(pts.size() - 1);
         }
-        const size_t ni = shapes.size();
+        const size_t ni = pts.size();
 
-        // Grid: the stations, stream lines evenly spread along them from hub to shroud
+        // Grid: the stations, stream lines evenly spread along them from hub to shroud.
+        // A leaning station's chord can cross a wall that is not straight: refused.
         MeridionalGrid<double> g(ni, nj);
         for (size_t i = 0; i < ni; i++)
         {
-            const auto pts = detail::station_points(pb, shapes[i]);
             for (size_t j = 0; j < nj; j++)
             {
-                g(i, j).x = pts[j][0];
-                g(i, j).y = pts[j][1];
+                const auto &p = pts[i][j * n_sub];
+                if (j > 0 && j + 1 < nj && !(p[1] > hub.r(p[0]) && p[1] < shroud.r(p[0])))
+                    throw std::invalid_argument("yams: a computing station leaves the channel between the hub and the shroud (an edge leaning too much for the shape of the walls)");
+                g(i, j).x = p[0];
+                g(i, j).y = p[1];
             }
         }
 
@@ -347,6 +443,16 @@ namespace yams::api
             stations.push_back({size_t(b.i1), size_t(b.i2)});
         }
         auto sc = make_solver_case<double>(std::move(g), blades);
+
+        // The stations keep their shapes: the stream lines move along them
+        std::vector<double> u_shape(n_shape), u_grid(nj);
+        for (size_t d = 0; d < n_shape; d++)
+            u_shape[d] = double(d) / (n_shape - 1);
+        for (size_t j = 0; j < nj; j++)
+            u_grid[j] = u_shape[j * n_sub];
+        for (size_t i = 0; i < ni; i++)
+            sc.station_curves.push_back(gbs::interpolate(pts[i], u_shape, 1));
+        sc.station_params.assign(ni, u_grid);
 
         // Boundary conditions, gas and solver settings
         // INLET_VmMoy_Ts_Ps_Vu sets the inlet totals from its Ts / Ps before the
@@ -372,6 +478,18 @@ namespace yams::api
         return sc;
     }
 
+    /// Smallest distance between two stations of a case along its mid stream line,
+    /// relative to the span there (see Result::station_spacing).
+    inline double station_spacing(const SolverCase<double> &sc)
+    {
+        const auto &g = *sc.gi->g;
+        const size_t nj = g.nCols(), j_mid = nj / 2;
+        double spacing = std::numeric_limits<double>::max();
+        for (size_t i = 1; i < g.nRows(); i++)
+            spacing = std::min(spacing, (g(i, j_mid).m - g(i - 1, j_mid).m) / g(i, nj - 1).l);
+        return spacing;
+    }
+
     /**
      * @brief Solve a problem.
      *
@@ -383,6 +501,7 @@ namespace yams::api
         Result res;
         res.solver_case = make_case(pb, &res.rows);
         auto &sc = res.solver_case;
+        res.station_spacing = station_spacing(sc);
         if (progress)
             sc.on_iteration = [&progress](size_t it, double r_max, double r_moy) { return progress(it, r_max, r_moy); };
 
