@@ -5,6 +5,14 @@
 #include <gbs/bscinterp.h>
 #include <gbs/bscapprox.h>
 #include <meshtools.h>
+#include <parallel.h>
+
+#include <array>
+#include <cmath>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 // const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;
@@ -13,6 +21,14 @@ const bool verbose = false;
 
 namespace yams
 {
+    /// The stream lines of a station can no longer be relocated: they cross or
+    /// coincide, or their positions are not finite. curvature_solver ends the run
+    /// on it, with SolverCase::diverged; any other exception is an error and goes
+    /// up to the caller.
+    struct SolverDivergence : std::runtime_error
+    {
+        using std::runtime_error::runtime_error;
+    };
 
     using gbs::operator*;
     using gbs::operator+;
@@ -593,6 +609,12 @@ namespace yams
         const bool fixed_shape = !solver_case.station_curves.empty();
         if (fixed_shape)
             u = solver_case.station_params[i];
+        // The points' parameters must increase from hub to shroud (they do not when
+        // stream lines have crossed, coincide, or are not finite): said here, rather
+        // than by the curve's construction refusing its knots.
+        for (size_t j = 1; j < nj; j++)
+            if (!(u[j] > u[j - 1]))
+                throw SolverDivergence("the stream lines cross or coincide on station " + std::to_string(i));
         auto f_Q = gbs::interpolate(q, u, f_X.degree());
 
         auto span_geom_residual = 0.;
@@ -611,6 +633,9 @@ namespace yams
             auto [l, delta, count] = newton_solve<T>(f_Q, q, u[j], u1, u2, tol_f, tol_u);
             
             auto X = fixed_shape ? solver_case.station_curves[i].value(l) : f_X.value(l);
+            // fmax below drops a NaN: a point that is not finite would count as not moved
+            if (!std::isfinite(X[0]) || !std::isfinite(X[1]))
+                throw SolverDivergence("a stream line's position is not finite on station " + std::to_string(i));
             auto dx = g(i, j).x - X[0];
             auto dy = g(i, j).y - X[1];
             if (fixed_shape)
@@ -629,6 +654,14 @@ namespace yams
             }
             
             span_geom_residual = fmax(fmax(fabs(dx), fabs(dy)), span_geom_residual);
+        }
+        if (fixed_shape)
+        {
+            // crossed by this relocation: refused now, the solver gives back the grid before it
+            const auto &u_new = solver_case.station_params[i];
+            for (size_t j = 1; j < nj; j++)
+                if (!(u_new[j] > u_new[j - 1]))
+                    throw SolverDivergence("the stream lines cross or coincide on station " + std::to_string(i));
         }
         return span_geom_residual;
     }
@@ -872,13 +905,19 @@ namespace yams
         auto converged = false;
         solver_case.converged = false;
         solver_case.cancelled = false;
+        solver_case.diverged = false;
+        solver_case.divergence.clear();
         // auto i_0 = 0;
         // solver_case.log.clear();
         T delta_pos_max {};
         T delta_pos {};
         T delta_pos_moy {};
         std::vector<T> delta_pos_array(ni);
-        auto span_range = gbs::make_range<size_t>(0,ni-1);
+        // The stream lines' positions before their relocation, to give back the
+        // grid of the last complete iteration when one fails
+        std::vector<std::array<T, 2>> saved_xy(ni * nj);
+        std::vector<std::vector<T>> saved_params;
+        bool relocating = false;
         // apply boundary conditions
         apply_bc(solver_case);
         // compute spans mass flow
@@ -892,6 +931,13 @@ namespace yams
         // run computation
         while (!converged && (count_geom < max_geom))
         {
+          // An iteration whose stream lines can no longer be relocated (they cross,
+          // or their positions or residuals are not finite) ends the run, diverged,
+          // on the grid of the last complete iteration. Any other exception is an
+          // error and goes up to the caller.
+          relocating = false;
+          try
+          {
             // integrate radial eq equation and update gas properties
             size_t grad_count{};
             size_t max_grd_count = solver_case.use_meridional_grad ? 10 : 1;
@@ -901,9 +947,7 @@ namespace yams
                 // compute_vm_distribution2(solver_case, tol_rel_mf, eps, true);
                 if(solver_case.use_meridional_grad)
                 {
-                    std::for_each( // update meridional gradients
-                        GBS_PAR_EXEC
-                        span_range.begin(), span_range.end(),
+                    detail::par_for(ni, // update meridional gradients
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
                             {
@@ -963,9 +1007,7 @@ namespace yams
             // update density
             if(!gi.rho_cst && delta_pos_moy < 1e-2 )
             {
-                std::for_each(
-                        GBS_PAR_EXEC
-                        span_range.begin(), span_range.end(),
+                detail::par_for(ni,
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
                             {
@@ -976,9 +1018,7 @@ namespace yams
                 );
             }
             // Compute mass flow distribution
-           std::for_each(
-                GBS_PAR_EXEC
-                span_range.begin(), span_range.end(),
+           detail::par_for(ni,
                 [&](const auto &i){
                     compute_massflow_distribution(g.begin(i), g.end(i));
                     // for (size_t j{}; j < nj; j++)
@@ -988,21 +1028,20 @@ namespace yams
                 }
            );
            // relocate streams to balance mass flow
-           std::transform(
-                GBS_PAR_EXEC
-                span_range.begin(),
-                span_range.end(),
-                delta_pos_array.begin(),
+           for (size_t i{}; i < ni; i++)
+               for (size_t j{}; j < nj; j++)
+                   saved_xy[i * nj + j] = {g(i, j).x, g(i, j).y};
+           saved_params = solver_case.station_params;
+           relocating = true;
+           detail::par_for(ni,
                 [&](const auto &i)
                 {
-                    return balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
+                    delta_pos_array[i] = balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );
             // // apply boundary conditions if static conditions
             // if(solver_case.inlet.mode != MeridionalBC::INLET_Mf_Tt_Pt_Vu)
             //     apply_bc(solver_case);
-           // update blades info
-           apply_blade_info(solver_case);
             // compute residuals
             delta_pos_moy = std::reduce(
                     GBS_PAR_EXEC
@@ -1012,6 +1051,11 @@ namespace yams
             delta_pos_max = *std::max_element(
                 delta_pos_array.begin(),delta_pos_array.end()
             );
+            if (!std::isfinite(delta_pos_moy) || !std::isfinite(delta_pos_max))
+                throw SolverDivergence("the stream lines' displacement is not finite");
+            relocating = false;
+           // update blades info
+           apply_blade_info(solver_case);
             // add residuals to logger
             solver_case.log.delta_pos.push_back(delta_pos_array);
             solver_case.log.delta_pos_max.push_back(delta_pos_max);
@@ -1021,6 +1065,24 @@ namespace yams
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;
+          }
+          catch (const SolverDivergence &e)
+          {
+              if (relocating)
+              {
+                  // some stations have moved, others not: back to the last grid
+                  for (size_t i{}; i < ni; i++)
+                      for (size_t j{}; j < nj; j++)
+                      {
+                          g(i, j).x = saved_xy[i * nj + j][0];
+                          g(i, j).y = saved_xy[i * nj + j][1];
+                      }
+                  solver_case.station_params = saved_params;
+              }
+              solver_case.diverged = true;
+              solver_case.divergence = e.what();
+              break;
+          }
             if (solver_case.on_iteration && !solver_case.on_iteration(count_geom, delta_pos_max, delta_pos_moy))
             {
                 solver_case.cancelled = true;

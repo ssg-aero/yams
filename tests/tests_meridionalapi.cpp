@@ -2,6 +2,10 @@
 #include <meridionalapi.h>
 
 #include <algorithm>
+#include <cmath>
+#include <stdexcept>
+#include <string>
+#include <vector>
 #include <limits>
 #include <numbers>
 
@@ -307,4 +311,54 @@ TEST_CASE("meridionalapi.station_spacing")
     pb.options.n_stations = 21;
     pb.options.max_geom = 1;
     REQUIRE(yams::api::solve(pb).station_spacing == doctest::Approx(0.1));
+}
+
+TEST_CASE("parallel.par_for")
+{
+    // every call is made, and the failure of the lowest index is the one rethrown
+    std::vector<int> calls(8, 0);
+    auto f = [&calls](size_t i)
+    {
+        calls[i]++;
+        if (i == 5 || i == 2)
+            throw std::runtime_error(std::to_string(i));
+    };
+    REQUIRE_THROWS_WITH_AS(yams::detail::par_for(calls.size(), f), "2", std::runtime_error);
+    REQUIRE(calls == std::vector<int>(8, 1));
+    REQUIRE_NOTHROW(yams::detail::par_for(0, f));
+}
+
+TEST_CASE("meridionalapi.diverged")
+{
+    // Stations much closer than the span: the stream lines become unstable and
+    // cross. The run ends as diverged, with the reason, rather than by an exception
+    // from the solver's middle, and gives the grid of its last complete iteration.
+    auto pb = annulus_rotor();
+    pb.options.n_stations = 121;
+    const auto res = yams::api::solve(pb);
+    REQUIRE(res.status == yams::api::Status::Diverged);
+    REQUIRE(res.solver_case.diverged);
+    REQUIRE_FALSE(res.solver_case.converged);
+    REQUIRE(res.divergence.find("cross") != std::string::npos);
+    REQUIRE(res.iterations > 0);
+    REQUIRE(res.iterations < pb.options.max_geom);
+    REQUIRE(res.residual_max.size() == res.iterations);
+    for (double r : res.residual_max)
+        REQUIRE(std::isfinite(r));
+
+    const auto &g = *res.solver_case.gi->g;
+    for (size_t i = 0; i < g.nRows(); i++)
+        for (size_t j = 1; j < g.nCols(); j++)
+        {
+            // the stream lines in order from hub to shroud
+            REQUIRE(g(i, j).y > g(i, j - 1).y);
+            // the abscissas are those of these positions
+            const double dl = std::hypot(g(i, j).x - g(i, j - 1).x, g(i, j).y - g(i, j - 1).y);
+            REQUIRE(g(i, j).l - g(i, j - 1).l == doctest::Approx(dl).epsilon(1e-9));
+        }
+
+    // the same case solves again from scratch: the status is this run's
+    auto pb2 = annulus_rotor();
+    pb2.options.n_stations = 21;
+    REQUIRE(yams::api::solve(pb2).status == yams::api::Status::Converged);
 }

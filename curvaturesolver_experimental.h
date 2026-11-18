@@ -196,17 +196,14 @@ namespace yams
             compute_vm_distribution(prim, tol_rel_mf, eps, true, 0 );
             compute_vm_distribution(sec, tol_rel_mf, eps, true, 0 );
             // Compute mass flow distribution
-           std::for_each(
-                GBS_PAR_EXEC
-                span_range_prim.begin(), span_range_prim.end(),
-                [&](const auto &i){
+           // (detail::par_for: an exception must not escape a parallel algorithm)
+           detail::par_for(span_range_prim.size(),
+                [&](size_t i){
                     compute_massflow_distribution(prim.gi->g->begin(i), prim.gi->g->end(i));
                 }
            );
-           std::for_each(
-                GBS_PAR_EXEC
-                span_range_sec.begin(), span_range_sec.end(),
-                [&](const auto &i){
+           detail::par_for(span_range_sec.size(),
+                [&](size_t i){
                     compute_massflow_distribution(sec.gi->g->begin(i), sec.gi->g->end(i));
                 }
            );
@@ -288,9 +285,7 @@ namespace yams
                 vmi_1(i) -= eps * 0.5;
                 vmi_2(i) += eps * 0.5;
                 // for(size_t j{}; j < ni; j++)
-                std::for_each(
-                    GBS_PAR_EXEC
-                    indexes.begin(), indexes.end(),
+                detail::par_for(indexes.size(),
                     [&](size_t j)
                         {
                             auto F2 = eq_massflow(vmi_2(j), solver_case, j, true) - solver_case.mf[j];
@@ -412,23 +407,18 @@ namespace yams
                     }
                     auto span_range = gbs::make_range<size_t>(0,ni-1);
                     // Compute mass flow distribution
-                    std::for_each(
-                            GBS_PAR_EXEC
-                            span_range.begin(), span_range.end(),
-                            [&](const auto &i){
+                    detail::par_for(span_range.size(),
+                            [&](size_t i){
                                 compute_massflow_distribution(g.begin(i), g.end(i));
                             }
                     );
                     // relocate streams to balance mass flow
                     // std::transform(
-                    std::for_each(
-                            GBS_PAR_EXEC
-                            span_range.begin(),
-                            span_range.end(),
+                    detail::par_for(span_range.size(),
                             // delta_pos_array.begin(),
-                            [&](const auto &i)
+                            [&](size_t i)
                             {
-                                return balance_massflow(*solver_case, i, tol_rel_mf * solver_case->mf[i]) / g(i,nj-1).l;
+                                balance_massflow(*solver_case, i, tol_rel_mf * solver_case->mf[i]);
                             }
                     );
 
