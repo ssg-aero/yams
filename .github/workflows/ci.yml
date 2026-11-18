@@ -127,7 +127,10 @@ jobs:
           # Pinned version (instead of `latest`) to force the download
           # of a healthy binary: the micromamba pre-installed on the
           # runner image crashes on its subcommands.
-          micromamba-version: '1.5.10-0'
+          # 2.x and not the 1.5.10 of gbs: 1.x reports `__win` without a
+          # version, so libboost 1.90 (pulled by gbs 0.7, needs
+          # `__win >=10`) cannot be installed.
+          micromamba-version: '2.8.1-1'
           environment-name: yams-ci
           condarc: |
             channels:
