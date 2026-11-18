@@ -184,14 +184,21 @@ def test_curvature_methods(channel_case):
                yams.CurvatureMethod.ThreePoint]
     assert [yams.default_relax_constant(m) for m in methods] == approx([12., 6., 3.])
     assert all(yams.default_relax_constant(m) < yams.max_relax_constant(m) for m in methods)
+    # for Blended they follow the share of the three-point curvature
+    blended = yams.CurvatureMethod.Blended
+    assert yams.max_relax_constant(blended, 0.2) == approx(15.36)
+    assert yams.default_relax_constant(blended, blend=0.2) == approx(9.6)
 
     solver_case = channel_case
     gi = solver_case.gi
     assert gi.curvature == yams.CurvatureMethod.DoubleDifferentiation
     gi.curvature = yams.CurvatureMethod.Blended
     assert gi.curvature == yams.CurvatureMethod.Blended
+    assert gi.curvature_blend == 0.5
+    gi.curvature_blend = 0.2
+    assert gi.rho_update_residual == 1e-2
     gi.RF_local = True
-    gi.RF_B = yams.default_relax_constant(gi.curvature)
+    gi.RF_B = yams.default_relax_constant(gi.curvature, gi.curvature_blend)
     solver_case.max_geom = 20
 
     yams.curvature_solver(solver_case)

@@ -94,8 +94,10 @@ namespace yams::api
         /// diverges once the stations are too close for it.
         bool local_relaxation{true};
         /// Its constant (GridInfo::RF_B), > 0; by default the curvature method's
-        /// (default_relax_constant). At most max_relax_constant(curvature), the
-        /// method's stability limit (Wilkinson's 96 / (5 |k_min|): 19.2, 9.6, 4.8):
+        /// (default_relax_constant(curvature, curvature_blend): 9.6 with the default
+        /// curvature). At most max_relax_constant(curvature, curvature_blend), the
+        /// method's stability limit (Wilkinson's 96 / (5 |k_min|): 19.2 for
+        /// DoubleDifferentiation, 15.36 for the default Blended, 4.8 for ThreePoint):
         /// a constant set for one method is refused with a less stable one.
         std::optional<double> relax_constant;
         /// Its meridional Mach number squared limit (GridInfo::RF_Mm2_max), in [0, 1[.
@@ -106,9 +108,14 @@ namespace yams::api
         bool compressible{true};
         /// Stream lines' curvature (GridInfo::curvature). Blended by default:
         /// DoubleDifferentiation leaves waves on the stream lines downstream of a
-        /// leading edge (NASA Rotor 37), Blended damps them (5 to 10 times) for about
-        /// twice the iterations, ThreePoint a little more for 3 to 4 times.
+        /// leading edge (NASA Rotor 37), which Blended damps; ThreePoint damps them
+        /// most, for about 4 times the iterations.
         CurvatureMethod curvature{CurvatureMethod::Blended};
+        /// The share of ThreePoint in Blended (GridInfo::curvature_blend), in [0, 1].
+        /// 0.2 divides the waves of NASA Rotor 37 by 3 (31 stations) to 8 (81) for
+        /// about a tenth more iterations than DoubleDifferentiation; 0.5 by 5 to 11,
+        /// for nearly twice the iterations.
+        double curvature_blend{0.2};
     };
 
     using yams::default_relax_constant;
@@ -388,14 +395,17 @@ namespace yams::api
         const auto &opt = pb.options;
         if (opt.n_streams < 3)
             throw std::invalid_argument("yams: at least 3 stream lines are needed");
-        const double relax_constant = opt.relax_constant.value_or(default_relax_constant(opt.curvature));
+        if (!(opt.curvature_blend >= 0. && opt.curvature_blend <= 1.))
+            throw std::invalid_argument("yams: curvature_blend must be between 0 and 1");
+        const double relax_max = max_relax_constant(opt.curvature, opt.curvature_blend);
+        const double relax_constant = opt.relax_constant.value_or(default_relax_constant(opt.curvature, opt.curvature_blend));
         if (opt.local_relaxation &&
             (!(relax_constant > 0.) || !(opt.relax_mach2_max >= 0. && opt.relax_mach2_max < 1.)))
             throw std::invalid_argument("yams: the local relaxation needs relax_constant > 0 and 0 <= relax_mach2_max < 1");
-        if (opt.local_relaxation && relax_constant > max_relax_constant(opt.curvature))
+        if (opt.local_relaxation && relax_constant > relax_max)
             throw std::invalid_argument("yams: relax_constant " + std::to_string(relax_constant) +
                                         " is above the stability limit of the curvature method, " +
-                                        std::to_string(max_relax_constant(opt.curvature)) +
+                                        std::to_string(relax_max) +
                                         " (leave it unset for the method's default)");
 
         const size_t nj = opt.n_streams;
@@ -504,6 +514,11 @@ namespace yams::api
         sc.gi->RF_local = opt.local_relaxation;
         sc.gi->RF_B = relax_constant;
         sc.gi->curvature = opt.curvature;
+        sc.gi->curvature_blend = opt.curvature_blend;
+        // the density follows the flow from the first iteration: held until the
+        // stream lines settle (the solver's default), a run that stalls before
+        // that never converges (a flow near choke downstream of a rotor)
+        sc.gi->rho_update_residual = std::numeric_limits<double>::max();
         sc.gi->RF_Mm2_max = opt.relax_mach2_max;
         for (auto &gp : *sc.gi->g)
             gp.Cp = pb.gas.cp;

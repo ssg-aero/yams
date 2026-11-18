@@ -1,5 +1,6 @@
 #include "yams_doctest.h"
 #include <meridionalapi.h>
+#include "rotor37_case.h"
 
 #include <algorithm>
 #include <array>
@@ -526,7 +527,10 @@ TEST_CASE("meridionalapi.curvature_waves")
     const auto bl = yams::api::solve(pb);
     REQUIRE(bl.status == yams::api::Status::Converged);
     CHECK(bl.solver_case.gi->curvature == yams::CurvatureMethod::Blended);
-    CHECK(bl.solver_case.gi->RF_B == yams::api::default_relax_constant(yams::CurvatureMethod::Blended));
+    // with the default share of the three-point curvature and its constant
+    CHECK(bl.solver_case.gi->curvature_blend == pb.options.curvature_blend);
+    CHECK(bl.solver_case.gi->RF_B ==
+          doctest::Approx(yams::api::default_relax_constant(yams::CurvatureMethod::Blended, pb.options.curvature_blend)));
 
     const auto &gd = *dd.solver_case.gi->g, &gb = *bl.solver_case.gi->g;
     CHECK(zigzag(gb) < zigzag(gd) / 3);
@@ -583,15 +587,99 @@ TEST_CASE("meridionalapi.curvature_ends_and_limits")
     a.x = 0., a.y = 1., b = a, c.x = 1., c.y = 1.;
     CHECK(yams::three_point_curvature(a, b, c) == 0.);
 
-    // a relaxation constant above the method's stability limit is refused: 12
-    // suits the double differentiation, not the default (Blended) curvature
+    // the constants of the methods; for Blended they follow the share of the
+    // three-point curvature, from the double differentiation's to the three-point's
     CHECK(yams::max_relax_constant(CurvatureMethod::Blended) == doctest::Approx(9.6));
     CHECK(yams::default_relax_constant(CurvatureMethod::DoubleDifferentiation) == doctest::Approx(12.));
     CHECK(yams::default_relax_constant(CurvatureMethod::Blended) == doctest::Approx(6.));
     CHECK(yams::default_relax_constant(CurvatureMethod::ThreePoint) == doctest::Approx(3.));
+    CHECK(yams::max_relax_constant(CurvatureMethod::Blended, 0.) == doctest::Approx(19.2));
+    CHECK(yams::max_relax_constant(CurvatureMethod::Blended, 0.2) == doctest::Approx(15.36));
+    CHECK(yams::max_relax_constant(CurvatureMethod::Blended, 0.75) == doctest::Approx(6.4));
+    CHECK(yams::max_relax_constant(CurvatureMethod::Blended, 1.) == doctest::Approx(4.8));
+    CHECK(yams::default_relax_constant(CurvatureMethod::Blended, 0.2) == doctest::Approx(9.6));
+    // the share is for Blended only
+    CHECK(yams::max_relax_constant(CurvatureMethod::DoubleDifferentiation, 0.9) == doctest::Approx(19.2));
+    CHECK(yams::max_relax_constant(CurvatureMethod::ThreePoint, 0.1) == doctest::Approx(4.8));
+
+    // a relaxation constant above the method's stability limit is refused: 16
+    // suits the double differentiation, not the default curvature (Blended with
+    // a share of 0.2, limit 15.36); 12 does, but not with a share of 0.5
     auto pb = annulus_rotor();
-    pb.options.relax_constant = 12.;
+    pb.options.relax_constant = 16.;
     CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
     pb.options.curvature = CurvatureMethod::DoubleDifferentiation;
     CHECK_NOTHROW(yams::api::make_case(pb));
+    pb.options.curvature = CurvatureMethod::Blended;
+    pb.options.relax_constant = 12.;
+    CHECK_NOTHROW(yams::api::make_case(pb));
+    pb.options.curvature_blend = 0.5;
+    CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
+    // a share outside [0, 1] is refused
+    pb.options.relax_constant.reset();
+    pb.options.curvature_blend = 1.5;
+    CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
+
+    // Blended with a share of 0 is the double differentiation, of 1 the three-point
+    auto curvature = [&](CurvatureMethod m, double blend)
+    {
+        auto g = yams::make_meridional_grid<double>(zig, ni, nj);
+        yams::compute_grid_metrics(g, g_metrics, yams::fm, yams::fl, m, blend);
+        return g(ni / 2, 1).cur;
+    };
+    CHECK(curvature(CurvatureMethod::Blended, 0.) == doctest::Approx(curvature(CurvatureMethod::DoubleDifferentiation, 0.5)));
+    CHECK(curvature(CurvatureMethod::Blended, 1.) == doctest::Approx(curvature(CurvatureMethod::ThreePoint, 0.5)));
+    CHECK(curvature(CurvatureMethod::Blended, 0.2) == doctest::Approx(0.2 * curvature(CurvatureMethod::ThreePoint, 0.5)));
+}
+
+TEST_CASE("meridionalapi.rotor37")
+{
+    using yams::CurvatureMethod;
+    // NASA Rotor 37 with the defaults: 31 stations, near its design mass flow
+    // (mean inlet Vm 150 m/s). The default curvature costs few more iterations
+    // than the double differentiation and divides its waves by 3.
+    auto pb = yams::tests::rotor37();
+    const auto res = yams::api::solve(pb);
+    REQUIRE(res.status == yams::api::Status::Converged);
+    CHECK(res.solver_case.gi->curvature == CurvatureMethod::Blended);
+    CHECK(res.solver_case.gi->RF_B == doctest::Approx(9.6));
+    // 143 iterations with clang on arm64
+    CHECK(res.iterations < 160);
+
+    pb.options.curvature = CurvatureMethod::DoubleDifferentiation;
+    const auto dd = yams::api::solve(pb);
+    REQUIRE(dd.status == yams::api::Status::Converged);
+    CHECK(res.iterations < 1.25 * dd.iterations);
+    const auto &g = *res.solver_case.gi->g, &gd = *dd.solver_case.gi->g;
+    CHECK(zigzag(g) < zigzag(gd) / 3);
+    // the same flow at the outlet
+    for (size_t j = 0; j < g.nCols(); j++)
+    {
+        const auto &p = g(g.nRows() - 1, j), &pd = gd(gd.nRows() - 1, j);
+        CHECK(p.Tt == doctest::Approx(pd.Tt).epsilon(2e-3));
+        CHECK(p.Vm == doctest::Approx(pd.Vm).epsilon(2e-2));
+    }
+}
+
+TEST_CASE("meridionalapi.rotor37_high_flow")
+{
+    // A fifth more mass flow (mean inlet Vm 180 m/s): the flow reaches the
+    // sonic limit at the leading edge. The run converges because its density
+    // follows the flow from the first iteration.
+    auto pb = yams::tests::rotor37(180.);
+    const auto res = yams::api::solve(pb);
+    REQUIRE(res.status == yams::api::Status::Converged);
+    CHECK(res.iterations < 200);
+
+    // With the density held until the mean displacement is under 1e-2 of the
+    // span (the solver's default, GridInfo::rho_update_residual), and the mean
+    // of both curvatures, the displacement stalls at 2e-2: the density never
+    // follows, and the run does not converge.
+    pb.options.curvature_blend = 0.5;
+    pb.options.max_geom = 400;
+    auto sc = yams::api::make_case(pb);
+    sc.gi->rho_update_residual = 1e-2;
+    yams::curvature_solver(sc);
+    CHECK_FALSE(sc.converged);
+    CHECK(sc.log.delta_pos_moy.back() > 1e-2);
 }

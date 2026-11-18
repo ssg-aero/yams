@@ -4,6 +4,7 @@
 #include <optional>
 #include <functional>
 #include <gbs/curves>
+#include <algorithm>
 namespace yams
 {
     /// How the stream lines' curvature is computed at a grid point, from the
@@ -16,8 +17,11 @@ namespace yams
         /// in a converged solution (waves on the stream lines downstream of a
         /// leading edge).
         DoubleDifferentiation,
-        /// The mean of DoubleDifferentiation and ThreePoint: sees the zigzag and
-        /// damps it, k_min = -2, half as stable as DoubleDifferentiation.
+        /// A weighted mean of DoubleDifferentiation and ThreePoint, the share w of
+        /// ThreePoint being GridInfo::curvature_blend: it sees the zigzag as soon
+        /// as w > 0 (k = -4 w for it), at a small cost in stability while w is
+        /// small: k_min = -1 / (1 - w) up to w = 1/2 (-2, half as stable as
+        /// DoubleDifferentiation), -4 w beyond.
         Blended,
         /// The curvature of the circle through the point and its neighbours on
         /// the stream line: the most accurate, k_min = -4, a quarter as stable.
@@ -27,23 +31,26 @@ namespace yams
     /// The largest relaxation constant (GridInfo::RF_B) a curvature method is
     /// stable with: Wilkinson's 96 / (5 |k_min|), the optimum of his analysis and
     /// about the limit found on an annulus and on NASA Rotor 37 (16 to 20, 8 to
-    /// 9, 4 to 5 from 31 to 81 stations).
-    inline double max_relax_constant(CurvatureMethod method)
+    /// 9, 4 to 5 from 31 to 81 stations for DoubleDifferentiation, Blended with a
+    /// share of 1/2 and ThreePoint).
+    /// @param blend the share of ThreePoint in Blended (GridInfo::curvature_blend)
+    inline double max_relax_constant(CurvatureMethod method, double blend = 0.5)
     {
-        switch (method)
-        {
-        case CurvatureMethod::DoubleDifferentiation: return 19.2;
-        case CurvatureMethod::Blended: return 9.6;
-        case CurvatureMethod::ThreePoint: return 4.8;
-        }
-        return 4.8;
+        // k(s) = -4 s (1 - s (1 - w)), s = sin^2(theta / 2) in [0, 1]: its minimum is
+        // at s = 1 / (2 (1 - w)) when w <= 1/2, else at s = 1 (the zigzag)
+        const double w = method == CurvatureMethod::DoubleDifferentiation ? 0.
+                         : method == CurvatureMethod::ThreePoint          ? 1.
+                                                                          : std::clamp(blend, 0., 1.);
+        const double k_min = w <= 0.5 ? 1. / (1. - w) : 4. * w;
+        return 96. / (5. * k_min);
     }
 
     /// The relaxation constant to use with a curvature method: 0.625 of
-    /// max_relax_constant (12, 6, 3), for a margin on other geometries.
-    inline double default_relax_constant(CurvatureMethod method)
+    /// max_relax_constant (12, 6 for Blended with a share of 1/2, 3), for a margin
+    /// on other geometries.
+    inline double default_relax_constant(CurvatureMethod method, double blend = 0.5)
     {
-        return 0.625 * max_relax_constant(method);
+        return 0.625 * max_relax_constant(method, blend);
     }
 
     template <typename T>
@@ -68,9 +75,9 @@ namespace yams
         /// Wilkinson (1969) as applied to axisymmetric flow by Hearsey (1975).
         bool RF_local = false;
         /// Its constant: 8 from the analysis, 6 (Hearsey's default) for a margin.
-        /// It is not set from curvature: use default_relax_constant(curvature),
-        /// and stay under max_relax_constant(curvature) (6 is too large for
-        /// ThreePoint).
+        /// It is not set from curvature: use default_relax_constant(curvature,
+        /// curvature_blend), and stay under max_relax_constant(curvature,
+        /// curvature_blend) (6 is too large for ThreePoint).
         T RF_B = 6.;
         /// Its meridional Mach number squared is limited to this, keeping some
         /// relaxation in transonic flow (Hearsey's XMMAX).
@@ -78,6 +85,19 @@ namespace yams
         /// Stream lines' curvature (compute_curvature). The less stable the
         /// method, the smaller RF_B it needs: default_relax_constant.
         CurvatureMethod curvature = CurvatureMethod::DoubleDifferentiation;
+        /// The share of ThreePoint in the Blended curvature, in [0, 1]: 0 is
+        /// DoubleDifferentiation, 1 is ThreePoint. A small share already removes
+        /// most of the zigzag, for few more iterations (NASA Rotor 37, 31
+        /// stations: zigzag 0.61, 0.19, 0.12 and 126, 143, 225 iterations for 0,
+        /// 0.2 and 0.5, each with its default_relax_constant).
+        T curvature_blend = 0.5;
+        /// The density follows the flow (Ps / (R Ts)) only once the mean
+        /// displacement of the stream lines is under this, relative to the span.
+        /// A run whose displacement stalls above it never updates its density
+        /// and never converges (a flow near choke downstream of a rotor): the
+        /// largest value (std::numeric_limits<T>::max()) updates it at every
+        /// iteration, which also saves about a tenth of the iterations.
+        T rho_update_residual = 1e-2;
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =200;
