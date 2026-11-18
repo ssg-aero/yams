@@ -93,16 +93,26 @@ namespace yams::api
         /// growing as the aspect ratio squared. When false, relax_factor at every station, which
         /// diverges once the stations are too close for it.
         bool local_relaxation{true};
-        /// Its constant (GridInfo::RF_B), > 0: 8 from the analysis; the solver is stable
-        /// up to about 16 on an annulus and on NASA Rotor 37.
-        double relax_constant{12.};
+        /// Its constant (GridInfo::RF_B), > 0; by default the curvature method's
+        /// (default_relax_constant). At most max_relax_constant(curvature), the
+        /// method's stability limit (Wilkinson's 96 / (5 |k_min|): 19.2, 9.6, 4.8):
+        /// a constant set for one method is refused with a less stable one.
+        std::optional<double> relax_constant;
         /// Its meridional Mach number squared limit (GridInfo::RF_Mm2_max), in [0, 1[.
         /// Not used when not compressible.
         double relax_mach2_max{0.6};
         double relax_factor{0.05};  ///< relaxation at every station, when not local_relaxation
         double tol_rel_pos{1e-5};   ///< convergence on stream lines positions, relative to the span
         bool compressible{true};
+        /// Stream lines' curvature (GridInfo::curvature). Blended by default:
+        /// DoubleDifferentiation leaves waves on the stream lines downstream of a
+        /// leading edge (NASA Rotor 37), Blended damps them (5 to 10 times) for about
+        /// twice the iterations, ThreePoint a little more for 3 to 4 times.
+        CurvatureMethod curvature{CurvatureMethod::Blended};
     };
+
+    using yams::default_relax_constant;
+    using yams::max_relax_constant;
 
     struct Problem
     {
@@ -378,9 +388,15 @@ namespace yams::api
         const auto &opt = pb.options;
         if (opt.n_streams < 3)
             throw std::invalid_argument("yams: at least 3 stream lines are needed");
+        const double relax_constant = opt.relax_constant.value_or(default_relax_constant(opt.curvature));
         if (opt.local_relaxation &&
-            (!(opt.relax_constant > 0.) || !(opt.relax_mach2_max >= 0. && opt.relax_mach2_max < 1.)))
+            (!(relax_constant > 0.) || !(opt.relax_mach2_max >= 0. && opt.relax_mach2_max < 1.)))
             throw std::invalid_argument("yams: the local relaxation needs relax_constant > 0 and 0 <= relax_mach2_max < 1");
+        if (opt.local_relaxation && relax_constant > max_relax_constant(opt.curvature))
+            throw std::invalid_argument("yams: relax_constant " + std::to_string(relax_constant) +
+                                        " is above the stability limit of the curvature method, " +
+                                        std::to_string(max_relax_constant(opt.curvature)) +
+                                        " (leave it unset for the method's default)");
 
         const size_t nj = opt.n_streams;
         // The stations' shapes are held on more points than there are stream lines
@@ -486,7 +502,8 @@ namespace yams::api
         sc.gi->rho_cst = !opt.compressible;
         sc.gi->RF = opt.relax_factor;
         sc.gi->RF_local = opt.local_relaxation;
-        sc.gi->RF_B = opt.relax_constant;
+        sc.gi->RF_B = relax_constant;
+        sc.gi->curvature = opt.curvature;
         sc.gi->RF_Mm2_max = opt.relax_mach2_max;
         for (auto &gp : *sc.gi->g)
             gp.Cp = pb.gas.cp;

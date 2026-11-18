@@ -6,6 +6,46 @@
 #include <gbs/curves>
 namespace yams
 {
+    /// How the stream lines' curvature is computed at a grid point, from the
+    /// stream line's points at the stations around it (compute_curvature).
+    enum class CurvatureMethod
+    {
+        /// The derivative along the stream line of its angle, itself a centred
+        /// derivative of its points: the most stable (Wilkinson's k_min = -1), but
+        /// blind to a zigzag from one station to the next, which can then stay
+        /// in a converged solution (waves on the stream lines downstream of a
+        /// leading edge).
+        DoubleDifferentiation,
+        /// The mean of DoubleDifferentiation and ThreePoint: sees the zigzag and
+        /// damps it, k_min = -2, half as stable as DoubleDifferentiation.
+        Blended,
+        /// The curvature of the circle through the point and its neighbours on
+        /// the stream line: the most accurate, k_min = -4, a quarter as stable.
+        ThreePoint,
+    };
+
+    /// The largest relaxation constant (GridInfo::RF_B) a curvature method is
+    /// stable with: Wilkinson's 96 / (5 |k_min|), the optimum of his analysis and
+    /// about the limit found on an annulus and on NASA Rotor 37 (16 to 20, 8 to
+    /// 9, 4 to 5 from 31 to 81 stations).
+    inline double max_relax_constant(CurvatureMethod method)
+    {
+        switch (method)
+        {
+        case CurvatureMethod::DoubleDifferentiation: return 19.2;
+        case CurvatureMethod::Blended: return 9.6;
+        case CurvatureMethod::ThreePoint: return 4.8;
+        }
+        return 4.8;
+    }
+
+    /// The relaxation constant to use with a curvature method: 0.625 of
+    /// max_relax_constant (12, 6, 3), for a margin on other geometries.
+    inline double default_relax_constant(CurvatureMethod method)
+    {
+        return 0.625 * max_relax_constant(method);
+    }
+
     template <typename T>
     struct GridInfo{
         std::shared_ptr< MeridionalGrid<T> > g;
@@ -28,10 +68,16 @@ namespace yams
         /// Wilkinson (1969) as applied to axisymmetric flow by Hearsey (1975).
         bool RF_local = false;
         /// Its constant: 8 from the analysis, 6 (Hearsey's default) for a margin.
+        /// It is not set from curvature: use default_relax_constant(curvature),
+        /// and stay under max_relax_constant(curvature) (6 is too large for
+        /// ThreePoint).
         T RF_B = 6.;
         /// Its meridional Mach number squared is limited to this, keeping some
         /// relaxation in transonic flow (Hearsey's XMMAX).
         T RF_Mm2_max = 0.6;
+        /// Stream lines' curvature (compute_curvature). The less stable the
+        /// method, the smaller RF_B it needs: default_relax_constant.
+        CurvatureMethod curvature = CurvatureMethod::DoubleDifferentiation;
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =200;

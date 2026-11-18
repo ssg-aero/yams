@@ -176,3 +176,25 @@ def test_rotor_direct(rotor_direct_case):
     assert [g(ni - 1, j).Vm for j in range(nj)] == approx(REF_ROTOR_OUTLET_VM, rel=REL)
     assert [g(ni - 1, j).Vu for j in range(nj)] == approx(REF_ROTOR_OUTLET_VU, rel=REL)
     assert work == approx(REF_ROTOR_WORK, rel=REL)
+
+
+def test_curvature_methods(channel_case):
+    """The curvature method of a case and its relaxation constant, from Python."""
+    methods = [yams.CurvatureMethod.DoubleDifferentiation, yams.CurvatureMethod.Blended,
+               yams.CurvatureMethod.ThreePoint]
+    assert [yams.default_relax_constant(m) for m in methods] == approx([12., 6., 3.])
+    assert all(yams.default_relax_constant(m) < yams.max_relax_constant(m) for m in methods)
+
+    solver_case = channel_case
+    gi = solver_case.gi
+    assert gi.curvature == yams.CurvatureMethod.DoubleDifferentiation
+    gi.curvature = yams.CurvatureMethod.Blended
+    assert gi.curvature == yams.CurvatureMethod.Blended
+    gi.RF_local = True
+    gi.RF_B = yams.default_relax_constant(gi.curvature)
+    solver_case.max_geom = 20
+
+    yams.curvature_solver(solver_case)
+
+    g = gi.g
+    assert np.all(np.isfinite([g(i, j).Vm for i in range(g.nRows()) for j in range(g.nCols())]))

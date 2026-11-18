@@ -2,6 +2,7 @@
 #include <datastorage.h>
 #include <meridionalsolvercase.h>
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <tuple>
@@ -109,38 +110,54 @@ namespace yams
         }
     }
     
+    /// Curvature of the circle through three points (z = x, r = y), positive
+    /// when the path a, b, c turns counterclockwise in the (z, r) plane, as the
+    /// derivative of the angle atan2(dr, dz) along it. 0 when two of the points
+    /// coincide (no circle), rather than a value that is not finite.
     template <typename T>
-    inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = true)
+    inline T three_point_curvature(const MeridionalGridPoint<T> &a, const MeridionalGridPoint<T> &b, const MeridionalGridPoint<T> &c)
+    {
+        const T ux = b.x - a.x, uy = b.y - a.y, vx = c.x - b.x, vy = c.y - b.y;
+        const T den = std::hypot(ux, uy) * std::hypot(vx, vy) * std::hypot(c.x - a.x, c.y - a.y);
+        return den > 0. ? 2. * (ux * vy - uy * vx) / den : T{};
+    }
+
+    /// Stream lines' curvature, by method (CurvatureMethod; DoubleDifferentiation
+    /// and Blended need the angles phi of compute_angles).
+    /// At the first and last stations, when interpolate (else 0 there): the double
+    /// differentiation is extrapolated linearly from the two stations next to
+    /// them, as it always was; the three-point curvature is taken from the station
+    /// next to them. Extrapolating it would triple a zigzag from one station to
+    /// the next, which the double differentiation does not see.
+    template <typename T>
+    inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = true,
+                                  CurvatureMethod method = CurvatureMethod::DoubleDifferentiation)
     {
         size_t nim = g.nRows()-1;
         size_t nj = g.nCols();
+        // the weights of the double differentiation and of the three-point curvature
+        const T wd = method == CurvatureMethod::ThreePoint ? 0. : method == CurvatureMethod::Blended ? 0.5 : 1.;
+        const T w3 = 1. - wd;
+        auto kd = [&g, wd](size_t i, size_t j) -> T
+        { return wd > 0. ? wd * D1_O2_i(g, i, j, fphi, fm) : T{}; }; // TODO check why Aungier put -DphiDm
+        auto k3 = [&g, w3](size_t i, size_t j) -> T
+        { return w3 > 0. ? w3 * three_point_curvature(g(i - 1, j), g(i, j), g(i + 1, j)) : T{}; };
 
-        for (auto i = 1; i < nim; i++)
-        {
-            for (auto j = 0; j < nj; j++)
-            {
-                g(i,j).cur = D1_O2_i(g, i, j, fphi, fm);// TODO check why Aungier put -DphiDm
-                // g(i,j).cur = 2 * ( atan2( (g(i+1,j).y-g(i,j).y) , (g(i+1,j).x-g(i,j).x) ) -
-                //                    atan2( (g(i,j).y-g(i-1,j).y) , (g(i,j).x-g(i-1,j).x) ) ) /
-                //                    (g(i+1,j).m - g(i-1,j).m);
-
-            }
-        }
-        for (auto j = 0; j < nj; j++)
+        for (size_t i = 1; i < nim; i++)
+            for (size_t j = 0; j < nj; j++)
+                g(i, j).cur = kd(i, j) + k3(i, j);
+        for (size_t j = 0; j < nj; j++)
         {
             if( interpolate )
             {
-                g(0, j).cur = 2. * g(1, j).cur - g(2, j).cur;
-                g(nim, j).cur = 2. * g(nim - 1, j).cur - g(nim - 2, j).cur;
+                g(0, j).cur = 2. * kd(1, j) - kd(2, j) + k3(1, j);
+                g(nim, j).cur = 2. * kd(nim - 1, j) - kd(nim - 2, j) + k3(nim - 1, j);
             }
             else
             {
-                // g(0, j).cur  =  D1_O1_i_fw(g, 0 , j, fphi, fm);
-                // g(nim, j).cur =  D1_O1_i_bw(g, nim, j, fphi, fm);
                 g(0, j).cur  =  0.;
                 g(nim, j).cur =  0.;
             }
-
         }
     }
 
@@ -183,13 +200,14 @@ namespace yams
     }
 
     template <typename T>
-    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
+    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l,
+                                     CurvatureMethod method = CurvatureMethod::DoubleDifferentiation)
     {
         compute_abscissas(g);
         compute_metrics(g,f_m,f_l,g_metrics);
         compute_angles(g);
         // compute_curvature(g,g_metrics);
-        compute_curvature(g);
+        compute_curvature(g, true, method);
     }
 
     /**
