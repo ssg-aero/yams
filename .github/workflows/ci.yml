@@ -13,7 +13,10 @@
 # - Windows workarounds (micromamba shell init crashes on the runner
 #   image) carried over as-is
 # - conda-forge clang everywhere (as in the local dev-3.13 env), plus an
-#   MSVC job on Windows for the MSVC-only code paths (/arch:AVX2 /fp:fast)
+#   MSVC job on Windows for the MSVC-only code paths (/bigobj, and
+#   /arch:AVX2 /fp:fast for the vectorized C++ tests only; the Python
+#   module is built with the precise default everywhere, and its
+#   YAMS_PYTHON_NATIVE option is not built here)
 #
 # Differences from gbs:
 # - only the current macOS (arm64): no older macOS / Intel job
@@ -74,8 +77,9 @@ jobs:
             shell: bash
 
           # --- Windows: MSVC (cl), the compiler of the conda-forge
-          #     win-64 packages — the MSVC-only flags (/arch:AVX2
-          #     /fp:fast, /bigobj) are only exercised here ---
+          #     win-64 packages — the MSVC-only flags (/bigobj, and
+          #     /arch:AVX2 /fp:fast of the vectorized C++ tests) are
+          #     only exercised here ---
           - os: windows-latest
             compiler: msvc
             python-version: "3.13"

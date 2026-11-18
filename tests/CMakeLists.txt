@@ -18,7 +18,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(VECTORIZATION_FLAGS /arch:AVX2 /fp:fast /Qvec-report:1)
 endif()
-# Tests built with VECTORIZATION_FLAGS (MSVC only)
+# Tests built with VECTORIZATION_FLAGS (MSVC only). They check MSVC's
+# vectorization, so they keep /fp:fast: this is not the floating point mode of
+# the Python module, which is built with the compiler's precise default
+# (python/CMakeLists.txt).
 set(VECTORIZED_TESTS tests_b2bsolver tests_vectorization tests_euler2D tests_biflux)
 
 # One executable per tests_*.cpp; doctest provides main().
