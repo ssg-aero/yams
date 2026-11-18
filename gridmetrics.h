@@ -2,6 +2,7 @@
 #include <datastorage.h>
 #include <meridionalsolvercase.h>
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <tuple>
@@ -109,8 +110,22 @@ namespace yams
         }
     }
     
+    /// Curvature of the circle through three points (z = x, r = y), positive
+    /// when the path a, b, c turns counterclockwise in the (z, r) plane, as the
+    /// derivative of the angle atan2(dr, dz) along it.
     template <typename T>
-    inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = true)
+    inline T three_point_curvature(const MeridionalGridPoint<T> &a, const MeridionalGridPoint<T> &b, const MeridionalGridPoint<T> &c)
+    {
+        const T ux = b.x - a.x, uy = b.y - a.y, vx = c.x - b.x, vy = c.y - b.y;
+        return 2. * (ux * vy - uy * vx) / (std::hypot(ux, uy) * std::hypot(vx, vy) * std::hypot(c.x - a.x, c.y - a.y));
+    }
+
+    /// Stream lines' curvature at the inner stations, by method (CurvatureMethod;
+    /// DoubleDifferentiation needs the angles phi of compute_angles), extrapolated
+    /// linearly to the first and last stations when interpolate, else 0 there.
+    template <typename T>
+    inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = true,
+                                  CurvatureMethod method = CurvatureMethod::DoubleDifferentiation)
     {
         size_t nim = g.nRows()-1;
         size_t nj = g.nCols();
@@ -119,7 +134,15 @@ namespace yams
         {
             for (auto j = 0; j < nj; j++)
             {
-                g(i,j).cur = D1_O2_i(g, i, j, fphi, fm);// TODO check why Aungier put -DphiDm
+                const T k3 = method == CurvatureMethod::DoubleDifferentiation
+                                 ? T{}
+                                 : three_point_curvature(g(i - 1, j), g(i, j), g(i + 1, j));
+                const T kd = method == CurvatureMethod::ThreePoint
+                                 ? T{}
+                                 : D1_O2_i(g, i, j, fphi, fm); // TODO check why Aungier put -DphiDm
+                g(i,j).cur = method == CurvatureMethod::DoubleDifferentiation ? kd
+                             : method == CurvatureMethod::ThreePoint          ? k3
+                                                                              : (kd + k3) / 2;
                 // g(i,j).cur = 2 * ( atan2( (g(i+1,j).y-g(i,j).y) , (g(i+1,j).x-g(i,j).x) ) -
                 //                    atan2( (g(i,j).y-g(i-1,j).y) , (g(i,j).x-g(i-1,j).x) ) ) /
                 //                    (g(i+1,j).m - g(i-1,j).m);
@@ -183,13 +206,14 @@ namespace yams
     }
 
     template <typename T>
-    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l)
+    inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l,
+                                     CurvatureMethod method = CurvatureMethod::DoubleDifferentiation)
     {
         compute_abscissas(g);
         compute_metrics(g,f_m,f_l,g_metrics);
         compute_angles(g);
         // compute_curvature(g,g_metrics);
-        compute_curvature(g);
+        compute_curvature(g, true, method);
     }
 
     /**

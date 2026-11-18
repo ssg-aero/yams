@@ -2,7 +2,9 @@
 #include <meridionalapi.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdio>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -367,9 +369,11 @@ TEST_CASE("meridionalapi.local_relaxation")
 {
     // Stations at 0.0125 of the span: a fixed relaxation of 0.05 diverges, the
     // relaxation at each station from its aspect ratio converges, close to the
-    // solution of a coarser grid (within its discretisation error).
+    // solution of a coarser grid (within its discretisation error). With the
+    // most stable curvature, for the fewest iterations.
     auto pb = annulus_rotor();
     pb.options.n_stations = 81;
+    pb.options.curvature = yams::CurvatureMethod::DoubleDifferentiation;
     pb.options.local_relaxation = false;
     // unstable: the stream lines cross or keep oscillating, whichever comes first
     REQUIRE(yams::api::solve(pb).status != yams::api::Status::Converged);
@@ -405,25 +409,28 @@ TEST_CASE("meridionalapi.local_relaxation")
         Mm2 += gp.Vm * gp.Vm / (gp.ga * gi.R * gp.Ts) / nj;
     }
     const double A = gf(i, nj - 1).l / dm;
+    // the curvature method's constant, by default
+    const double B = yams::api::default_relax_constant(yams::CurvatureMethod::DoubleDifferentiation);
+    REQUIRE(gi.RF_B == B);
     REQUIRE(Mm2 < gi.RF_Mm2_max);
-    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + (1. - Mm2) * A * A / pb.options.relax_constant)));
+    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + (1. - Mm2) * A * A / B)));
     // the Mach number limited, a fixed factor when not local
     gi.RF_Mm2_max = Mm2 / 2;
-    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + (1. - Mm2 / 2) * A * A / pb.options.relax_constant)));
+    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + (1. - Mm2 / 2) * A * A / B)));
     // no Mach number effect for a constant density
     gi.rho_cst = true;
-    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + A * A / pb.options.relax_constant)));
+    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + A * A / B)));
     gi.rho_cst = false;
     // a constant or a Mach limit that make no factor are refused
     gi.RF_B = 0.;
     CHECK_THROWS_AS(yams::station_relaxation(gi, i), std::invalid_argument);
-    gi.RF_B = pb.options.relax_constant;
+    gi.RF_B = B;
     gi.RF_Mm2_max = 1.;
     CHECK_THROWS_AS(yams::station_relaxation(gi, i), std::invalid_argument);
     gi.RF_Mm2_max = 0.6;
     pb.options.relax_constant = -1.;
     CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
-    pb.options.relax_constant = 12.;
+    pb.options.relax_constant.reset();
     pb.options.relax_mach2_max = 1.;
     CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
     // two stations that touch on a stream line: no factor, said as a divergence
@@ -441,8 +448,94 @@ TEST_CASE("meridionalapi.local_relaxation_incompressible")
     // factor then has no Mach number term: checked in local_relaxation)
     auto pb = annulus_rotor();
     pb.options.n_stations = 81;
+    pb.options.curvature = yams::CurvatureMethod::DoubleDifferentiation;
     pb.options.compressible = false;
     pb.inlet.vm_mean = 200.;
     const auto res = yams::api::solve(pb);
     REQUIRE(res.status == yams::api::Status::Converged);
+}
+
+namespace
+{
+    // The largest zigzag of the stream lines' slope from one station to the next:
+    // half the jump of its change where that change alternates in sign.
+    double zigzag(const yams::MeridionalGrid<double> &g)
+    {
+        double worst = 0.;
+        for (size_t j = 1; j + 1 < g.nCols(); j++)
+            for (size_t i = 1; i + 2 < g.nRows(); i++)
+            {
+                auto slope = [&](size_t k) { return (g(k + 1, j).y - g(k, j).y) / (g(k + 1, j).x - g(k, j).x); };
+                const double d1 = slope(i) - slope(i - 1), d2 = slope(i + 1) - slope(i);
+                if (d1 * d2 < 0.)
+                    worst = std::max(worst, std::abs(d1 - d2) / 2);
+            }
+        return worst;
+    }
+}
+
+TEST_CASE("meridionalapi.curvature_methods")
+{
+    using yams::CurvatureMethod;
+    // On a circle of radius R, all methods give 1 / R, positive turning
+    // counterclockwise in (z, r); on a zigzag from one station to the next, the
+    // double differentiation sees no curvature at all, the others do.
+    const double R = 2.;
+    const size_t ni = 21, nj = 3;
+    std::vector<std::array<double, 2>> arc, zig;
+    for (size_t j = 0; j < nj; j++)
+        for (size_t i = 0; i < ni; i++)
+        {
+            const double t = 0.5 * static_cast<double>(i) / (ni - 1), rr = R + 0.1 * j;
+            arc.push_back({rr * std::sin(t), 3. - rr * std::cos(t)});
+            zig.push_back({0.05 * i, 1. + 0.1 * j + (i % 2 ? 0.002 : -0.002)});
+        }
+    for (auto m : {CurvatureMethod::DoubleDifferentiation, CurvatureMethod::Blended, CurvatureMethod::ThreePoint})
+    {
+        auto g = yams::make_meridional_grid<double>(arc, ni, nj);
+        auto g_metrics = yams::Grid2dMetrics<double>{ni, nj};
+        yams::compute_grid_metrics(g, g_metrics, yams::fm, yams::fl, m);
+        for (size_t i = 1; i + 1 < ni; i++)
+            CHECK(g(i, 0).cur == doctest::Approx(1. / R).epsilon(1e-3));
+
+        auto z = yams::make_meridional_grid<double>(zig, ni, nj);
+        yams::compute_grid_metrics(z, g_metrics, yams::fm, yams::fl, m);
+        const double k = std::abs(z(ni / 2, 1).cur);
+        if (m == CurvatureMethod::DoubleDifferentiation)
+            CHECK(k < 1e-9);
+        else
+            CHECK(k > 1.);
+    }
+    // the less stable the method, the smaller its relaxation constant
+    CHECK(yams::api::default_relax_constant(CurvatureMethod::Blended) <
+          yams::api::default_relax_constant(CurvatureMethod::DoubleDifferentiation));
+    CHECK(yams::api::default_relax_constant(CurvatureMethod::ThreePoint) <
+          yams::api::default_relax_constant(CurvatureMethod::Blended));
+}
+
+TEST_CASE("meridionalapi.curvature_waves")
+{
+    // The rotor's leading edge leaves a zigzag on the stream lines with the
+    // double differentiation; the default (Blended) curvature damps it, for the
+    // same flow, the case taking its method's relaxation constant.
+    auto pb = annulus_rotor_traces();
+    pb.options.curvature = yams::CurvatureMethod::DoubleDifferentiation;
+    const auto dd = yams::api::solve(pb);
+    REQUIRE(dd.status == yams::api::Status::Converged);
+    pb.options.curvature = yams::api::Options{}.curvature;
+    REQUIRE(pb.options.curvature == yams::CurvatureMethod::Blended);
+    const auto bl = yams::api::solve(pb);
+    REQUIRE(bl.status == yams::api::Status::Converged);
+    CHECK(bl.solver_case.gi->curvature == yams::CurvatureMethod::Blended);
+    CHECK(bl.solver_case.gi->RF_B == yams::api::default_relax_constant(yams::CurvatureMethod::Blended));
+
+    const auto &gd = *dd.solver_case.gi->g, &gb = *bl.solver_case.gi->g;
+    std::printf("zigzag: double differentiation %g, blended %g\n", zigzag(gd), zigzag(gb));
+    CHECK(zigzag(gb) < zigzag(gd) / 3);
+    for (size_t j = 0; j < gd.nCols(); j++)
+    {
+        const auto &pd = gd(gd.nRows() - 1, j), &pb_ = gb(gb.nRows() - 1, j);
+        CHECK(pb_.Tt == doctest::Approx(pd.Tt).epsilon(1e-4));
+        CHECK(pb_.Vm == doctest::Approx(pd.Vm).epsilon(1e-2));
+    }
 }

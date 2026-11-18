@@ -110,6 +110,7 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("RF_local", &GridInfo<T>::RF_local)
     .def_readwrite("RF_B", &GridInfo<T>::RF_B)
     .def_readwrite("RF_Mm2_max", &GridInfo<T>::RF_Mm2_max)
+    .def_readwrite("curvature", &GridInfo<T>::curvature)
     .def_readwrite("Pref", &GridInfo<T>::Pref)
     .def_readwrite("Tref", &GridInfo<T>::Tref)
     .def_readwrite("tol_newtow_mf_f", &GridInfo<T>::tol_newtow_mf_f)
@@ -122,6 +123,11 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("j_0", &GridInfo<T>::j_0)
     .def_readwrite("KD",&GridInfo<T>::KD)
     ;
+
+    py::enum_<CurvatureMethod>(m, "CurvatureMethod")
+    .value("DoubleDifferentiation", CurvatureMethod::DoubleDifferentiation)
+    .value("Blended", CurvatureMethod::Blended)
+    .value("ThreePoint", CurvatureMethod::ThreePoint);
 
     py::enum_<MeridionalBladeMode>(m, "MeridionalBladeMode", py::arithmetic())
     .value("DESIGN_BETA_OUT", MeridionalBladeMode::DESIGN_BETA_OUT)

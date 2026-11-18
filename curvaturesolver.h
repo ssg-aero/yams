@@ -946,6 +946,9 @@ namespace yams
         std::vector<std::array<T, 2>> saved_xy(ni * nj);
         std::vector<std::vector<T>> saved_params;
         bool relocating = false;
+        // the case's curvature method from the first iteration (make_grid_info
+        // computes the default one)
+        compute_curvature(g, true, gi.curvature);
         // apply boundary conditions
         apply_bc(solver_case);
         // compute spans mass flow
@@ -1089,7 +1092,7 @@ namespace yams
             solver_case.log.delta_pos_max.push_back(delta_pos_max);
             solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
             // update metrics
-            compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
+            compute_grid_metrics(g,g_metrics,f_m,f_l,gi.curvature);// TODO run in // 
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;
