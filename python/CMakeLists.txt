@@ -40,14 +40,18 @@ set_target_properties(
 
 # The module keeps the compiler's precise floating point (no /fp:fast, no
 # -ffast-math, which also made yams.mesh_channel throw an uncaught exception
-# with clang on Windows): the same results on every OS, and the robust
-# geometric predicates of gbs intact. It is built for the packager's target
-# CPU, not the build machine's: -march=native (/arch:AVX2 with MSVC) would
-# make a conda package that dies on an illegal instruction on an older CPU.
-# For a local build on this machine only:
-option(YAMS_PYTHON_NATIVE "Build the Python module for this machine's CPU (-march=native, /arch:AVX2 with MSVC): not for packages" OFF)
+# with clang on Windows): no reassociation, and the robust geometric
+# predicates of gbs intact. The results are closer between OS, not identical:
+# the compiler's default contraction (FMA on arm64) and the libm still differ.
+# It is built for the packager's target CPU, not the build machine's:
+# -march=native would make a conda package that dies on an illegal
+# instruction on an older CPU.
+# For a local build on this machine only. MSVC has no "native" target: the
+# option asks for AVX2 there, which the CPU of this machine must support.
+option(YAMS_PYTHON_NATIVE "Build the Python module for this machine's CPU (-march=native; MSVC: /arch:AVX2, the CPU must support it): not for packages" OFF)
 if(YAMS_PYTHON_NATIVE)
     if(MSVC)
+        message(STATUS "YAMS_PYTHON_NATIVE: MSVC has no native target, using /arch:AVX2")
         target_compile_options(${PROJECT_NAME} PRIVATE /arch:AVX2)
     else()
         target_compile_options(${PROJECT_NAME} PRIVATE -march=native)
