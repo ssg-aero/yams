@@ -81,12 +81,24 @@ namespace yams::api
     struct Options
     {
         size_t n_streams{11};       ///< stream lines from hub to shroud (>= 3)
-        /// Indicative number of computing stations from inlet to outlet. Stations too
-        /// close for the span make the stream lines unstable (the limit of the
-        /// streamline curvature method): see Result::station_spacing.
+        /// Indicative number of computing stations from inlet to outlet. The closer
+        /// the stations compared with the span, the smaller the relaxation they need
+        /// and the more iterations: see local_relaxation, Result::station_spacing.
         size_t n_stations{61};
-        size_t max_geom{300};       ///< maximal number of stream lines relocations
-        double relax_factor{0.05};  ///< stream lines relocation relaxation
+        size_t max_geom{2000};      ///< maximal number of stream lines relocations
+        /// Stream lines relocation relaxation at each station from its aspect ratio
+        /// (span over spacing) and meridional Mach number, the optimum of
+        /// Wilkinson's stability analysis (GridInfo::RF_local, station_relaxation):
+        /// it keeps the solver stable as the stations get closer, its iterations
+        /// growing as the aspect ratio squared. When false, relax_factor at every station, which
+        /// diverges once the stations are too close for it.
+        bool local_relaxation{true};
+        /// Its constant (GridInfo::RF_B): 8 from the analysis; the solver is stable
+        /// up to about 16 on an annulus and on NASA Rotor 37.
+        double relax_constant{12.};
+        /// Its meridional Mach number squared limit (GridInfo::RF_Mm2_max).
+        double relax_mach2_max{0.6};
+        double relax_factor{0.05};  ///< relaxation at every station, when not local_relaxation
         double tol_rel_pos{1e-5};   ///< convergence on stream lines positions, relative to the span
         bool compressible{true};
     };
@@ -133,8 +145,10 @@ namespace yams::api
         Status status{Status::NotConverged};
         size_t iterations{};
         /// Smallest distance between two stations along the mid stream line of the
-        /// initial grid, relative to the span there. Below about 0.05 to 0.1 the stream
-        /// lines oscillate and the solver does not converge: use fewer stations.
+        /// initial grid, relative to the span there. With a fixed relaxation
+        /// (relax_factor 0.05), below about 0.04 the stream lines oscillate and the
+        /// solver does not converge; with local_relaxation it converges, in a number
+        /// of iterations growing as its inverse squared.
         double station_spacing{};
         std::string divergence;             ///< why, when the stream lines could no longer be relocated
         std::vector<double> residual_max;   ///< per iteration, relative to the span
@@ -467,6 +481,9 @@ namespace yams::api
         sc.gi->R = pb.gas.R;
         sc.gi->rho_cst = !opt.compressible;
         sc.gi->RF = opt.relax_factor;
+        sc.gi->RF_local = opt.local_relaxation;
+        sc.gi->RF_B = opt.relax_constant;
+        sc.gi->RF_Mm2_max = opt.relax_mach2_max;
         for (auto &gp : *sc.gi->g)
             gp.Cp = pb.gas.cp;
         sc.max_geom = opt.max_geom;

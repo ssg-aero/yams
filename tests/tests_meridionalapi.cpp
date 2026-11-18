@@ -155,9 +155,7 @@ namespace
         auto pb = annulus_rotor();
         pb.rows[0].le_trace = Curve2d{{{0.38, 0.5}, {0.34, 0.75}, {0.42, 1.0}}, {0., 0., 0., 1., 1., 1.}, 2};
         pb.rows[0].te_trace = straight(0.58, 0.5, 0.64, 1.0);
-        // Stations no closer than about a twentieth of the span: closer ones make
-        // the stream lines unstable (41 here leaves them oscillating).
-        pb.options.n_stations = 21;
+        pb.options.n_stations = 41;
         return pb;
     }
 }
@@ -330,11 +328,13 @@ TEST_CASE("parallel.par_for")
 
 TEST_CASE("meridionalapi.diverged")
 {
-    // Stations much closer than the span: the stream lines become unstable and
-    // cross. The run ends as diverged, with the reason, rather than by an exception
-    // from the solver's middle, and gives the grid of its last complete iteration.
+    // Stations much closer than the span, with a fixed relaxation: the stream
+    // lines become unstable and cross. The run ends as diverged, with the reason,
+    // rather than by an exception from the solver's middle, and gives the grid of
+    // its last complete iteration.
     auto pb = annulus_rotor();
     pb.options.n_stations = 121;
+    pb.options.local_relaxation = false;
     const auto res = yams::api::solve(pb);
     REQUIRE(res.status == yams::api::Status::Diverged);
     REQUIRE(res.solver_case.diverged);
@@ -361,4 +361,54 @@ TEST_CASE("meridionalapi.diverged")
     auto pb2 = annulus_rotor();
     pb2.options.n_stations = 21;
     REQUIRE(yams::api::solve(pb2).status == yams::api::Status::Converged);
+}
+
+TEST_CASE("meridionalapi.local_relaxation")
+{
+    // Stations at 0.0125 of the span: a fixed relaxation of 0.05 diverges, the
+    // relaxation at each station from its aspect ratio converges, close to the
+    // solution of a coarser grid (within its discretisation error).
+    auto pb = annulus_rotor();
+    pb.options.n_stations = 81;
+    pb.options.local_relaxation = false;
+    REQUIRE(yams::api::solve(pb).status == yams::api::Status::Diverged);
+
+    pb.options.local_relaxation = true;
+    const auto fine = yams::api::solve(pb);
+    REQUIRE(fine.status == yams::api::Status::Converged);
+    pb.options.n_stations = 41;
+    const auto coarse = yams::api::solve(pb);
+    REQUIRE(coarse.status == yams::api::Status::Converged);
+    // fewer iterations on the coarser grid: its stations need less relaxation
+    REQUIRE(coarse.iterations < fine.iterations);
+
+    // same flow at the outlet, on each stream line
+    const auto &gf = *fine.solver_case.gi->g, &gc = *coarse.solver_case.gi->g;
+    const size_t nj = gf.nCols();
+    for (size_t j = 0; j < nj; j++)
+    {
+        const auto &pf = gf(gf.nRows() - 1, j), &pc = gc(gc.nRows() - 1, j);
+        CHECK(pf.y == doctest::Approx(pc.y).epsilon(2e-3));
+        CHECK(pf.Vm == doctest::Approx(pc.Vm).epsilon(1e-2));
+        CHECK(pf.Tt == doctest::Approx(pc.Tt).epsilon(1e-4));
+    }
+
+    // the factor of a station: Wilkinson's optimum from its spacing and Mach number
+    auto gi = *fine.solver_case.gi;
+    const size_t i = gf.nRows() / 2;
+    double dm = std::numeric_limits<double>::max(), Mm2 = 0.;
+    for (size_t j = 0; j < nj; j++)
+    {
+        const auto &gp = gf(i, j);
+        dm = std::min({dm, gp.m - gf(i - 1, j).m, gf(i + 1, j).m - gp.m});
+        Mm2 += gp.Vm * gp.Vm / (gp.ga * gi.R * gp.Ts) / nj;
+    }
+    const double A = gf(i, nj - 1).l / dm;
+    REQUIRE(Mm2 < gi.RF_Mm2_max);
+    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + (1. - Mm2) * A * A / pb.options.relax_constant)));
+    // the Mach number limited, a fixed factor when not local
+    gi.RF_Mm2_max = Mm2 / 2;
+    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + (1. - Mm2 / 2) * A * A / pb.options.relax_constant)));
+    gi.RF_local = false;
+    CHECK(yams::station_relaxation(gi, i) == gi.RF);
 }
