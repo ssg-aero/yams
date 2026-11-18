@@ -1,0 +1,110 @@
+# TEMPORARY — diagnosis of the abort of test_mesh_base_channel on Windows
+# with conda clang (yams.mesh_channel). To be removed before merging.
+# Builds the Python bindings with debug info and runs the test under cdb:
+# stack of every first-chance C++ exception, then of abort/terminate.
+
+on:
+  push:
+    branches: [ci/github-actions]
+  workflow_dispatch:
+
+name: diag-windows-clang
+
+jobs:
+  diag:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup micromamba environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          micromamba-version: '2.8.1-1'
+          environment-name: yams-ci
+          condarc: |
+            channels:
+              - conda-forge
+              - ssg-aero
+          create-args: >-
+            python=3.13
+            cmake>=3.28
+            ninja
+            pybind11
+            vtk
+            gbs>=0.7
+            libiges
+            eigen>=3.3.9
+            libboost-devel
+            rapidjson
+            tbb
+            tbb-devel
+            doctest
+            numpy
+            pytest
+            pytest-timeout
+            clangxx
+            clang-tools
+            llvm-tools
+            lld
+          cache-environment: true
+          init-shell: none
+
+      - name: Activate micromamba env
+        run: |
+          env_path="$MAMBA_ROOT_PREFIX/envs/yams-ci"
+          echo "CONDA_PREFIX=$env_path" >> "$GITHUB_ENV"
+          echo "$env_path/Library/bin" >> "$GITHUB_PATH"
+          echo "$env_path/Library/usr/bin" >> "$GITHUB_PATH"
+          echo "$env_path/Library/mingw-w64/bin" >> "$GITHUB_PATH"
+          echo "$env_path/Scripts" >> "$GITHUB_PATH"
+          echo "$env_path" >> "$GITHUB_PATH"
+
+      - name: Configure (RelWithDebInfo, bindings only)
+        run: >-
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DBUILD_TESTS=OFF
+          -DBUILD_PYTHON_BINDING=ON
+          "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX/Library"
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_VERBOSE_MAKEFILE=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Install
+        run: |
+          cmake --install build
+          ls -la build/python
+
+      - name: Reproduce (plain pytest)
+        continue-on-error: true
+        env:
+          PYVISTA_OFF_SCREEN: "true"
+        run: pytest python/tests/test_mesh.py -v -k base_channel -p no:cacheprovider
+
+      - name: Stack under cdb
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          PYVISTA_OFF_SCREEN: "true"
+        run: |
+          CDB="/c/Program Files (x86)/Windows Kits/10/Debuggers/x64/cdb.exe"
+          ls -la "$CDB"
+          SRC=$(cygpath -w "$PWD")
+          cat > diag.cdb <<EOF
+          .symfix+ C:\\symbols
+          .sympath+ $SRC\\build\\python
+          .lines -e
+          sxe -c "kn 40; g" eh
+          bu ucrtbase!abort "kn 60; q"
+          bu ucrtbase!terminate "kn 60; q"
+          g
+          EOF
+          cat diag.cdb
+          "$CDB" -g -G -cf diag.cdb "$(cygpath -w "$CONDA_PREFIX/python.exe")" -m pytest python/tests/test_mesh.py -v -k "test_mesh_base_channel" -p no:cacheprovider -p no:faulthandler < /dev/null 2>&1 | grep -v "^ModLoad" | tail -400
