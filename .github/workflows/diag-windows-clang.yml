@@ -63,39 +63,10 @@ jobs:
           echo "$env_path/Scripts" >> "$GITHUB_PATH"
           echo "$env_path" >> "$GITHUB_PATH"
 
-      # Release builds of the bindings only, each installed then tested:
-      #   B: python/CMakeLists.txt without -ffast-math
-      #   C: python/CMakeLists.txt without -march=native
-      #   A: original flags, Release + CodeView debug info (for cdb, last)
-      - name: Variant B — Release without -ffast-math
-        continue-on-error: true
-        env:
-          PYVISTA_OFF_SCREEN: "true"
+      - name: Variant A — with -ffast-math, Release with debug info
         run: |
-          git checkout -- python/CMakeLists.txt
-          sed -i 's/-ffast-math//' python/CMakeLists.txt
-          grep -n "march\|fast-math" python/CMakeLists.txt
-          cmake -B build-b -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_PYTHON_BINDING=ON "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX/Library" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ > /dev/null
-          cmake --build build-b --parallel > /dev/null
-          cmake --install build-b > /dev/null
-          pytest python/tests/ -v -p no:cacheprovider -ra
-
-      - name: Variant C — Release without -march=native
-        continue-on-error: true
-        env:
-          PYVISTA_OFF_SCREEN: "true"
-        run: |
-          git checkout -- python/CMakeLists.txt
-          sed -i 's/-march=native//' python/CMakeLists.txt
-          grep -n "march\|fast-math" python/CMakeLists.txt
-          cmake -B build-c -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_PYTHON_BINDING=ON "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX/Library" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ > /dev/null
-          cmake --build build-c --parallel > /dev/null
-          cmake --install build-c > /dev/null
-          pytest python/tests/ -v -p no:cacheprovider -ra
-
-      - name: Variant A — original flags, Release with debug info
-        run: |
-          git checkout -- python/CMakeLists.txt
+          sed -i 's/-march=native$/-march=native -ffast-math/' python/CMakeLists.txt
+          grep -n "march" python/CMakeLists.txt
           cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_PYTHON_BINDING=ON "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX/Library" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG -g -gcodeview" "-DCMAKE_MODULE_LINKER_FLAGS=-Xlinker /DEBUG" "-DCMAKE_SHARED_LINKER_FLAGS=-Xlinker /DEBUG" > /dev/null
           cmake --build build --parallel > /dev/null
           cmake --install build > /dev/null
@@ -120,7 +91,9 @@ jobs:
           .symfix+ C:\\symbols
           .sympath+ $SRC\\build\\python
           .lines -e
-          sxe -c "kn 40; g" eh
+          .reload
+          kn 60
+          sxe -c "kn 60; g" eh
           bu ucrtbase!abort "kn 60; q"
           bu ucrtbase!terminate "kn 60; q"
           g
