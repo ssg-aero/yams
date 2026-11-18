@@ -38,24 +38,20 @@ set_target_properties(
     OUTPUT_NAME "yams"
 )
 
-if(MSVC)
-        target_compile_options(${PROJECT_NAME} PRIVATE
-                /arch:AVX2 
-        #         # /O2
-        #         # /Qpar
-        #         # /openmp
-                /fp:fast
-        #         # /fp:precise /fp:contract
-                # /Qvec-report:2
-        #         # /Qpar-report:2
-        )
-else()
-        # No -ffast-math: with clang on Windows (Release) it makes
-        # yams.mesh_channel throw a C++ exception that nothing catches
-        # (std::terminate, Python aborted in test_mesh_base_channel).
-        target_compile_options(${PROJECT_NAME} PRIVATE
-                -march=native
-        )
+# The module keeps the compiler's precise floating point (no /fp:fast, no
+# -ffast-math, which also made yams.mesh_channel throw an uncaught exception
+# with clang on Windows): the same results on every OS, and the robust
+# geometric predicates of gbs intact. It is built for the packager's target
+# CPU, not the build machine's: -march=native (/arch:AVX2 with MSVC) would
+# make a conda package that dies on an illegal instruction on an older CPU.
+# For a local build on this machine only:
+option(YAMS_PYTHON_NATIVE "Build the Python module for this machine's CPU (-march=native, /arch:AVX2 with MSVC): not for packages" OFF)
+if(YAMS_PYTHON_NATIVE)
+    if(MSVC)
+        target_compile_options(${PROJECT_NAME} PRIVATE /arch:AVX2)
+    else()
+        target_compile_options(${PROJECT_NAME} PRIVATE -march=native)
+    endif()
 endif()
 
 
