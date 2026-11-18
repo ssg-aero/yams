@@ -115,6 +115,14 @@ namespace yams
         bool converged = false;
         /// Set by curvature_solver: stopped by on_iteration
         bool cancelled = false;
+        /// Shapes of the computing stations, one curve per station from hub to shroud.
+        /// When given, the stream lines move along these curves, which the stations
+        /// then keep exactly; station_params[i][j] is the parameter of the grid point
+        /// (i, j) on its curve, updated by the solver. When empty, they move along the
+        /// broken line through the current points of each station (a curved station
+        /// then loses its shape as the stream lines move).
+        std::vector<gbs::BSCurve<T, 2>> station_curves;
+        std::vector<std::vector<T>> station_params;
     };
 
 }

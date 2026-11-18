@@ -1,6 +1,8 @@
 #include "yams_doctest.h"
 #include <meridionalapi.h>
 
+#include <algorithm>
+#include <limits>
 #include <numbers>
 
 namespace
@@ -122,4 +124,187 @@ TEST_CASE("meridionalapi.empty_grid")
     REQUIRE_THROWS_AS(
         yams::make_solver_case<double>(yams::MeridionalGrid<double>{}, std::vector<yams::BladeInfo<double>>{}),
         std::invalid_argument);
+}
+
+namespace
+{
+    // Distance from (z, r) to the polyline of the curve sampled at n + 1 points.
+    double distance_to(const Curve2d &c, double z, double r, size_t n = 2000)
+    {
+        auto [u1, u2] = c.bounds();
+        double d = std::numeric_limits<double>::max();
+        auto a = c(u1);
+        for (size_t k = 1; k <= n; k++)
+        {
+            auto b = c(u1 + (u2 - u1) * k / n);
+            const double ex = b[0] - a[0], ey = b[1] - a[1], l2 = ex * ex + ey * ey;
+            const double t = l2 > 0. ? std::clamp(((z - a[0]) * ex + (r - a[1]) * ey) / l2, 0., 1.) : 0.;
+            d = std::min(d, std::hypot(a[0] + t * ex - z, a[1] + t * ey - r));
+            a = b;
+        }
+        return d;
+    }
+
+    // The rotor with curved edges: a bowed leading edge, a leaning trailing edge.
+    yams::api::Problem annulus_rotor_traces()
+    {
+        auto pb = annulus_rotor();
+        pb.rows[0].le_trace = Curve2d{{{0.38, 0.5}, {0.34, 0.75}, {0.42, 1.0}}, {0., 0., 0., 1., 1., 1.}, 2};
+        pb.rows[0].te_trace = straight(0.58, 0.5, 0.64, 1.0);
+        // Stations no closer than about a twentieth of the span: closer ones make
+        // the stream lines unstable (41 here leaves them oscillating).
+        pb.options.n_stations = 21;
+        return pb;
+    }
+}
+
+TEST_CASE("meridionalapi.edge_traces")
+{
+    const auto pb = annulus_rotor_traces();
+    std::vector<yams::api::RowStations> rows;
+    {
+        // The edges' stations follow their traces, their ends on the walls; the
+        // stations in between blend them.
+        auto sc = yams::api::make_case(pb, &rows);
+        const auto &g = *sc.gi->g;
+        const size_t nj = g.nCols();
+        const auto [i_le, i_te] = rows[0];
+        REQUIRE(g(i_le, 0).x == doctest::Approx(0.38));
+        REQUIRE(g(i_le, 0).y == doctest::Approx(0.5));
+        REQUIRE(g(i_le, nj - 1).x == doctest::Approx(0.42));
+        REQUIRE(g(i_le, nj - 1).y == doctest::Approx(1.0));
+        for (size_t j = 0; j < nj; j++)
+        {
+            REQUIRE(distance_to(*pb.rows[0].le_trace, g(i_le, j).x, g(i_le, j).y) < 1e-4);
+            REQUIRE(distance_to(*pb.rows[0].te_trace, g(i_te, j).x, g(i_te, j).y) < 1e-4);
+            for (size_t i = 1; i < g.nRows(); i++)
+                REQUIRE(g(i, j).x > g(i - 1, j).x);
+        }
+        // the bow: the middle of the leading edge upstream of its ends
+        REQUIRE(g(i_le, nj / 2).x < 0.38);
+        // the inlet and outlet stay at constant z
+        for (size_t j = 0; j < nj; j++)
+        {
+            REQUIRE(g(0, j).x == 0.);
+            REQUIRE(g(g.nRows() - 1, j).x == 1.);
+        }
+    }
+
+    // A trace given from shroud to hub: the same grid.
+    {
+        auto pb2 = pb;
+        auto poles = pb2.rows[0].le_trace->poles();
+        std::reverse(poles.begin(), poles.end());
+        pb2.rows[0].le_trace = Curve2d{poles, {0., 0., 0., 1., 1., 1.}, 2};
+        auto a = yams::api::make_case(pb);
+        auto b = yams::api::make_case(pb2);
+        const auto &ga = *a.gi->g, &gb = *b.gi->g;
+        for (size_t i = 0; i < ga.nRows(); i++)
+            for (size_t j = 0; j < ga.nCols(); j++)
+            {
+                REQUIRE(gb(i, j).x == doctest::Approx(ga(i, j).x));
+                REQUIRE(gb(i, j).y == doctest::Approx(ga(i, j).y));
+            }
+    }
+
+    // Solved: the stream lines move along the stations, which keep their shape; the
+    // flow leaves at the metal angle, rothalpy conserved.
+    {
+        auto res = yams::api::solve(pb);
+        REQUIRE(res.status == yams::api::Status::Converged);
+        const auto &g = *res.solver_case.gi->g;
+        const auto [i_le, i_te] = res.rows[0];
+        for (size_t j = 0; j < g.nCols(); j++)
+        {
+            // as close as before solving: the stations keep their shapes
+            REQUIRE(distance_to(*pb.rows[0].le_trace, g(i_le, j).x, g(i_le, j).y) < 1e-4);
+            REQUIRE(distance_to(*pb.rows[0].te_trace, g(i_te, j).x, g(i_te, j).y) < 1e-6);
+            REQUIRE(g(i_te, j).bet == doctest::Approx(-20. * std::numbers::pi / 180.));
+            REQUIRE(g(i_te, j).I == doctest::Approx(g(i_le - 1, j).I).epsilon(1e-12));
+        }
+    }
+
+    // Edges that cross: refused.
+    {
+        auto bad = pb;
+        bad.rows[0].te_trace = straight(0.6, 0.5, 0.36, 1.0);
+        REQUIRE_THROWS_AS(yams::api::make_case(bad), std::invalid_argument);
+    }
+}
+
+TEST_CASE("meridionalapi.edge_traces_off_the_walls")
+{
+    // The same edges, their traces going beyond the walls or stopping short of them
+    // (a tip gap): the stations are the same, on the part between hub and shroud.
+    const auto pb = annulus_rotor_traces();
+    const auto ref = yams::api::make_case(pb);
+    const auto &g_ref = *ref.gi->g;
+    // the trailing edge's line: z = 0.58 + 0.12 (r - 0.5)
+    auto te = [](double r1, double r2) { return straight(0.58 + 0.12 * (r1 - 0.5), r1, 0.58 + 0.12 * (r2 - 0.5), r2); };
+    for (const auto &trace : {te(0.4, 1.1), te(0.52, 0.97), te(1.1, 0.52)})
+    {
+        auto pb2 = pb;
+        pb2.rows[0].te_trace = trace;
+        const auto sc = yams::api::make_case(pb2);
+        const auto &g = *sc.gi->g;
+        REQUIRE(g.nRows() == g_ref.nRows());
+        for (size_t i = 0; i < g.nRows(); i++)
+            for (size_t j = 0; j < g.nCols(); j++)
+            {
+                REQUIRE(g(i, j).x == doctest::Approx(g_ref(i, j).x).epsilon(1e-9));
+                REQUIRE(g(i, j).y == doctest::Approx(g_ref(i, j).y).epsilon(1e-9));
+            }
+    }
+
+    // a trace that is not across the channel
+    auto bad = pb;
+    bad.rows[0].te_trace = straight(0.58, 1.2, 0.64, 1.5);
+    REQUIRE_THROWS_AS(yams::api::make_case(bad), std::invalid_argument);
+}
+
+TEST_CASE("meridionalapi.edge_trace_and_constant_z")
+{
+    // A row with one edge along its trace and the other at constant z
+    auto pb = annulus_rotor_traces();
+    pb.rows[0].te_trace.reset();
+    std::vector<yams::api::RowStations> rows;
+    const auto sc = yams::api::make_case(pb, &rows);
+    const auto &g = *sc.gi->g;
+    for (size_t j = 0; j < g.nCols(); j++)
+    {
+        REQUIRE(distance_to(*pb.rows[0].le_trace, g(rows[0].i_le, j).x, g(rows[0].i_le, j).y) < 1e-4);
+        REQUIRE(g(rows[0].i_te, j).x == 0.6);
+    }
+}
+
+TEST_CASE("meridionalapi.stations_inside_the_channel")
+{
+    // A hub with a bump and a leading edge leaning back over it: the line between the
+    // trace's ends goes through the hub downstream of the bump. The station is the
+    // part of the trace from the shroud down to the hub, and every station stays
+    // between the walls.
+    auto pb = annulus_rotor();
+    pb.hub = Curve2d{{{0., 0.5}, {0.5, 0.9}, {1., 0.5}}, {0., 0., 0., 1., 1., 1.}, 2};
+    pb.rows[0].le_trace = straight(0.9, 0.572, 0.1, 1.0);
+    pb.rows[0].z_te = 0.95;
+    std::vector<yams::api::RowStations> rows;
+    const auto sc = yams::api::make_case(pb, &rows);
+    const auto &g = *sc.gi->g;
+    const yams::api::detail::Wall hub{pb.hub, "hub"};
+    REQUIRE(g(rows[0].i_le, 0).x < 0.8); // cut where the trace first meets the hub
+    for (size_t i = 0; i < g.nRows(); i++)
+        for (size_t j = 1; j < g.nCols(); j++)
+        {
+            REQUIRE(g(i, j).y > hub.r(g(i, j).x));
+            REQUIRE(g(i, j).y <= 1.0);
+        }
+}
+
+TEST_CASE("meridionalapi.station_spacing")
+{
+    // 21 stations on a channel of length 1 and span 0.5: 0.05 / 0.5
+    auto pb = annulus_rotor();
+    pb.options.n_stations = 21;
+    pb.options.max_geom = 1;
+    REQUIRE(yams::api::solve(pb).station_spacing == doctest::Approx(0.1));
 }
