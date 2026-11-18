@@ -433,7 +433,7 @@ namespace yams
                             }
                         }
                     );
-                    compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
+                    compute_grid_metrics(g,g_metrics,f_m,f_l,gi.curvature);// TODO run in // 
                 //  // set connections curvature influence
                 //     std::for_each(
                 //         set.connections().begin(),set.connections().end(),

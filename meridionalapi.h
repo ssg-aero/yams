@@ -94,8 +94,9 @@ namespace yams::api
         /// diverges once the stations are too close for it.
         bool local_relaxation{true};
         /// Its constant (GridInfo::RF_B), > 0; by default the curvature method's
-        /// (default_relax_constant): Wilkinson's analysis gives 96 / (5 |k_min|), the
-        /// optimum and about the stability limit, 19 for DoubleDifferentiation.
+        /// (default_relax_constant). At most max_relax_constant(curvature), the
+        /// method's stability limit (Wilkinson's 96 / (5 |k_min|): 19.2, 9.6, 4.8):
+        /// a constant set for one method is refused with a less stable one.
         std::optional<double> relax_constant;
         /// Its meridional Mach number squared limit (GridInfo::RF_Mm2_max), in [0, 1[.
         /// Not used when not compressible.
@@ -110,19 +111,8 @@ namespace yams::api
         CurvatureMethod curvature{CurvatureMethod::Blended};
     };
 
-    /// The relaxation constant for a curvature method, about 2/3 of the stability
-    /// limit found on an annulus and on NASA Rotor 37 (16 to 20, 8 to 9, 4 to 5
-    /// from 31 to 81 stations), itself close to Wilkinson's 96 / (5 |k_min|).
-    inline double default_relax_constant(CurvatureMethod method)
-    {
-        switch (method)
-        {
-        case CurvatureMethod::DoubleDifferentiation: return 12.;
-        case CurvatureMethod::Blended: return 6.;
-        case CurvatureMethod::ThreePoint: return 3.;
-        }
-        return 3.;
-    }
+    using yams::default_relax_constant;
+    using yams::max_relax_constant;
 
     struct Problem
     {
@@ -402,6 +392,11 @@ namespace yams::api
         if (opt.local_relaxation &&
             (!(relax_constant > 0.) || !(opt.relax_mach2_max >= 0. && opt.relax_mach2_max < 1.)))
             throw std::invalid_argument("yams: the local relaxation needs relax_constant > 0 and 0 <= relax_mach2_max < 1");
+        if (opt.local_relaxation && relax_constant > max_relax_constant(opt.curvature))
+            throw std::invalid_argument("yams: relax_constant " + std::to_string(relax_constant) +
+                                        " is above the stability limit of the curvature method, " +
+                                        std::to_string(max_relax_constant(opt.curvature)) +
+                                        " (leave it unset for the method's default)");
 
         const size_t nj = opt.n_streams;
         // The stations' shapes are held on more points than there are stream lines

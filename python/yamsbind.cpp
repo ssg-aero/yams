@@ -128,6 +128,10 @@ PYBIND11_MODULE(yams, m)
     .value("DoubleDifferentiation", CurvatureMethod::DoubleDifferentiation)
     .value("Blended", CurvatureMethod::Blended)
     .value("ThreePoint", CurvatureMethod::ThreePoint);
+    m.def("default_relax_constant", &default_relax_constant,
+          "The relaxation constant (GridInfo.RF_B) to use with a curvature method", py::arg("method"));
+    m.def("max_relax_constant", &max_relax_constant,
+          "The largest relaxation constant (GridInfo.RF_B) a curvature method is stable with", py::arg("method"));
 
     py::enum_<MeridionalBladeMode>(m, "MeridionalBladeMode", py::arithmetic())
     .value("DESIGN_BETA_OUT", MeridionalBladeMode::DESIGN_BETA_OUT)

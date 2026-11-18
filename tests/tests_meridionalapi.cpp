@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -530,7 +529,6 @@ TEST_CASE("meridionalapi.curvature_waves")
     CHECK(bl.solver_case.gi->RF_B == yams::api::default_relax_constant(yams::CurvatureMethod::Blended));
 
     const auto &gd = *dd.solver_case.gi->g, &gb = *bl.solver_case.gi->g;
-    std::printf("zigzag: double differentiation %g, blended %g\n", zigzag(gd), zigzag(gb));
     CHECK(zigzag(gb) < zigzag(gd) / 3);
     for (size_t j = 0; j < gd.nCols(); j++)
     {
@@ -538,4 +536,62 @@ TEST_CASE("meridionalapi.curvature_waves")
         CHECK(pb_.Tt == doctest::Approx(pd.Tt).epsilon(1e-4));
         CHECK(pb_.Vm == doctest::Approx(pd.Vm).epsilon(1e-2));
     }
+}
+
+TEST_CASE("meridionalapi.curvature_three_point")
+{
+    // The three-point curvature in a whole run: the least stable method, with
+    // its own relaxation constant, converges to the same flow with less zigzag
+    // than the double differentiation.
+    auto pb = annulus_rotor_traces();
+    pb.options.curvature = yams::CurvatureMethod::DoubleDifferentiation;
+    const auto dd = yams::api::solve(pb);
+    REQUIRE(dd.status == yams::api::Status::Converged);
+    pb.options.curvature = yams::CurvatureMethod::ThreePoint;
+    const auto tp = yams::api::solve(pb);
+    REQUIRE(tp.status == yams::api::Status::Converged);
+    CHECK(tp.solver_case.gi->RF_B == doctest::Approx(3.));
+    const auto &gd = *dd.solver_case.gi->g, &gt = *tp.solver_case.gi->g;
+    CHECK(zigzag(gt) < zigzag(gd) / 3);
+    for (size_t j = 0; j < gd.nCols(); j++)
+    {
+        const auto &pd = gd(gd.nRows() - 1, j), &pt = gt(gt.nRows() - 1, j);
+        CHECK(pt.Tt == doctest::Approx(pd.Tt).epsilon(1e-4));
+        CHECK(pt.Vm == doctest::Approx(pd.Vm).epsilon(1e-2));
+    }
+}
+
+TEST_CASE("meridionalapi.curvature_ends_and_limits")
+{
+    using yams::CurvatureMethod;
+    // A zigzag from one station to the next: at the first and last stations the
+    // three-point curvature is the one of the station next to them, not three
+    // times it as a linear extrapolation would give.
+    const size_t ni = 21, nj = 3;
+    std::vector<std::array<double, 2>> zig;
+    for (size_t j = 0; j < nj; j++)
+        for (size_t i = 0; i < ni; i++)
+            zig.push_back({0.05 * i, 1. + 0.1 * j + (i % 2 ? 0.002 : -0.002)});
+    auto z = yams::make_meridional_grid<double>(zig, ni, nj);
+    auto g_metrics = yams::Grid2dMetrics<double>{ni, nj};
+    yams::compute_grid_metrics(z, g_metrics, yams::fm, yams::fl, CurvatureMethod::ThreePoint);
+    CHECK(z(0, 1).cur == doctest::Approx(z(1, 1).cur));
+    CHECK(z(ni - 1, 1).cur == doctest::Approx(z(ni - 2, 1).cur));
+
+    // two points that coincide: no curvature, not a value that is not finite
+    yams::MeridionalGridPoint<double> a, b, c;
+    a.x = 0., a.y = 1., b = a, c.x = 1., c.y = 1.;
+    CHECK(yams::three_point_curvature(a, b, c) == 0.);
+
+    // a relaxation constant above the method's stability limit is refused: 12
+    // suits the double differentiation, not the default (Blended) curvature
+    CHECK(yams::max_relax_constant(CurvatureMethod::Blended) == doctest::Approx(9.6));
+    CHECK(yams::default_relax_constant(CurvatureMethod::DoubleDifferentiation) == doctest::Approx(12.));
+    CHECK(yams::default_relax_constant(CurvatureMethod::Blended) == doctest::Approx(6.));
+    CHECK(yams::default_relax_constant(CurvatureMethod::ThreePoint) == doctest::Approx(3.));
+    auto pb = annulus_rotor();
+    pb.options.relax_constant = 12.;
+    CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
+    pb.options.curvature = CurvatureMethod::DoubleDifferentiation;
+    CHECK_NOTHROW(yams::api::make_case(pb));
 }
