@@ -116,8 +116,9 @@ namespace yams
         bool converged = false;
         /// Set by curvature_solver: stopped by on_iteration
         bool cancelled = false;
-        /// Set by curvature_solver: an iteration failed (non-finite residuals, or an
-        /// exception from the stream lines, e.g. a station curve whose points cross)
+        /// Set by curvature_solver: the stream lines could no longer be relocated
+        /// (they cross or coincide on a station, or their positions or residuals are
+        /// not finite). The run ends there, on the grid of its last complete iteration.
         bool diverged = false;
         /// Why, when diverged
         std::string divergence;

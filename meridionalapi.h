@@ -106,7 +106,7 @@ namespace yams::api
         Converged,     ///< stream lines positions within tol_rel_pos
         NotConverged,  ///< max_geom reached
         Cancelled,     ///< stopped by the progress callback
-        Diverged,      ///< non finite values in the solution, or an iteration that failed (Result::divergence)
+        Diverged,      ///< non finite values in the solution, or stream lines that could no longer be relocated (Result::divergence)
     };
 
     inline const char *to_string(Status status)
@@ -136,7 +136,7 @@ namespace yams::api
         /// initial grid, relative to the span there. Below about 0.05 to 0.1 the stream
         /// lines oscillate and the solver does not converge: use fewer stations.
         double station_spacing{};
-        std::string divergence;             ///< why, when Diverged by an iteration that failed
+        std::string divergence;             ///< why, when the stream lines could no longer be relocated
         std::vector<double> residual_max;   ///< per iteration, relative to the span
         std::vector<double> residual_mean;
         std::vector<RowStations> rows;

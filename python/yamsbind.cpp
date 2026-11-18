@@ -197,6 +197,8 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("on_iteration",&SolverCase<T>::on_iteration)
     .def_readonly("converged",&SolverCase<T>::converged)
     .def_readonly("cancelled",&SolverCase<T>::cancelled)
+    .def_readonly("diverged",&SolverCase<T>::diverged)
+    .def_readonly("divergence",&SolverCase<T>::divergence)
     .def("__copy__",  [](const  SolverCase<T> &self) {
         return  SolverCase<T>(self);
     })

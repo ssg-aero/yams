@@ -5,6 +5,7 @@
 #include <matrix/tridiagonal.h>
 #include <numbers>
 #include <gbs/execution.h>
+#include <parallel.h>
 
 namespace yams
 {
@@ -490,12 +491,10 @@ namespace yams
             )
         {
             // Compute W profile on each plane
-            std::for_each(
-                GBS_PAR_EXEC
-                computational_planes_offsets.begin(),
-                computational_planes_offsets.end(),
-                [this](auto id_start)
-                { this->computeW(id_start); });
+            // (detail::par_for: an exception must not escape a parallel algorithm)
+            detail::par_for(computational_planes_offsets.size(),
+                [this](size_t k)
+                { this->computeW(computational_planes_offsets[k]); });
             // Update energy and compressibility
             compressibility_residual = {dat.R};
             computeFlowData();
@@ -562,12 +561,9 @@ namespace yams
 
                 // std::cout << "residual_per_le: " << residual_per_te << " residual_per_te: " << residual_per_te << std::endl;
 
-                std::for_each(
-                    GBS_PAR_EXEC
-                    std::next(computational_planes_offsets.begin()),
-                    computational_planes_offsets.end(),
-                    [this](auto id_start){
-                        this->balanceMassFlow(id_start);
+                detail::par_for(computational_planes_offsets.size() - 1,
+                    [this](size_t k){
+                        this->balanceMassFlow(computational_planes_offsets[k + 1]);
                     }
                 );
                 // residual_geom_ = *std::max_element(residual_geom.begin(), residual_geom.end());
