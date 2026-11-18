@@ -1,6 +1,8 @@
 #pragma once
 #include <datastorage.h>
 #include <meridionalsolvercase.h>
+#include <algorithm>
+#include <limits>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -27,6 +29,23 @@ namespace yams
                 g(i, j).l = j == 0 ? 0. : g(i, j - 1).l + distance(g(i, j), g(i, j - 1));
             }
         }
+    }
+
+    /// Smallest distance from station i to its neighbouring stations, along any
+    /// stream line (from the abscissas m of compute_abscissas).
+    template <typename T>
+    inline T station_min_spacing(const MeridionalGrid<T> &g, size_t i)
+    {
+        const size_t ni = g.nRows(), nj = g.nCols();
+        T dm = std::numeric_limits<T>::max();
+        for (size_t j = 0; j < nj; j++)
+        {
+            if (i > 0)
+                dm = std::min(dm, g(i, j).m - g(i - 1, j).m);
+            if (i + 1 < ni)
+                dm = std::min(dm, g(i + 1, j).m - g(i, j).m);
+        }
+        return dm;
     }
 
 

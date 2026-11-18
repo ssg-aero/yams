@@ -20,7 +20,18 @@ namespace yams
         T R = 287.04; // perfect gas constant
         T Pref = 1.01325e5;
         T Tref = 288.;
+        /// Stream lines relocation relaxation: the fraction of each computed
+        /// correction applied per iteration, at every station unless RF_local.
         T RF = 0.01;
+        /// Relaxation at each station from its grid aspect ratio and Mach number
+        /// (station_relaxation), in place of RF: the stability analysis of
+        /// Wilkinson (1969) as applied to axisymmetric flow by Hearsey (1975).
+        bool RF_local = false;
+        /// Its constant: 8 from the analysis, 6 (Hearsey's default) for a margin.
+        T RF_B = 6.;
+        /// Its meridional Mach number squared is limited to this, keeping some
+        /// relaxation in transonic flow (Hearsey's XMMAX).
+        T RF_Mm2_max = 0.6;
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =200;

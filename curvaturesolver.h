@@ -7,8 +7,10 @@
 #include <meshtools.h>
 #include <parallel.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 #include <string>
@@ -567,23 +569,52 @@ namespace yams
     //         vec.end());
     // }
 
-    // template <typename T>
-    // inline auto eval_RF(const MeridionalGrid<T> &g, int i, T B_)
-    // {
-
-    //     T dm_max = 0.;
-    //     if (i > 0)
-    //     {
-    //         dm_max = find_streamsheet_max(g, i, -1, f_m);
-    //     }
-    //     if (i < g.nRows() - 1)
-    //     {
-    //         dm_max = fmax(dm_max, find_streamsheet_max(g, i + 1, -1, f_m));
-    //     }
-    //     auto Mm = fmax(0.95, find_streamsheet_max(g, i, f_Mm));
-    //     auto l = (*(std::next(g.end(i), -1))).l;
-    //     return 1. / (1. + (1 - Mm * Mm) * l * l / (B_ * dm_max * dm_max) );
-    // }
+    /// Relaxation of the stream lines' relocation at station i: Wilkinson's
+    /// optimum factor (Proc. IMechE 184 Pt 3G, 1969), in Hearsey's axisymmetric
+    /// form (AD-A009 273, 1975),
+    ///     1 / (1 + (1 - Mm^2) A^2 / B),
+    /// A the aspect ratio of the grid at the station, its span over its spacing
+    /// (station_min_spacing: the smallest to a neighbouring station along any
+    /// stream line, so one place where two stations come close slows the whole
+    /// station), Mm^2 the mean over the station of its meridional Mach number
+    /// squared, limited to RF_Mm2_max and 0 for a constant density, B = RF_B.
+    /// The correction of a stream line overshoots the more the stations are close
+    /// compared with the span: a fixed factor that suits a coarse grid makes a
+    /// fine one diverge. gi.RF when not RF_local.
+    /// @throw std::invalid_argument unless RF_B > 0 and 0 <= RF_Mm2_max < 1
+    /// @throw SolverDivergence if the station touches a neighbour (no spacing)
+    template <typename T>
+    T station_relaxation(const GridInfo<T> &gi, size_t i)
+    {
+        if (!gi.RF_local)
+            return gi.RF;
+        if (!(gi.RF_B > 0.) || !(gi.RF_Mm2_max >= 0. && gi.RF_Mm2_max < 1.))
+            throw std::invalid_argument("yams: the local relaxation needs RF_B > 0 and 0 <= RF_Mm2_max < 1");
+        const auto &g = *gi.g;
+        const size_t nj = g.nCols();
+        const T span = g(i, nj - 1).l;
+        // a grid not yet measured (no abscissas): the fixed factor
+        if (!(span > 0.))
+            return gi.RF;
+        T Mm2 = 0.;
+        if (!gi.rho_cst) // a constant density has no Mach number effect
+        {
+            for (size_t j = 0; j < nj; j++)
+            {
+                const auto &gp = g(i, j);
+                Mm2 += gp.Vm * gp.Vm / (gp.ga * gi.R * gp.Ts);
+            }
+            // not finite (no flow yet): none, the smallest factor
+            Mm2 = std::isfinite(Mm2) ? std::clamp(Mm2 / nj, T{0}, gi.RF_Mm2_max) : T{0};
+        }
+        const T A = span / station_min_spacing(g, i);
+        const T RF = 1. / (1. + (1. - Mm2) * A * A / gi.RF_B);
+        // no spacing: the factor would be 0, and a fixed one the largest where the
+        // smallest is needed
+        if (!(RF > 0.))
+            throw SolverDivergence("station " + std::to_string(i) + " touches a neighbouring station on a stream line, or its spacing is not finite");
+        return std::min(RF, T{1});
+    }
 
     template <typename T>
     auto balance_massflow(SolverCase<T> &solver_case, int i, T tol_mf)
@@ -618,12 +649,9 @@ namespace yams
         auto f_Q = gbs::interpolate(q, u, f_X.degree());
 
         auto span_geom_residual = 0.;
-        auto RF = gi.RF;
+        auto RF = station_relaxation(gi, static_cast<size_t>(i));
         auto tol_f = gi.tol_newtow_mf_f;
         auto tol_u = gi.tol_newtow_mf_u;
-
-        // T B_ = fmin(8., 0.5 * 60. / g.nRows());
-        // auto RF = eval_RF(g,i,B_);
 
         auto count = nj-1;
         auto [u1, u2] = f_Q.bounds();
