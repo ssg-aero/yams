@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <datastorage.h>
 #include <optional>
 #include <functional>
@@ -115,6 +116,11 @@ namespace yams
         bool converged = false;
         /// Set by curvature_solver: stopped by on_iteration
         bool cancelled = false;
+        /// Set by curvature_solver: an iteration failed (non-finite residuals, or an
+        /// exception from the stream lines, e.g. a station curve whose points cross)
+        bool diverged = false;
+        /// Why, when diverged
+        std::string divergence;
         /// Shapes of the computing stations, one curve per station from hub to shroud.
         /// When given, the stream lines move along these curves, which the stations
         /// then keep exactly; station_params[i][j] is the parameter of the grid point

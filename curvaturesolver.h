@@ -6,6 +6,12 @@
 #include <gbs/bscapprox.h>
 #include <meshtools.h>
 
+#include <cmath>
+#include <exception>
+#include <numeric>
+#include <string>
+#include <vector>
+
 // const bool use_meridional_grad = false;
 // const bool use_meridional_grad = true;
 const bool verbose = false;
@@ -13,6 +19,27 @@ const bool verbose = false;
 
 namespace yams
 {
+    namespace detail
+    {
+        /// f(i) for i in [0, n), in parallel (GBS_PAR_EXEC). An exception escaping
+        /// the function of a parallel algorithm calls std::terminate (MSVC: the
+        /// process ends with 0xc0000409): each call is trapped, and the first
+        /// failure (lowest i, as a serial loop would throw) is rethrown after.
+        template <class F>
+        void par_for(size_t n, F f)
+        {
+            std::vector<std::exception_ptr> errs(n);
+            std::vector<size_t> idx(n);
+            std::iota(idx.begin(), idx.end(), size_t{0});
+            std::for_each(GBS_PAR_EXEC idx.begin(), idx.end(), [&](size_t i)
+                          {
+                try { f(i); }
+                catch (...) { errs[i] = std::current_exception(); } });
+            for (const auto &e : errs)
+                if (e)
+                    std::rethrow_exception(e);
+        }
+    }
 
     using gbs::operator*;
     using gbs::operator+;
@@ -890,8 +917,15 @@ namespace yams
         // apply rotation speeds
         apply_rotation_speeds(solver_case);
         // run computation
+        solver_case.diverged = false;
+        solver_case.divergence.clear();
         while (!converged && (count_geom < max_geom))
         {
+          // An iteration that throws (stream lines crossing: a station curve with
+          // unordered knots) or gives non-finite residuals ends the run, diverged:
+          // the caller sees it rather than an exception from the solver's middle.
+          try
+          {
             // integrate radial eq equation and update gas properties
             size_t grad_count{};
             size_t max_grd_count = solver_case.use_meridional_grad ? 10 : 1;
@@ -901,9 +935,7 @@ namespace yams
                 // compute_vm_distribution2(solver_case, tol_rel_mf, eps, true);
                 if(solver_case.use_meridional_grad)
                 {
-                    std::for_each( // update meridional gradients
-                        GBS_PAR_EXEC
-                        span_range.begin(), span_range.end(),
+                    detail::par_for(ni, // update meridional gradients
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
                             {
@@ -963,9 +995,7 @@ namespace yams
             // update density
             if(!gi.rho_cst && delta_pos_moy < 1e-2 )
             {
-                std::for_each(
-                        GBS_PAR_EXEC
-                        span_range.begin(), span_range.end(),
+                detail::par_for(ni,
                         [&](const auto &i){
                             for (size_t j{}; j < nj; j++)
                             {
@@ -976,9 +1006,7 @@ namespace yams
                 );
             }
             // Compute mass flow distribution
-           std::for_each(
-                GBS_PAR_EXEC
-                span_range.begin(), span_range.end(),
+           detail::par_for(ni,
                 [&](const auto &i){
                     compute_massflow_distribution(g.begin(i), g.end(i));
                     // for (size_t j{}; j < nj; j++)
@@ -988,14 +1016,10 @@ namespace yams
                 }
            );
            // relocate streams to balance mass flow
-           std::transform(
-                GBS_PAR_EXEC
-                span_range.begin(),
-                span_range.end(),
-                delta_pos_array.begin(),
+           detail::par_for(ni,
                 [&](const auto &i)
                 {
-                    return balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
+                    delta_pos_array[i] = balance_massflow(solver_case, i, tol_rel_mf * solver_case.mf[i]) / g(i,nj-1).l;
                 }
            );
             // // apply boundary conditions if static conditions
@@ -1018,9 +1042,18 @@ namespace yams
             solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
             // update metrics
             compute_grid_metrics(g,g_metrics,f_m,f_l);// TODO run in // 
+            if (!std::isfinite(delta_pos_moy) || !std::isfinite(delta_pos_max))
+                throw std::runtime_error("non-finite stream lines displacement");
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;
+          }
+          catch (const std::exception &e)
+          {
+              solver_case.diverged = true;
+              solver_case.divergence = e.what();
+              break;
+          }
             if (solver_case.on_iteration && !solver_case.on_iteration(count_geom, delta_pos_max, delta_pos_moy))
             {
                 solver_case.cancelled = true;
