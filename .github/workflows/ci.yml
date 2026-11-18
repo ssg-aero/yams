@@ -253,6 +253,7 @@ jobs:
       # Installs the bindings into site-packages (pyams/) so that
       # `import pyams.yams` works from the Python tests.
       - name: Install
+        id: install
         run: cmake --install build
 
       # ------------------------------------------------------------
@@ -280,9 +281,10 @@ jobs:
 
       # ------------------------------------------------------------
       # Python tests (pytest) — off-screen, no interactive plot
+      # Run even when ctest failed, as long as the build was installed.
       # ------------------------------------------------------------
       - name: Test Python (Windows)
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && runner.os == 'Windows' }}
         env:
           PYVISTA_OFF_SCREEN: "true"
         run: |
@@ -290,7 +292,7 @@ jobs:
           pytest python/tests/ -v --timeout=300 -ra
 
       - name: Test Python (Linux)
-        if: runner.os == 'Linux'
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && runner.os == 'Linux' }}
         env:
           PYVISTA_OFF_SCREEN: "true"
         run: |
@@ -298,7 +300,7 @@ jobs:
           xvfb-run -a pytest python/tests/ -v --timeout=300 -ra
 
       - name: Test Python (macOS)
-        if: runner.os == 'macOS'
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && runner.os == 'macOS' }}
         env:
           PYVISTA_OFF_SCREEN: "true"
         run: |
