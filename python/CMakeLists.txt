@@ -50,9 +50,11 @@ if(MSVC)
         #         # /Qpar-report:2
         )
 else()
+        # No -ffast-math: with clang on Windows (Release) it makes
+        # yams.mesh_channel throw a C++ exception that nothing catches
+        # (std::terminate, Python aborted in test_mesh_base_channel).
         target_compile_options(${PROJECT_NAME} PRIVATE
-                -march=native 
-                -ffast-math
+                -march=native
         )
 endif()
 
