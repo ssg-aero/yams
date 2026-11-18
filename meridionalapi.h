@@ -8,18 +8,25 @@
  * returns a status. Meant for applications (e.g. Turbo Blade Forge) that own the
  * geometry and run the solver in a worker thread.
  *
- * V1 limits:
- * - the computing stations are lines of constant z from hub to shroud: the hub and
- *   shroud z must increase along the curves (axial or mixed flow channel, not radial);
+ * The computing stations of the blade rows edges follow the edges' meridional
+ * traces when they are given (BladeRow::le_trace / te_trace), else they are lines of
+ * constant z; the inlet and outlet stations are lines of constant z, and the stations
+ * in between blend their two neighbouring edges' (or the inlet's, the outlet's).
+ *
+ * Limits:
+ * - the hub and shroud z must increase along the curves, and the stations' ends along
+ *   them (axial or mixed flow channel, not radial);
  * - blade rows are in DIRECT mode (metal angle imposed, no deviation model).
  */
 #include <curvaturesolver.h>
 #include <gbs/bscurve.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <functional>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -28,12 +35,18 @@ namespace yams::api
 {
     using Curve2d = gbs::BSCurve<double, 2>;
 
-    /// Blade row, edges at constant z
+    /// Blade row: its edges at constant z, or along their meridional traces
     struct BladeRow
     {
         std::string name;
-        double z_le{};          ///< leading edge axial position
-        double z_te{};          ///< trailing edge axial position
+        double z_le{};          ///< leading edge axial position (without le_trace)
+        double z_te{};          ///< trailing edge axial position (without te_trace)
+        /// Meridional traces of the edges, (z, r) curves from hub to shroud (either
+        /// way). When given, the edge's computing station follows it, its ends put
+        /// on the hub and the shroud at the trace's ends' z, and z_le / z_te are not
+        /// used.
+        std::optional<Curve2d> le_trace;
+        std::optional<Curve2d> te_trace;
         double rpm{};           ///< rotation speed, 0 for a stator
         size_t blade_count{2};
         /// Metal angle (rad, yams convention: beta = atan2(Wu, Vm), Wu = Vu - omega r),
@@ -147,6 +160,96 @@ namespace yams::api
             return 0.5 * (a + b);
         }
 
+        using Vec2 = std::array<double, 2>;
+
+        /// A computing station: its ends on the hub and the shroud at z_hub and
+        /// z_shroud, its points (span fractions t_j = j / (nj - 1)) the chord's between
+        /// them plus dev[j], the station's departure from its chord (none for a
+        /// station of constant z).
+        struct StationShape
+        {
+            double z_hub{};
+            double z_shroud{};
+            std::vector<Vec2> dev;
+        };
+
+        inline StationShape constant_z(double z, size_t nj) { return {z, z, std::vector<Vec2>(nj, Vec2{0., 0.})}; }
+
+        /// The station of an edge trace: sampled at nj points evenly spread along its
+        /// length, from its hub end (its end of smaller r) to its shroud end.
+        inline StationShape trace_station(const Curve2d &trace, size_t nj)
+        {
+            auto [u1, u2] = trace.bounds();
+            const size_t n = 400;
+            std::vector<Vec2> pts(n + 1);
+            std::vector<double> len(n + 1, 0.);
+            for (size_t k = 0; k <= n; k++)
+            {
+                auto p = trace(u1 + (u2 - u1) * k / n);
+                pts[k] = {p[0], p[1]};
+                if (k > 0)
+                    len[k] = len[k - 1] + std::hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
+            }
+            if (!(len[n] > 0.))
+                throw std::invalid_argument("yams: an edge trace has no length");
+            if (pts.front()[1] > pts.back()[1])
+            {
+                std::reverse(pts.begin(), pts.end());
+                for (auto &l : len)
+                    l = len[n] - l;
+                std::reverse(len.begin(), len.end());
+            }
+            std::vector<Vec2> e(nj);
+            size_t k = 0;
+            for (size_t j = 0; j < nj; j++)
+            {
+                const double s = len[n] * j / (nj - 1);
+                while (k + 1 < n && len[k + 1] < s)
+                    k++;
+                const double dl = len[k + 1] - len[k];
+                const double w = dl > 0. ? std::clamp((s - len[k]) / dl, 0., 1.) : 0.;
+                e[j] = {pts[k][0] + w * (pts[k + 1][0] - pts[k][0]), pts[k][1] + w * (pts[k + 1][1] - pts[k][1])};
+            }
+            StationShape st{e.front()[0], e.back()[0], std::vector<Vec2>(nj)};
+            for (size_t j = 0; j < nj; j++)
+            {
+                const double t = double(j) / (nj - 1);
+                for (int c = 0; c < 2; c++)
+                    st.dev[j][c] = e[j][c] - (e.front()[c] + t * (e.back()[c] - e.front()[c]));
+            }
+            return st;
+        }
+
+        /// The station a fraction s of the way from a to b.
+        inline StationShape blend(const StationShape &a, const StationShape &b, double s)
+        {
+            StationShape st{(1 - s) * a.z_hub + s * b.z_hub, (1 - s) * a.z_shroud + s * b.z_shroud, a.dev};
+            for (size_t j = 0; j < st.dev.size(); j++)
+                for (int c = 0; c < 2; c++)
+                    st.dev[j][c] = (1 - s) * a.dev[j][c] + s * b.dev[j][c];
+            return st;
+        }
+
+        /// The points of a station on the channel.
+        inline std::vector<Vec2> station_points(const Problem &pb, const StationShape &st)
+        {
+            auto h = pb.hub(param_at_z(pb.hub, st.z_hub, "hub"));
+            auto s = pb.shroud(param_at_z(pb.shroud, st.z_shroud, "shroud"));
+            if (!(s[1] > h[1]))
+                throw std::invalid_argument("yams: the shroud must be above the hub");
+            const size_t nj = st.dev.size();
+            std::vector<Vec2> pts(nj);
+            // z from the station's own: a station of constant z exactly at its z
+            const Vec2 h_ = {st.z_hub, h[1]}, s_ = {st.z_shroud, s[1]};
+            for (size_t j = 0; j < nj; j++)
+            {
+                const double t = double(j) / (nj - 1);
+                for (int c = 0; c < 2; c++)
+                    pts[j][c] = h_[c] + t * (s_[c] - h_[c]) + st.dev[j][c];
+            }
+            return pts;
+        }
+
         /// Station counts per block between the hard z positions, at least 2 intervals each.
         inline std::vector<size_t> block_intervals(const std::vector<double> &z_hard, size_t n_stations)
         {
@@ -172,51 +275,56 @@ namespace yams::api
         if (opt.n_streams < 3)
             throw std::invalid_argument("yams: at least 3 stream lines are needed");
 
-        // Hard axial positions: inlet, rows edges, outlet
+        const size_t nj = opt.n_streams;
+
+        // Hard stations: inlet, rows edges, outlet
         double z_in = std::max(pb.hub(pb.hub.bounds()[0])[0], pb.shroud(pb.shroud.bounds()[0])[0]);
         double z_out = std::min(pb.hub(pb.hub.bounds()[1])[0], pb.shroud(pb.shroud.bounds()[1])[0]);
-        std::vector<double> z_hard{z_in};
+        std::vector<detail::StationShape> hard{detail::constant_z(z_in, nj)};
         for (const auto &row : pb.rows)
         {
             if (!row.metal_angle)
                 throw std::invalid_argument("yams: blade row " + row.name + " has no metal angle");
-            z_hard.push_back(row.z_le);
-            z_hard.push_back(row.z_te);
+            hard.push_back(row.le_trace ? detail::trace_station(*row.le_trace, nj) : detail::constant_z(row.z_le, nj));
+            hard.push_back(row.te_trace ? detail::trace_station(*row.te_trace, nj) : detail::constant_z(row.z_te, nj));
         }
-        z_hard.push_back(z_out);
-        for (size_t k = 1; k < z_hard.size(); k++)
-            if (!(z_hard[k] > z_hard[k - 1]))
-                throw std::invalid_argument("yams: blade rows must be inside the channel, in axial order, with z_le < z_te and no overlap");
+        hard.push_back(detail::constant_z(z_out, nj));
+        // In order along the hub, the shroud and every initial stream line
+        std::vector<std::vector<detail::Vec2>> hard_pts;
+        for (const auto &st : hard)
+            hard_pts.push_back(detail::station_points(pb, st));
+        for (size_t k = 1; k < hard.size(); k++)
+            for (size_t j = 0; j < nj; j++)
+                if (!(hard_pts[k][j][0] > hard_pts[k - 1][j][0]))
+                    throw std::invalid_argument("yams: blade rows must be inside the channel, in axial order, with their leading edge before their trailing edge and no overlap");
 
-        // Stations
-        auto counts = detail::block_intervals(z_hard, opt.n_stations);
-        std::vector<double> z_stations{z_in};
+        // Stations, counted per block along the mean of the hub and shroud z
+        std::vector<double> z_mean;
+        for (const auto &st : hard)
+            z_mean.push_back(0.5 * (st.z_hub + st.z_shroud));
+        auto counts = detail::block_intervals(z_mean, opt.n_stations);
+        std::vector<detail::StationShape> shapes{hard.front()};
         std::vector<size_t> i_hard{0};
         for (size_t b = 0; b < counts.size(); b++)
         {
-            // the last station of a block is the hard position itself: recomputing it
-            // can land one ulp past it, i.e. outside the channel at the outlet
+            // the last station of a block is the hard one itself: recomputing it can
+            // land one ulp past it, i.e. outside the channel at the outlet
             for (size_t k = 1; k < counts[b]; k++)
-                z_stations.push_back(std::min(z_hard[b + 1], z_hard[b] + (z_hard[b + 1] - z_hard[b]) * k / counts[b]));
-            z_stations.push_back(z_hard[b + 1]);
-            i_hard.push_back(z_stations.size() - 1);
+                shapes.push_back(detail::blend(hard[b], hard[b + 1], double(k) / counts[b]));
+            shapes.push_back(hard[b + 1]);
+            i_hard.push_back(shapes.size() - 1);
         }
-        const size_t ni = z_stations.size();
-        const size_t nj = opt.n_streams;
+        const size_t ni = shapes.size();
 
-        // Grid: straight stations at constant z, stream lines evenly spread from hub to shroud
+        // Grid: the stations, stream lines evenly spread along them from hub to shroud
         MeridionalGrid<double> g(ni, nj);
         for (size_t i = 0; i < ni; i++)
         {
-            auto h = pb.hub(detail::param_at_z(pb.hub, z_stations[i], "hub"));
-            auto s = pb.shroud(detail::param_at_z(pb.shroud, z_stations[i], "shroud"));
-            if (!(s[1] > h[1]))
-                throw std::invalid_argument("yams: the shroud must be above the hub");
+            const auto pts = detail::station_points(pb, shapes[i]);
             for (size_t j = 0; j < nj; j++)
             {
-                double t = double(j) / (nj - 1);
-                g(i, j).x = z_stations[i];
-                g(i, j).y = h[1] + t * (s[1] - h[1]);
+                g(i, j).x = pts[j][0];
+                g(i, j).y = pts[j][1];
             }
         }
 
