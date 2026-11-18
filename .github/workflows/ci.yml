@@ -1,0 +1,303 @@
+# ============================================================
+# CI — Build & Test (multi-platform)
+# ============================================================
+# Runs on every push/PR to master or dev.
+# Builds the yams executable, the C++ tests (doctest) and the Python
+# bindings (pyams.yams), then runs the C++ tests (ctest) and the Python
+# tests (pytest) on Linux, Windows and macOS in parallel.
+#
+# Same layout as the gbs workflow:
+# - flat matrix (`include` entries only): one job per OS, fail-fast OFF
+# - micromamba to resolve the conda deps (conda-forge + ssg-aero);
+#   gbs (with pygbs and gbs-render) and libiges come from conda-forge
+# - Windows workarounds (micromamba shell init crashes on the runner
+#   image) carried over as-is
+# - conda-forge clang everywhere (as in the local dev-3.13 env), plus an
+#   MSVC job on Windows for the MSVC-only code paths (/arch:AVX2 /fp:fast)
+#
+# Differences from gbs:
+# - only the current macOS (arm64): no older macOS / Intel job
+# - no OCCT job: yams does not use OpenCascade
+# - CMake links gbs-render and iges by name from
+#   CMAKE_INSTALL_PREFIX/lib, so the install prefix MUST be the conda env
+#   (CONDA_PREFIX/Library on Windows)
+# - the C++ tests are built with YAMS_TESTS_PLOT=OFF (no interactive VTK
+#   window, compiled out by the preprocessor); the Python tests only plot
+#   when YAMS_TESTS_PLOT is set in the environment, which it is not here
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+  workflow_dispatch:   # allow manual re-runs from the Actions tab / gh CLI
+
+name: CI
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }}${{ matrix.compiler && format(' ({0})', matrix.compiler) || '' }} / py${{ matrix.python-version }}
+    strategy:
+      fail-fast: false    # do not stop the other OSes if one fails
+      matrix:
+        include:
+          # --- Linux: conda-forge clang, like the local setup ---
+          - os: ubuntu-latest
+            python-version: "3.13"
+            extra-packages: >-
+              clangxx
+              clang-tools
+              llvm-tools
+              lld
+            cmake-extra: >-
+              -DCMAKE_C_COMPILER=clang
+              -DCMAKE_CXX_COMPILER=clang++
+            shell: micromamba-shell {0}
+
+          # --- Windows: conda-forge clang (the pre-installed MinGW
+          #     conflicts with the conda libs) + bash, because
+          #     `micromamba shell init` crashes on the runner image ---
+          - os: windows-latest
+            python-version: "3.13"
+            extra-packages: >-
+              clangxx
+              clang-tools
+              llvm-tools
+              lld
+            cmake-extra: >-
+              -DCMAKE_C_COMPILER=clang
+              -DCMAKE_CXX_COMPILER=clang++
+            shell: bash
+
+          # --- Windows: MSVC (cl), the compiler of the conda-forge
+          #     win-64 packages — the MSVC-only flags (/arch:AVX2
+          #     /fp:fast, /bigobj) are only exercised here ---
+          - os: windows-latest
+            compiler: msvc
+            python-version: "3.13"
+            extra-packages: ""
+            cmake-extra: >-
+              -DCMAKE_C_COMPILER=cl
+              -DCMAKE_CXX_COMPILER=cl
+            shell: bash
+
+          # --- macOS arm64 (Apple Silicon): conda-forge clang, like the
+          #     local dev-3.13 env (C++23 + parallel algorithms) ---
+          - os: macos-latest
+            python-version: "3.13"
+            extra-packages: >-
+              clangxx
+              clang-tools
+              lld
+            cmake-extra: >-
+              -DCMAKE_C_COMPILER=clang
+              -DCMAKE_CXX_COMPILER=clang++
+            shell: micromamba-shell {0}
+
+    runs-on: ${{ matrix.os }}
+    # Cap the jobs so a hung build/test cannot hold the run for GitHub's
+    # 6h default (queue time is not covered by this).
+    timeout-minutes: 60
+    # Per-entry opt-in: experimental jobs report status but never fail
+    # or freeze the overall run.
+    continue-on-error: ${{ matrix.experimental || false }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------
+      # Set up the conda environment (deps mirror recipe/recipe.yaml
+      # + doctest and pytest for the tests)
+      # ------------------------------------------------------------
+      # On Windows we omit `init-shell` because `micromamba shell init`
+      # crashes on the runner image (exit 0xC0000005); we activate the
+      # env manually in the next step.
+      - name: Setup micromamba environment (Windows)
+        if: runner.os == 'Windows'
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          # Pinned version (instead of `latest`) to force the download
+          # of a healthy binary: the micromamba pre-installed on the
+          # runner image crashes on its subcommands.
+          micromamba-version: '1.5.10-0'
+          environment-name: yams-ci
+          condarc: |
+            channels:
+              - conda-forge
+              - ssg-aero
+          create-args: >-
+            python=${{ matrix.python-version }}
+            cmake>=3.28
+            ninja
+            pybind11
+            vtk
+            gbs>=0.7
+            libiges
+            eigen>=3.3.9
+            libboost-devel
+            rapidjson
+            tbb
+            tbb-devel
+            doctest
+            numpy
+            pytest
+            pytest-timeout
+            ${{ matrix.extra-packages }}
+          cache-environment: true
+          init-shell: none
+
+      # `init-shell: none` does not expose CONDA_PREFIX/PATH, so we
+      # activate the env by hand for the following steps (otherwise
+      # CMake falls back to the host Python and finds neither VTK nor
+      # gbs).
+      - name: Activate micromamba env (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          env_path="$MAMBA_ROOT_PREFIX/envs/yams-ci"
+          echo "CONDA_PREFIX=$env_path" >> "$GITHUB_ENV"
+          echo "$env_path/Library/bin" >> "$GITHUB_PATH"
+          echo "$env_path/Library/usr/bin" >> "$GITHUB_PATH"
+          echo "$env_path/Library/mingw-w64/bin" >> "$GITHUB_PATH"
+          echo "$env_path/Scripts" >> "$GITHUB_PATH"
+          echo "$env_path" >> "$GITHUB_PATH"
+
+      - name: Setup micromamba environment (Unix)
+        if: runner.os != 'Windows'
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          micromamba-version: latest
+          environment-name: yams-ci
+          condarc: |
+            channels:
+              - conda-forge
+              - ssg-aero
+          create-args: >-
+            python=${{ matrix.python-version }}
+            cmake>=3.28
+            ninja
+            pybind11
+            vtk
+            gbs>=0.7
+            libiges
+            eigen>=3.3.9
+            libboost-devel
+            rapidjson
+            tbb
+            tbb-devel
+            doctest
+            numpy
+            pytest
+            pytest-timeout
+            ${{ matrix.extra-packages }}
+          cache-environment: true
+          init-shell: bash
+
+      # xvfb provides a display + GL context in case a Python test
+      # creates a VTK render window on the headless Linux runner.
+      - name: Install xvfb (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      # ------------------------------------------------------------
+      # Configure
+      # ------------------------------------------------------------
+      # On conda Windows the libs live under CONDA_PREFIX/Library
+      # (not directly under CONDA_PREFIX as on Unix).
+      # CMAKE_RUNTIME_OUTPUT_DIRECTORY co-locates the test exes with the
+      # gbs-render/VTK/TBB DLLs in Library/bin, which is on the PATH.
+      # cl.exe / link.exe and the Windows SDK are only on PATH inside a
+      # Visual Studio developer environment.
+      - name: MSVC developer environment (Windows / MSVC)
+        if: matrix.compiler == 'msvc'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: >-
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_TESTS=ON
+          -DBUILD_PYTHON_BINDING=ON
+          -DYAMS_TESTS_PLOT=OFF
+          "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX/Library"
+          "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$CONDA_PREFIX/Library/bin"
+          ${{ matrix.cmake-extra }}
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        run: >-
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_TESTS=ON
+          -DBUILD_PYTHON_BINDING=ON
+          -DYAMS_TESTS_PLOT=OFF
+          -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+          ${{ matrix.cmake-extra }}
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # Installs the bindings into site-packages (pyams/) so that
+      # `import pyams.yams` works from the Python tests.
+      - name: Install
+        run: cmake --install build
+
+      # ------------------------------------------------------------
+      # C++ tests (ctest)
+      # ------------------------------------------------------------
+      # On Windows the DLLs (VTK/TBB/libIGES/gbs-render) live in
+      # CONDA_PREFIX/Library/bin -> they must be on the PATH.
+      - name: Test C++ (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          export PATH="$CONDA_PREFIX/Library/bin:$PATH"
+          ctest --test-dir build --output-on-failure -C Release
+
+      - name: Test C++ (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+          ctest --test-dir build --output-on-failure -C Release
+
+      - name: Test C++ (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          export DYLD_LIBRARY_PATH="$CONDA_PREFIX/lib:$DYLD_LIBRARY_PATH"
+          ctest --test-dir build --output-on-failure -C Release
+
+      # ------------------------------------------------------------
+      # Python tests (pytest) — off-screen, no interactive plot
+      # ------------------------------------------------------------
+      - name: Test Python (Windows)
+        if: runner.os == 'Windows'
+        env:
+          PYVISTA_OFF_SCREEN: "true"
+        run: |
+          export PATH="$CONDA_PREFIX/Library/bin:$PATH"
+          pytest python/tests/ -v --timeout=300 -ra
+
+      - name: Test Python (Linux)
+        if: runner.os == 'Linux'
+        env:
+          PYVISTA_OFF_SCREEN: "true"
+        run: |
+          export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+          xvfb-run -a pytest python/tests/ -v --timeout=300 -ra
+
+      - name: Test Python (macOS)
+        if: runner.os == 'macOS'
+        env:
+          PYVISTA_OFF_SCREEN: "true"
+        run: |
+          export DYLD_LIBRARY_PATH="$CONDA_PREFIX/lib:$DYLD_LIBRARY_PATH"
+          pytest python/tests/ -v --timeout=300 -ra
