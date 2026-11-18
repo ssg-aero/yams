@@ -574,34 +574,46 @@ namespace yams
     /// form (AD-A009 273, 1975),
     ///     1 / (1 + (1 - Mm^2) A^2 / B),
     /// A the aspect ratio of the grid at the station, its span over its spacing
-    /// (the smallest to a neighbouring station along any stream line), Mm^2 the
-    /// mean over the station of its meridional Mach number squared, limited to
-    /// RF_Mm2_max, B = RF_B. The correction of a stream line overshoots the more
-    /// the stations are close compared with the span: a fixed factor that suits
-    /// a coarse grid makes a fine one diverge. gi.RF when not RF_local.
+    /// (station_min_spacing: the smallest to a neighbouring station along any
+    /// stream line, so one place where two stations come close slows the whole
+    /// station), Mm^2 the mean over the station of its meridional Mach number
+    /// squared, limited to RF_Mm2_max and 0 for a constant density, B = RF_B.
+    /// The correction of a stream line overshoots the more the stations are close
+    /// compared with the span: a fixed factor that suits a coarse grid makes a
+    /// fine one diverge. gi.RF when not RF_local.
+    /// @throw std::invalid_argument unless RF_B > 0 and 0 <= RF_Mm2_max < 1
+    /// @throw SolverDivergence if the station touches a neighbour (no spacing)
     template <typename T>
     T station_relaxation(const GridInfo<T> &gi, size_t i)
     {
         if (!gi.RF_local)
             return gi.RF;
+        if (!(gi.RF_B > 0.) || !(gi.RF_Mm2_max >= 0. && gi.RF_Mm2_max < 1.))
+            throw std::invalid_argument("yams: the local relaxation needs RF_B > 0 and 0 <= RF_Mm2_max < 1");
         const auto &g = *gi.g;
-        const size_t ni = g.nRows(), nj = g.nCols();
-        T dm = std::numeric_limits<T>::max();
+        const size_t nj = g.nCols();
+        const T span = g(i, nj - 1).l;
+        // a grid not yet measured (no abscissas): the fixed factor
+        if (!(span > 0.))
+            return gi.RF;
         T Mm2 = 0.;
-        for (size_t j = 0; j < nj; j++)
+        if (!gi.rho_cst) // a constant density has no Mach number effect
         {
-            const auto &gp = g(i, j);
-            if (i > 0)
-                dm = std::min(dm, gp.m - g(i - 1, j).m);
-            if (i + 1 < ni)
-                dm = std::min(dm, g(i + 1, j).m - gp.m);
-            Mm2 += gp.Vm * gp.Vm / (gp.ga * gi.R * gp.Ts);
+            for (size_t j = 0; j < nj; j++)
+            {
+                const auto &gp = g(i, j);
+                Mm2 += gp.Vm * gp.Vm / (gp.ga * gi.R * gp.Ts);
+            }
+            // not finite (no flow yet): none, the smallest factor
+            Mm2 = std::isfinite(Mm2) ? std::clamp(Mm2 / nj, T{0}, gi.RF_Mm2_max) : T{0};
         }
-        Mm2 = std::min(Mm2 / nj, gi.RF_Mm2_max);
-        const T A = g(i, nj - 1).l / dm;
+        const T A = span / station_min_spacing(g, i);
         const T RF = 1. / (1. + (1. - Mm2) * A * A / gi.RF_B);
-        // a grid not yet measured (no spacing) or values not finite: the fixed factor
-        return std::isfinite(RF) && RF > 0. ? std::min(RF, T{1}) : gi.RF;
+        // no spacing: the factor would be 0, and a fixed one the largest where the
+        // smallest is needed
+        if (!(RF > 0.))
+            throw SolverDivergence("station " + std::to_string(i) + " touches a neighbouring station on a stream line, or its spacing is not finite");
+        return std::min(RF, T{1});
     }
 
     template <typename T>

@@ -93,10 +93,11 @@ namespace yams::api
         /// growing as the aspect ratio squared. When false, relax_factor at every station, which
         /// diverges once the stations are too close for it.
         bool local_relaxation{true};
-        /// Its constant (GridInfo::RF_B): 8 from the analysis; the solver is stable
+        /// Its constant (GridInfo::RF_B), > 0: 8 from the analysis; the solver is stable
         /// up to about 16 on an annulus and on NASA Rotor 37.
         double relax_constant{12.};
-        /// Its meridional Mach number squared limit (GridInfo::RF_Mm2_max).
+        /// Its meridional Mach number squared limit (GridInfo::RF_Mm2_max), in [0, 1[.
+        /// Not used when not compressible.
         double relax_mach2_max{0.6};
         double relax_factor{0.05};  ///< relaxation at every station, when not local_relaxation
         double tol_rel_pos{1e-5};   ///< convergence on stream lines positions, relative to the span
@@ -144,11 +145,11 @@ namespace yams::api
     {
         Status status{Status::NotConverged};
         size_t iterations{};
-        /// Smallest distance between two stations along the mid stream line of the
-        /// initial grid, relative to the span there. With a fixed relaxation
-        /// (relax_factor 0.05), below about 0.04 the stream lines oscillate and the
-        /// solver does not converge; with local_relaxation it converges, in a number
-        /// of iterations growing as its inverse squared.
+        /// Smallest distance between two neighbouring stations along any stream
+        /// line of the initial grid, relative to the span there. With a fixed
+        /// relaxation (relax_factor 0.05), below about 0.04 the stream lines
+        /// oscillate and the solver does not converge; with local_relaxation it
+        /// converges, in a number of iterations growing as its inverse squared.
         double station_spacing{};
         std::string divergence;             ///< why, when the stream lines could no longer be relocated
         std::vector<double> residual_max;   ///< per iteration, relative to the span
@@ -377,6 +378,9 @@ namespace yams::api
         const auto &opt = pb.options;
         if (opt.n_streams < 3)
             throw std::invalid_argument("yams: at least 3 stream lines are needed");
+        if (opt.local_relaxation &&
+            (!(opt.relax_constant > 0.) || !(opt.relax_mach2_max >= 0. && opt.relax_mach2_max < 1.)))
+            throw std::invalid_argument("yams: the local relaxation needs relax_constant > 0 and 0 <= relax_mach2_max < 1");
 
         const size_t nj = opt.n_streams;
         // The stations' shapes are held on more points than there are stream lines
@@ -496,15 +500,17 @@ namespace yams::api
         return sc;
     }
 
-    /// Smallest distance between two stations of a case along its mid stream line,
-    /// relative to the span there (see Result::station_spacing).
+    /// Smallest distance between two neighbouring stations of a case along any
+    /// stream line, relative to the span of the station (see
+    /// Result::station_spacing): the inverse of the largest aspect ratio that
+    /// station_relaxation sees.
     inline double station_spacing(const SolverCase<double> &sc)
     {
         const auto &g = *sc.gi->g;
-        const size_t nj = g.nCols(), j_mid = nj / 2;
+        const size_t nj = g.nCols();
         double spacing = std::numeric_limits<double>::max();
-        for (size_t i = 1; i < g.nRows(); i++)
-            spacing = std::min(spacing, (g(i, j_mid).m - g(i - 1, j_mid).m) / g(i, nj - 1).l);
+        for (size_t i = 0; i < g.nRows(); i++)
+            spacing = std::min(spacing, yams::station_min_spacing(g, i) / g(i, nj - 1).l);
         return spacing;
     }
 

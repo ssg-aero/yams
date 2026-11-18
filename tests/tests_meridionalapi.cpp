@@ -371,7 +371,8 @@ TEST_CASE("meridionalapi.local_relaxation")
     auto pb = annulus_rotor();
     pb.options.n_stations = 81;
     pb.options.local_relaxation = false;
-    REQUIRE(yams::api::solve(pb).status == yams::api::Status::Diverged);
+    // unstable: the stream lines cross or keep oscillating, whichever comes first
+    REQUIRE(yams::api::solve(pb).status != yams::api::Status::Converged);
 
     pb.options.local_relaxation = true;
     const auto fine = yams::api::solve(pb);
@@ -409,6 +410,39 @@ TEST_CASE("meridionalapi.local_relaxation")
     // the Mach number limited, a fixed factor when not local
     gi.RF_Mm2_max = Mm2 / 2;
     CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + (1. - Mm2 / 2) * A * A / pb.options.relax_constant)));
+    // no Mach number effect for a constant density
+    gi.rho_cst = true;
+    CHECK(yams::station_relaxation(gi, i) == doctest::Approx(1. / (1. + A * A / pb.options.relax_constant)));
+    gi.rho_cst = false;
+    // a constant or a Mach limit that make no factor are refused
+    gi.RF_B = 0.;
+    CHECK_THROWS_AS(yams::station_relaxation(gi, i), std::invalid_argument);
+    gi.RF_B = pb.options.relax_constant;
+    gi.RF_Mm2_max = 1.;
+    CHECK_THROWS_AS(yams::station_relaxation(gi, i), std::invalid_argument);
+    gi.RF_Mm2_max = 0.6;
+    pb.options.relax_constant = -1.;
+    CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
+    pb.options.relax_constant = 12.;
+    pb.options.relax_mach2_max = 1.;
+    CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
+    // two stations that touch on a stream line: no factor, said as a divergence
+    // rather than the fixed factor (on a copy of the grid)
+    gi.g = std::make_shared<yams::MeridionalGrid<double>>(gf);
+    (*gi.g)(i, 0).m = (*gi.g)(i - 1, 0).m;
+    CHECK_THROWS_AS(yams::station_relaxation(gi, i), yams::SolverDivergence);
     gi.RF_local = false;
     CHECK(yams::station_relaxation(gi, i) == gi.RF);
+}
+
+TEST_CASE("meridionalapi.local_relaxation_incompressible")
+{
+    // a constant density at a high velocity converges on the fine grid (the
+    // factor then has no Mach number term: checked in local_relaxation)
+    auto pb = annulus_rotor();
+    pb.options.n_stations = 81;
+    pb.options.compressible = false;
+    pb.inlet.vm_mean = 200.;
+    const auto res = yams::api::solve(pb);
+    REQUIRE(res.status == yams::api::Status::Converged);
 }
