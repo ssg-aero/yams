@@ -216,9 +216,12 @@ namespace yams::api
         size_t n_pitch{11}; ///< nodes across the passage, sides included (>= 3)
         /// Extent upstream and downstream of the blade, fractions of its meridional
         /// chord, cut halfway to a neighbouring row's edge and at the tube's ends; the
-        /// planes are the meridional stations within it, two at least on each side
-        double upstream{0.5};
-        double downstream{0.5};
+        /// planes are the meridional stations within it, two at least on each side.
+        /// The stagnation lines need room to settle: on Rotor 37's real blade (cut in
+        /// turbo_blade_forge, 31 stations), 0.3, 1 and 2 chords give outlet angles
+        /// within 1.1 deg, 0.5 a wrong flow (-8 deg)
+        double upstream{1.};
+        double downstream{1.};
     };
 
     /// The grid and conditions of BladeToBladeCurvatureSolver for a blade row along a
@@ -294,9 +297,9 @@ namespace yams::api
      *
      * The planes are the meridional computing stations crossing the tube (B2BCase::
      * station), the row's leading and trailing edges at its edge stations, as Novak
-     * and Hearsey's blade-to-blade program takes the meridional program's stations;
-     * the section's edges must lie within a fifth of the neighbouring stations'
-     * spacing of them. Upstream, the initial stagnation line
+     * and Hearsey's blade-to-blade program takes the meridional program's stations.
+     * The edge planes lie at the section's edges, which must be within a fifth of the
+     * neighbouring stations' spacing of the edge stations. Upstream, the initial stagnation line
      * follows the meridional relative flow angle back from the leading edge; its first
      * segment sets the inlet flow angle of the blade-to-blade run (the solver shifts
      * the planes upstream together). Downstream, it leaves the trailing edge along
@@ -397,7 +400,11 @@ namespace yams::api
             throw std::invalid_argument("Less than two meridional stations upstream or downstream of the blade row.");
         for (size_t i = i_in; i <= i_out; i++)
         {
-            c.m.push_back(st[i].m);
+            // the edge planes at the section's edges, where its sides meet: a plane
+            // through a round edge, off the point, starts the stagnation line off
+            // the blade and the solver settles on a wrong flow (Rotor 37's real
+            // blade cut in turbo_blade_forge: outlet angle -7 deg instead of -40)
+            c.m.push_back(i == i_le ? m_le : i == i_te ? m_te : st[i].m);
             c.station.push_back(i);
         }
         c.n_planes = c.m.size();
