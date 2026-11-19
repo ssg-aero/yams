@@ -7,6 +7,7 @@
 #include <baldeToBlade/bladeToBladeCurvatureSolverPost.h>
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <gbs/bscbuild.h>
 #include <string>
 TEST_CASE("tridiagonal.thomas_vec")
@@ -104,10 +105,10 @@ TEST_CASE("solver.base_novak")
     CHECK(solver.geomResidualMax().back() < solver.geomRelTol());
     CHECK(solver.periodicityUpStreamResidual().back() < solver.geomRelTol());
     CHECK(solver.periodicityDownStreamResidual().back() < solver.geomRelTol());
-    // Peak relative speed: 308 m/s with the geometric tolerance at 1e-4 (relaxation
-    // 0.02 or 0.01); about 300 at the default 1e-3.
+    // Peak relative speed at the default geometric tolerance (1e-3): 299.4 m/s with
+    // clang on arm64 (308 with 1e-4, which the run does not reach)
     auto W_max = *std::ranges::max_element(dat.W);
-    CHECK(W_max == doctest::Approx(308.).epsilon(0.05));
+    CHECK(W_max == doctest::Approx(299.4).epsilon(0.03));
     CHECK(*std::ranges::max_element(dat.MW) < 1.);
 
     // Blade sides, leading to trailing edge included
@@ -127,6 +128,11 @@ TEST_CASE("solver.base_novak")
         CHECK(xyz.front()[0] == doctest::Approx(r * std::cos(th)));
         CHECK(xyz.front()[1] == doctest::Approx(r * std::sin(th)));
     }
+    // the nodes stay on the stream line: m within its length
+    auto [m1, m2] = gbs::abs_curv(solver.meridionalStreamLine()).bounds();
+    CHECK(std::ranges::all_of(solver.mesh().M, [m1, m2](T m) { return m >= m1 && m <= m2; }));
+    // a trailing edge plane before the leading edge one is refused, not wrapped around
+    CHECK_THROWS_AS(yams::getValueStreamLine(dat.PS, 0, 3, 2, ni), std::invalid_argument);
     // yams::plot(solver.mesh(), solver.data().W,"Relative Speed");
     #if YAMS_TESTS_PLOT
     yams::plot(solver.mesh(), solver.data().MW,"Relative Mach Number");

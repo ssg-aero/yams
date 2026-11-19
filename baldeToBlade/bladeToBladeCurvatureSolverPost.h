@@ -1,15 +1,27 @@
 #pragma once
 #include "bladeToBladeCurvatureSolver.h"
+#include <stdexcept>
+#include <string>
 namespace yams
 {
     template <typename T>
     using arr3 = std::array<T,3>;
 
+    /// The number of computation planes from j1 to j2 included.
+    /// @throw std::invalid_argument when j2 < j1 (the size would wrap around)
+    inline size_t side_size(size_t j1, size_t j2)
+    {
+        if (j2 < j1)
+            throw std::invalid_argument("yams: the trailing edge plane (" + std::to_string(j2) +
+                                        ") is before the leading edge plane (" + std::to_string(j1) + ")");
+        return j2 - j1 + 1;
+    }
+
     template <typename T>
     auto getValueStreamLine(const vector<T> &val, size_t i_stream, size_t j1, size_t j2, size_t ni)
     {
         // j1 to j2 included
-        vector<T> values(j2 - j1 + 1);
+        vector<T> values(side_size(j1, j2));
         for(auto j{j1}; j <= j2; j++)
         {
             auto id = i_stream + ni * j;
@@ -47,7 +59,7 @@ namespace yams
     {
         using namespace std;
         // j1 to j2 included, like getValueStreamLine
-        vector<arr3<T>> XYZ(j2 - j1 + 1);
+        vector<arr3<T>> XYZ(side_size(j1, j2));
         auto ni = msh.ni;
         for(auto j{j1}; j <= j2; j++)
         {
