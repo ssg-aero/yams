@@ -7,6 +7,7 @@
 #include <gbs/execution.h>
 #include <parallel.h>
 #include <gas/gasModel.h>
+#include <curvaturemethod.h>
 
 namespace yams
 {
@@ -161,6 +162,16 @@ namespace yams
         // above diverge; to the 1e-4 tolerances 0.02 takes 4075 iterations, 0.015
         // 3001, 0.01 2377, 0.0075 2096.
         T RF{0.01};
+        // The stream lines' curvature term d(r tan beta)/dm, r tan beta = r^2 dtheta/dm
+        // (CurvatureMethod, as the meridional solver's): the double differentiation,
+        // two centred derivatives, is blind to a zigzag from one plane to the next
+        // (its stencil joins j - 2, j and j + 2), which then stays in a converged
+        // solution; the three-point second derivative sees it. DoubleDifferentiation
+        // by default, as it always was: on solver.base_novak, near choke (relative
+        // Mach 0.98), Blended raises the peak to 1.18 and the passage chokes;
+        // yams::api::B2BOptions takes Blended (NASA Rotor 37 at 55 % speed).
+        CurvatureMethod curvature{CurvatureMethod::DoubleDifferentiation};
+        T curvature_blend{0.2};
         T RF_per{0.3};
         T RF_rho{0.01};
         std::vector<T> residual_geom;
@@ -218,6 +229,17 @@ namespace yams
         /// The fluid of the meridional run (MeridionalProblem::gas)
         /// @throw std::invalid_argument for a gas that is not one (PerfectGas::validate);
         /// the solver keeps its gas then
+        /// The curvature method of the stream lines and, for Blended, the share of the
+        /// three-point second derivative (as the meridional solver's GridInfo::curvature)
+        /// @throw std::invalid_argument for Blended with a share outside [0, 1]
+        void setCurvature(CurvatureMethod method, T blend = 0.2)
+        {
+            three_point_share(method, blend);
+            curvature = method;
+            curvature_blend = blend;
+        }
+        CurvatureMethod curvatureMethod() const { return curvature; }
+        T curvatureBlend() const { return curvature_blend; }
         void setGas(const PerfectGas<T> &gas) { gas.validate(); gas_ = gas; }
         void setCp(T cp) { auto g = gas_; g.cp = cp; setGas(g); }
         void setGasConstant(T RG) { auto g = gas_; g.R = RG; setGas(g); }
@@ -378,8 +400,31 @@ namespace yams
             msh.RTB.begin(),
             [](auto beta, auto r)
             { return r * tan(beta); });
-        // eval geom grads
+        // eval geom grads: d(r tan beta)/dm by the curvature method
         f_grad(msh.G2, msh.RTB, msh.M);
+        if (const T w3 = three_point_share(curvature, curvature_blend); w3 > 0.)
+        {
+            // three-point: d(r^2 theta')/dm = 2 r r' theta' + r^2 theta'', theta'' over the
+            // plane and its neighbours (spacing not uniform); at the end planes, the
+            // neighbour's second derivative (as compute_curvature)
+            auto d2 = [this](size_t i, size_t j)
+            {
+                const auto a = i + ni * (j - 1), b = i + ni * j, c = i + ni * (j + 1);
+                const T hm = msh.M[b] - msh.M[a], hp = msh.M[c] - msh.M[b];
+                return 2. * ((msh.TH[c] - msh.TH[b]) / hp - (msh.TH[b] - msh.TH[a]) / hm) / (hm + hp);
+            };
+            for (size_t j = 0; j < nj; j++)
+                for (size_t i = 0; i < ni; i++)
+                {
+                    const auto id = i + ni * j;
+                    const size_t jc = std::clamp<size_t>(j, 1, nj - 2);
+                    const auto ja = j > 0 ? id - ni : id, jb = j + 1 < nj ? id + ni : id;
+                    const T dr = (msh.R[jb] - msh.R[ja]) / (msh.M[jb] - msh.M[ja]);
+                    const T r = msh.R[id];
+                    const T k3 = 2. * r * dr * msh.G1[id] + r * r * d2(i, jc);
+                    msh.G2[id] = (1. - w3) * msh.G2[id] + w3 * k3;
+                }
+        }
         f_grad(msh.G4, msh.R, msh.Z);
         // angles trigonometry
         transform(

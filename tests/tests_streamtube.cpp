@@ -3,6 +3,8 @@
 #include <streamtube.h>
 
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <numbers>
 
 namespace
@@ -172,7 +174,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     auto solver = yams::api::make_b2b_solver(c);
     solver.computeW();
     REQUIRE(solver.converged());
-    // 831 iterations with clang on arm64
+    // 498 iterations with clang on arm64 (Blended curvature)
     CHECK(solver.iterations() < 1000);
     CHECK(solver.fullBladePassageMassFlow() == doctest::Approx(tube.mass_flow));
 
@@ -188,7 +190,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     // metal angle in DIRECT mode, no deviation; the stagnation lines keep it. With no
     // deviation the Kutta condition fails at the trailing edge, and the outlet flow is
     // not uniform across the pitch: the inner stream lines turn away from the imposed
-    // angle (-29.1 deg mid passage against -33.0, kutta -0.35 with clang on arm64).
+    // angle (kutta -0.25 with clang on arm64).
     const auto out = tube.at(c.m.back());
     CHECK(c.beta_out == doctest::Approx(std::atan2(out.Vu - c.omega * out.r, out.Vm)));
     CHECK(msh.BT[ni * (nj - 1)] == doctest::Approx(c.beta_out).epsilon(0.02));
@@ -201,8 +203,8 @@ TEST_CASE("streamtube.b2b_rotor37")
     CHECK(std::abs(o.B.front() - 1.) < 0.05);
     CHECK(*std::ranges::min_element(o.B.begin() + c.j_le, o.B.begin() + c.j_te + 1) < 0.95);
 
-    // The far field angle that closes the Kutta condition: 3.7 deg of deviation past
-    // the metal angle (offset -3.73 deg in 6 solutions with clang on arm64), and an
+    // The far field angle that closes the Kutta condition: 3.8 deg of deviation past
+    // the metal angle (offset -3.78 deg in 3 solutions with clang on arm64), and an
     // outlet flow uniform across the pitch within 1.2 deg
     const auto k = yams::api::b2b_kutta(tube, 0, sec);
     REQUIRE(k.converged);
@@ -265,4 +267,46 @@ TEST_CASE("streamtube.b2b_errors")
         yams::api::BladeSection blunt{sec.side1, gbs::interpolate(pts, u, 3)};
         CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, blunt), std::invalid_argument);
     }
+}
+
+TEST_CASE("streamtube.b2b_curvature")
+{
+    // The blade-to-blade stream lines' curvature (CurvatureMethod, as the meridional
+    // solver's): the double differentiation leaves a zigzag of the stream lines from
+    // one plane to the next, which Blended divides by 5 and ThreePoint by 15 (0.154,
+    // 0.032, 0.010 with clang on arm64, theta's alternating part against its variation)
+    const Rotor37Tube r;
+    const auto sec = section(r.pb, r.tube, r.l);
+    auto zigzag = [](const yams::api::B2BOptions &opt, const yams::api::StreamTube &tube, const yams::api::BladeSection &s)
+    {
+        const auto c = yams::api::make_b2b_case(tube, 0, s, opt);
+        auto solver = yams::api::make_b2b_solver(c);
+        CHECK(solver.curvatureMethod() == opt.curvature);
+        solver.computeW();
+        CHECK(solver.converged());
+        const auto &th = solver.mesh().TH;
+        const auto [ni, nj] = solver.dimensions();
+        double alt = 0., var = 0.;
+        for (size_t i = 1; i + 1 < ni; i++)
+            for (size_t j = 2; j + 2 < nj; j++)
+            {
+                auto e = [&](size_t k) { return th[i + ni * k] - 0.5 * (th[i + ni * (k - 1)] + th[i + ni * (k + 1)]); };
+                alt += std::abs(e(j) - 0.5 * (e(j - 1) + e(j + 1)));
+                var += std::abs(th[i + ni * (j + 1)] - th[i + ni * (j - 1)]);
+            }
+        return alt / var;
+    };
+    yams::api::B2BOptions opt;
+    opt.curvature = yams::CurvatureMethod::DoubleDifferentiation;
+    const auto dd = zigzag(opt, r.tube, sec);
+    opt.curvature = yams::CurvatureMethod::Blended;
+    const auto blended = zigzag(opt, r.tube, sec);
+    opt.curvature = yams::CurvatureMethod::ThreePoint;
+    const auto three = zigzag(opt, r.tube, sec);
+    CHECK(blended < dd / 3.);
+    CHECK(three < blended);
+
+    opt.curvature = yams::CurvatureMethod::Blended;
+    opt.curvature_blend = 1.5;
+    CHECK_THROWS_AS(yams::api::make_b2b_case(r.tube, 0, sec, opt), std::invalid_argument);
 }

@@ -225,6 +225,13 @@ namespace yams::api
         /// Added to the meridional run's downstream far field angle, rad (b2b_kutta
         /// searches the one that satisfies the Kutta condition)
         double outlet_offset{0.};
+        /// The blade-to-blade stream lines' curvature (BladeToBladeCurvatureSolver::
+        /// setCurvature), as the meridional run's (Options::curvature): Blended by
+        /// default, which sees the zigzag from one plane to the next that the double
+        /// differentiation leaves (NASA Rotor 37 at 55 % speed: the zigzag of theta
+        /// divided by 5, in 498 iterations instead of 835)
+        CurvatureMethod curvature{CurvatureMethod::Blended};
+        double curvature_blend{0.2};
     };
 
     /// The grid and conditions of BladeToBladeCurvatureSolver for a blade row along a
@@ -263,6 +270,8 @@ namespace yams::api
         /// downstream far field angle the grid imposes (its last segment's)
         double beta_out{};
         std::vector<double> b;  ///< tube thickness normal to the mean stream line at each plane
+        CurvatureMethod curvature{CurvatureMethod::Blended}; ///< B2BOptions::curvature
+        double curvature_blend{0.2};
         size_t blade_count{};
         Gas gas;
     };
@@ -372,7 +381,10 @@ namespace yams::api
             throw std::invalid_argument("No room for the blade-to-blade domain between the blade and a "
                                         "neighbouring row: the rows' edges are too close.");
 
+        three_point_share(opt.curvature, opt.curvature_blend); // throws for a wrong blend
         B2BCase c;
+        c.curvature = opt.curvature;
+        c.curvature_blend = opt.curvature_blend;
         c.stream_line = std::make_shared<Curve2d>(tube.mean);
         c.omega = rw.omega;
         c.blade_count = rw.blade_count;
@@ -528,6 +540,7 @@ namespace yams::api
         solver.setPtIn(c.Pt);
         solver.setTtIn(c.Tt);
         solver.setDr(c.dr);
+        solver.setCurvature(c.curvature, c.curvature_blend);
         return solver;
     }
 
