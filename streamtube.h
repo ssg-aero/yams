@@ -290,7 +290,7 @@ namespace yams::api
      * follows the meridional relative flow angle back from the leading edge; its first
      * segment sets the inlet flow angle of the blade-to-blade run (the solver shifts
      * the planes upstream together). Downstream, it leaves the trailing edge along
-     * the bisector of the sides, r tan(beta) kept, and the solver's periodicity
+     * the mean of the sides over the last 5 % of the chord, r tan(beta) kept, and the solver's periodicity
      * correction bends it: the meridional angle there comes from the meridional
      * model of the row (its metal angle in DIRECT mode), and a kink at the trailing
      * edge makes the solver diverge. Across the passage the nodes are uniform in theta.
@@ -387,8 +387,12 @@ namespace yams::api
         th_stag[c.j_le] = sa(m_le);
         for (size_t j = c.j_le; j-- > 0;)
             th_stag[j] = th_stag[j + 1] - 0.5 * (dth_dm(c.m[j]) + dth_dm(c.m[j + 1])) * (c.m[j + 1] - c.m[j]);
-        // downstream: along the bisector of the sides at the trailing edge, r tan(beta) kept
-        const auto dm_te = 1e-3 * chord;
+        // downstream: along the mean of the sides over the last 5 % of the chord, r tan(beta)
+        // kept. Not their tangents at the edge: a round trailing edge's are anything. The
+        // outlet angle depends a little on it (NASA Rotor 37 at mid span, tbf's
+        // tests/test_meridional_b2b.cpp: -38.9 deg over 2 %, -39.6 over 5 %, -40.1 over 10 %,
+        // -31.0 with the tangents over 0.1 %, against the metal angle's -34.8).
+        const auto dm_te = 0.05 * chord;
         const auto slope_te = 0.5 * ((sa(m_te) - sa(m_te - dm_te)) + (sb(m_te) - sb(m_te - dm_te))) / dm_te;
         const auto rtanb_te = slope_te * tube.at(m_te).r * tube.at(m_te).r;
         th_stag[c.j_te] = sa(m_te);
