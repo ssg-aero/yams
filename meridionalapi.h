@@ -141,10 +141,10 @@ namespace yams::api
         /// limit at some points (Result::sonic_points): the mass flow is beyond
         /// the choke of the channel, the solution is not a valid flow
         Choked,
-        /// stream lines positions within tol_rel_pos, but Vm held at its floor at
-        /// some points (Result::floor_points): stream tubes stagnate or would
-        /// flow back (blades far off their inlet flow, too much work for the
-        /// mass flow), the solution is not a valid flow
+        /// stream lines positions within tol_rel_pos, but the radial equilibrium
+        /// gives no positive Vm at some points (Result::floor_points): stream
+        /// tubes stagnate or would flow back (blades far off their inlet flow,
+        /// too much work for the mass flow), the solution is not a valid flow
         FlowReversal,
     };
 
@@ -183,9 +183,10 @@ namespace yams::api
         /// Grid points where the solver holds Vm at the sonic limit (meridional
         /// Mach number 1): Status::Choked when the run converges with any.
         size_t sonic_points{};
-        /// Grid points where the solver holds Vm at its floor, no positive Vm
-        /// satisfying the radial equilibrium there (GridInfo::vm_floor):
-        /// Status::FlowReversal when the run converges with any.
+        /// Grid points where the radial equilibrium gives no positive Vm, the
+        /// integration holding it at its floor in a step (GridInfo::vm_floor; the
+        /// final Vm there is small but positive): Status::FlowReversal when the
+        /// run converges with any.
         size_t floor_points{};
         std::vector<double> residual_max;   ///< per iteration, relative to the span
         std::vector<double> residual_mean;

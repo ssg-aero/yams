@@ -101,7 +101,9 @@ namespace yams
                 sqVm_max_q2, 
                 std::fmax(1.0,sqVmq2 + Fjm * dl)
             );
-            bool floored = sqVmq2 + Fjm * dl < 1.0;
+            // the radial equilibrium gives no positive Vm from the previous point:
+            // the stream tube stagnates (the step holds Vm at its floor)
+            bool floored = sqVmq2 + Fjm * dl <= 0.;
             // auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl); 
             // auto sqVmq2_1 = sqVmq2 + Fjm * dl;
             g(i, j).Vm = sqrt(2. * sqVmq2_1);
@@ -112,7 +114,7 @@ namespace yams
                 sqVm_max_q2, 
                 std::fmax(1.0,sqVmq2 + Fj * dl)
             ); 
-            floored = floored || sqVmq2 + Fj * dl < 1.0;
+            floored = floored || sqVmq2 + Fj * dl <= 0.;
             // auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // auto sqVmq2_2 = sqVmq2 + Fj * dl; 
             // auto Vm_new = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));

@@ -750,8 +750,9 @@ TEST_CASE("meridionalapi.flow_reversal")
     CHECK(res.sonic_points == 0);
 
     // Less: the stream lines settle, but stream tubes along the shroud
-    // stagnate in the rotor and downstream of it
-    res = yams::api::solve(tbf_demo(35.));
+    // stagnate in the rotor and downstream of it (10 points at 50 m/s; 35 m/s,
+    // 26 points, is too close to 30 m/s, which does not converge)
+    res = yams::api::solve(tbf_demo(50.));
     CHECK(res.status == yams::api::Status::FlowReversal);
     CHECK(res.floor_points > 0);
     CHECK(std::string(yams::api::to_string(res.status)) == "flow reversal");
