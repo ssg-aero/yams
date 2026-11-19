@@ -150,6 +150,18 @@ TEST_CASE("streamtube.b2b_rotor37")
     CHECK(c.j_te + 2 < c.n_planes);
     CHECK(c.m[c.j_le] == doctest::Approx(tube.rows[0].m_le));
     CHECK(c.m[c.j_te] == doctest::Approx(tube.rows[0].m_te));
+    // the planes are the meridional stations (Novak and Hearsey 1977)
+    REQUIRE(c.station.size() == c.n_planes);
+    for (size_t k = 0; k < c.n_planes; k++)
+    {
+        CHECK(c.m[k] == tube.stations[c.station[k]].m);
+        if (k > 0)
+            CHECK(c.station[k] == c.station[k - 1] + 1);
+    }
+    CHECK(c.station[c.j_le] == r.res.rows[0].i_le);
+    CHECK(c.station[c.j_te] == r.res.rows[0].i_te);
+    // about 1.3 with 31 stations and 11 nodes across, above the solver's limit
+    CHECK(c.spacing_ratio > 1.1);
     // relative inlet flow of a rotor without inlet swirl
     const auto in = tube.at(c.m.front());
     CHECK(c.beta_in == doctest::Approx(std::atan2(-c.omega * in.r, in.Vm)));
@@ -159,7 +171,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     auto solver = yams::api::make_b2b_solver(c);
     solver.computeW();
     REQUIRE(solver.converged());
-    // 688 iterations with clang on arm64
+    // 649 iterations with clang on arm64
     CHECK(solver.iterations() < 1000);
     CHECK(solver.fullBladePassageMassFlow() == doctest::Approx(tube.mass_flow));
 
@@ -173,7 +185,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     CHECK(msh.BT[ni / 2] == doctest::Approx(c.beta_in).epsilon(0.05));
     // Outlet: the meridional run imposes the metal angle at the trailing edge
     // (DIRECT mode); the blade-to-blade flow leaves it with a deviation and does
-    // less work (-38.2 deg against -34.8, Tt rise 25.2 K against 29.6 with clang on arm64)
+    // less work (-41.0 deg against -35.2, Tt rise 26.5 K against 29.6 with clang on arm64)
     const auto out = tube.at(c.m.back());
     const auto beta_merid = std::atan2(out.Vu - c.omega * out.r, out.Vm);
     const auto id_out = ni / 2 + ni * (nj - 1);
@@ -190,9 +202,15 @@ TEST_CASE("streamtube.b2b_errors")
     const auto sec = section(r.pb, tube, r.l);
     CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 1, sec), std::invalid_argument);
     yams::api::B2BOptions opt;
-    opt.plane_spacing = 0.;
-    CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, sec, opt), std::invalid_argument);
-    opt = {};
+    // a section whose edges are off the row's edge stations by half their spacing
+    {
+        auto shifted = tube;
+        const auto i_le = r.res.rows[0].i_le;
+        const auto dm = 0.5 * (tube.stations[i_le + 1].m - tube.stations[i_le].m);
+        shifted.rows[0].m_le += dm;
+        shifted.rows[0].m_te += dm;
+        CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, section(r.pb, shifted, r.l)), std::invalid_argument);
+    }
     opt.n_pitch = 2;
     CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, sec, opt), std::invalid_argument);
     // a side running backwards in m
