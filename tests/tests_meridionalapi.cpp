@@ -767,3 +767,72 @@ TEST_CASE("meridionalapi.flow_reversal")
     CHECK(res.status == yams::api::Status::Converged);
     CHECK(res.floor_points == 0);
 }
+
+TEST_CASE("meridionalapi.mass_flow")
+{
+    // The inlet given by its mass flow: the run by the mean Vm's mass flow gives back
+    // the same flow (NASA Rotor 37).
+    auto pb = yams::tests::rotor37(150.);
+    const auto by_vm = yams::api::solve(pb);
+    REQUIRE(by_vm.status == yams::api::Status::Converged);
+    const double mf = by_vm.solver_case.inlet.Mf;
+
+    pb.inlet.mass_flow = mf;
+    pb.inlet.vm_mean = 1.; // not used
+    const auto by_mf = yams::api::solve(pb);
+    REQUIRE(by_mf.status == yams::api::Status::Converged);
+    CHECK(by_mf.solver_case.inlet.Mf == doctest::Approx(mf));
+    const auto &g = *by_vm.solver_case.gi->g, &h = *by_mf.solver_case.gi->g;
+    REQUIRE(g.nRows() == h.nRows());
+    for (size_t i = 0; i < g.nRows(); i++)
+        for (size_t j = 0; j < g.nCols(); j++)
+        {
+            CHECK(h(i, j).Vm == doctest::Approx(g(i, j).Vm).epsilon(2e-3));
+            CHECK(h(i, j).Pt == doctest::Approx(g(i, j).Pt).epsilon(1e-4));
+            CHECK(h(i, j).y == doctest::Approx(g(i, j).y).epsilon(1e-4));
+        }
+    // vm_mean 150 m/s is 20.29 kg/s; the same 143 iterations either way, with clang on arm64
+    CHECK(mf == doctest::Approx(20.29).epsilon(1e-3));
+    CHECK(by_mf.mass_flow_error < 1e-3);
+    CHECK(by_mf.iterations <= by_vm.iterations + 5);
+
+    // the design point's mass flow, 20.19 kg/s (NASA TP-1659): 139 iterations
+    pb.inlet.mass_flow = 20.19;
+    const auto design = yams::api::solve(pb);
+    REQUIRE(design.status == yams::api::Status::Converged);
+    CHECK(design.solver_case.inlet.Mf == 20.19);
+
+    pb.inlet.mass_flow = 0.;
+    CHECK_THROWS_AS(yams::api::solve(pb), std::invalid_argument);
+    pb.inlet.mass_flow = std::numeric_limits<double>::quiet_NaN();
+    CHECK_THROWS_AS(yams::api::solve(pb), std::invalid_argument);
+    pb.inlet.mass_flow = std::numeric_limits<double>::infinity();
+    CHECK_THROWS_AS(yams::api::solve(pb), std::invalid_argument);
+
+    // beyond the rotor's choke (about 21 kg/s): 25 kg/s settles, its stations short
+    // of the mass flow by 7.6 % and Vm at the speed of sound; 30 kg/s makes the
+    // stream lines meet. Neither is a valid flow, and neither throws.
+    pb.inlet.mass_flow = 25.;
+    const auto over = yams::api::solve(pb);
+    CHECK(over.status == yams::api::Status::Choked);
+    CHECK(over.mass_flow_error > 1e-2);
+    pb.inlet.mass_flow = 30.;
+    yams::api::Result beyond; // not "far": a macro of the Windows headers
+    CHECK_NOTHROW(beyond = yams::api::solve(pb));
+    CHECK(beyond.status != yams::api::Status::Converged);
+}
+
+TEST_CASE("meridionalapi.inlet_swirl")
+{
+    // With inlet swirl, the inlet's totals are the given ones
+    auto pb = yams::tests::rotor37(150.);
+    pb.inlet.Vu = [](double) { return 50.; };
+    pb.options.max_geom = 1; // the inlet station is set before the first iteration
+    const auto res = yams::api::solve(pb);
+    const auto &g = *res.solver_case.gi->g;
+    for (size_t j = 0; j < g.nCols(); j++)
+    {
+        CHECK(g(0, j).Tt == doctest::Approx(288.15));
+        CHECK(g(0, j).Pt == doctest::Approx(101325.));
+    }
+}
