@@ -817,9 +817,9 @@ TEST_CASE("meridionalapi.mass_flow")
     CHECK(over.status == yams::api::Status::Choked);
     CHECK(over.mass_flow_error > 1e-2);
     pb.inlet.mass_flow = 30.;
-    yams::api::Result far;
-    CHECK_NOTHROW(far = yams::api::solve(pb));
-    CHECK(far.status != yams::api::Status::Converged);
+    yams::api::Result beyond; // not "far": a macro of the Windows headers
+    CHECK_NOTHROW(beyond = yams::api::solve(pb));
+    CHECK(beyond.status != yams::api::Status::Converged);
 }
 
 TEST_CASE("meridionalapi.inlet_swirl")
