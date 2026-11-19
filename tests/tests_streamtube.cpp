@@ -205,12 +205,20 @@ TEST_CASE("streamtube.b2b_rotor37")
     CHECK(*std::ranges::min_element(o.B.begin() + c.j_le, o.B.begin() + c.j_te + 1) < 0.95);
 
     // The far field angle that closes the Kutta condition: 3.8 deg of deviation past
-    // the metal angle (offset -3.78 deg in 3 solutions with clang on arm64), and an
+    // the metal angle (offset -3.80 deg in 3 solutions with clang on arm64), and an
     // outlet flow uniform across the pitch within 1.2 deg
     const auto k = yams::api::b2b_kutta(tube, 0, sec, blended);
     REQUIRE(k.converged);
     CHECK(std::abs(k.output.kutta) <= 1e-3);
     CHECK(k.runs <= 8);
+    // stopped before closing it: not converged, the best of its solutions returned
+    {
+        const auto k2 = yams::api::b2b_kutta(tube, 0, sec, blended, 1e-3, 2);
+        CHECK_FALSE(k2.converged);
+        CHECK(k2.runs == 2);
+        CHECK(k2.solver.converged());
+        CHECK(std::abs(k2.output.kutta) < std::abs(o.kutta));
+    }
     CHECK(k.outlet_offset < -1. * deg);
     CHECK(k.outlet_offset > -8. * deg);
     CHECK(k.case_.beta_out == doctest::Approx(c.beta_out + k.outlet_offset));
@@ -241,6 +249,23 @@ TEST_CASE("streamtube.b2b_errors")
     }
     opt.n_pitch = 2;
     CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, sec, opt), std::invalid_argument);
+    // planes closer than the nodes across: 5 nodes give a spacing ratio about 0.5
+    opt.n_pitch = 5;
+    CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, sec, opt), std::invalid_argument);
+    opt = {};
+    // a neighbouring row one station downstream of the trailing edge: no two
+    // stations before halfway to it, the domain does not reach into its blade
+    {
+        auto two_rows = tube;
+        const auto i_te = r.res.rows[0].i_te;
+        two_rows.rows.push_back({"Stator", tube.stations[i_te + 1].m, tube.stations[i_te + 5].m, 0., 46});
+        CHECK_THROWS_AS(yams::api::make_b2b_case(two_rows, 0, sec), std::invalid_argument);
+        // three stations further, it leaves room
+        two_rows.rows.back().m_le = tube.stations[i_te + 5].m;
+        two_rows.rows.back().m_te = tube.stations[i_te + 8].m;
+        const auto c2 = yams::api::make_b2b_case(two_rows, 0, sec);
+        CHECK(c2.m.back() <= 0.5 * (tube.rows[0].m_te + two_rows.rows.back().m_le));
+    }
     // a side running backwards in m
     auto back = sec;
     back.side1.reverse();
