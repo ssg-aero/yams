@@ -151,7 +151,10 @@ namespace yams
         T tol_th     = 1e-3;
         T tol_rho    = 1e-3;
         size_t max_iter_newton{100};
-        T RF{0.05};
+        // Geometric relaxation of the stream lines. 0.05 diverges on the reference
+        // case (tests_b2bsolver, solver.base_novak); 0.02 and 0.01 converge, to the
+        // same solution within 0.5 % with the geometric tolerance at 1e-4.
+        T RF{0.02};
         T RF_per{0.3};
         T RF_rho{0.01};
         std::vector<T> residual_geom;
@@ -316,14 +319,17 @@ namespace yams
     template <typename T>
     void BladeToBladeCurvatureSolver<T>::computeMeshData()
     {
+        // abs_cur, the inverse of the arc length, is a fit: it overshoots the curve
+        // bounds at its ends (1.000045 on a unit segment), hence the clamps, on the
+        // length (the mass flow balance moves the nodes along m) and on the parameter.
         auto [u1, u2] = stream_line->bounds();
-        // #pragma omp parallel for
+        auto [m1, m2] = abs_cur.bounds();
         auto n = ni * nj;
-        for (int i{}; i <n; i++)
+        for (size_t i{}; i < n; i++)
         {
-            auto u = abs_cur(msh.M[i]);
+            auto u = std::clamp<T>(abs_cur(std::clamp<T>(msh.M[i], m1, m2)), u1, u2);
             auto [z, r] = stream_line->value(u);
-            // msh.U[i] = u;
+            msh.U[i] = u;
             msh.R[i] = r;
             msh.Z[i] = z;
         }

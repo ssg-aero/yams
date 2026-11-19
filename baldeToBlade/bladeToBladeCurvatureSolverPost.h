@@ -8,7 +8,8 @@ namespace yams
     template <typename T>
     auto getValueStreamLine(const vector<T> &val, size_t i_stream, size_t j1, size_t j2, size_t ni)
     {
-        vector<T> values(j2-j1);
+        // j1 to j2 included
+        vector<T> values(j2 - j1 + 1);
         for(auto j{j1}; j <= j2; j++)
         {
             auto id = i_stream + ni * j;
@@ -45,14 +46,15 @@ namespace yams
     auto getXYZStreamLine(const BladeToBladeCurvatureSolverMesh<T> &msh, size_t i_stream, size_t j1, size_t j2, const gbs::Curve<T, 2> &meridional_stream_line)
     {
         using namespace std;
-        vector<arr3<T>> XYZ(msh.nj);
+        // j1 to j2 included, like getValueStreamLine
+        vector<arr3<T>> XYZ(j2 - j1 + 1);
         auto ni = msh.ni;
         for(auto j{j1}; j <= j2; j++)
         {
             auto id     = i_stream + ni * j;
             auto [z, r] = meridional_stream_line(msh.U[id]);
-            auto th     =  msh.U[id];  
-            XYZ[j] = {
+            auto th     = msh.TH[id];
+            XYZ[j - j1] = {
                 r * cos(th),
                 r * sin(th),
                 z
@@ -62,13 +64,13 @@ namespace yams
     }
 
     template <typename T>
-    auto getXYZSide1(const BladeToBladeCurvatureSolver<T> solver)
+    auto getXYZSide1(const BladeToBladeCurvatureSolver<T> &solver)
     {
         return getXYZStreamLine(solver.mesh(), 0, solver.leadingEdgeIndex(), solver.trailingEdgeIndex(), solver.meridionalStreamLine());
     }
 
     template <typename T>
-    auto getXYZSide2(const BladeToBladeCurvatureSolver<T> solver)
+    auto getXYZSide2(const BladeToBladeCurvatureSolver<T> &solver)
     {
         auto [ni,nj] = solver.dimensions();
         return getXYZStreamLine(solver.mesh(), ni-1, solver.leadingEdgeIndex(), solver.trailingEdgeIndex(), solver.meridionalStreamLine());
