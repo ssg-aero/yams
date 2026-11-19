@@ -6,6 +6,7 @@
 #include <numbers>
 #include <gbs/execution.h>
 #include <parallel.h>
+#include <gas/gasModel.h>
 
 namespace yams
 {
@@ -130,10 +131,8 @@ namespace yams
         size_t z_;
         T Mf;
         T omg;
-        // Gas prop
-        T gamma{1.4};
-        T R{287.04};
-        T Cp{1004.};
+        // Gas: the meridional solver's model (R and cp, gamma follows)
+        PerfectGas<T> gas_;
         // Stagnation line fix
         bool fix_stag_le{true};
         bool fix_stag_te{true};
@@ -179,6 +178,7 @@ namespace yams
         const auto &mesh() const { return msh; }
         const auto &data() const { return dat; }
         size_t periodicity() const { return z_; }
+        const PerfectGas<T> &gas() const { return gas_; }
         T fullBladePassageMassFlow() const { return Mf * z_;}
         T rotationSpeed() { return omg;}
         size_t leadingEdgeIndex() const {return jLe;}
@@ -206,9 +206,12 @@ namespace yams
             setFullBladePassageMassFlow(mf);
         }
         void setRotationSpeed(T rdPerSec) { omg = rdPerSec; }
-        void setCp(T cp){ Cp = cp;}
-        void setGasConstant(T RG){ R = RG;}
-        void setGamma(T Gamma){gamma=Gamma;}
+        /// The fluid of the meridional run (MeridionalProblem::gas)
+        void setGas(const PerfectGas<T> &gas) { gas_ = gas; }
+        void setCp(T cp) { gas_.cp = cp; }
+        void setGasConstant(T RG) { gas_.R = RG; }
+        /// gamma follows from R and cp: sets cp = gamma R / (gamma - 1) with the current R
+        void setGamma(T Gamma) { gas_.cp = Gamma * gas_.R / (Gamma - 1); }
         void setPtIn(T Pt){for( size_t i {}; i <ni; i++) dat.PT[i]=Pt;}
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
         void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
@@ -269,7 +272,7 @@ namespace yams
         std::fill(dat.TS.begin(), dat.TS.end(), 288.15);
         std::fill(dat.TT.begin(), dat.TT.end(), 288.15);
         std::fill(dat.PT.begin(), dat.PT.end(), 1e5);
-        std::fill(dat.H.begin(), dat.H.end(), 288.15 * 1004);
+        std::fill(dat.H.begin(), dat.H.end(), 288.15 * gas_.cp);
 
         residual_geom = std::vector(nj, 0.);
 
@@ -407,7 +410,8 @@ namespace yams
     {
         computeVm();
 
-        auto ga_ = gamma / (gamma - 1);
+        const auto Cp = gas_.cp;
+        const auto ga_ = gas_.gamma() / (gas_.gamma() - 1);
         for (int j{0}; j < nj; j++)
         {
             int jOffset = j * ni;
@@ -446,13 +450,15 @@ namespace yams
             int jOffset2 = jOffset + ni;
             for (int id{jOffset}; id < jOffset2; id++)
             {
-                dat.M[id] = dat.V[id] / std::sqrt(gamma * R * dat.TS[id]);
-                dat.MW[id] = dat.W[id] / std::sqrt(gamma * R * dat.TS[id]);
                 dat.TS[id] = dat.TT[id] - dat.V[id] * dat.V[id] / 2 / Cp;
+                // Mach numbers at the static temperature of this iteration
+                auto a = gas_.sound_speed(dat.TS[id]);
+                dat.M[id] = dat.V[id] / a;
+                dat.MW[id] = dat.W[id] / a;
                 dat.PS[id] = dat.PT[id] * std::pow(dat.TS[id] / dat.TT[id], ga_);
-                auto rho_new = dat.PS[id] / R / dat.TS[id];
+                auto rho_new = gas_.rho(dat.TS[id], dat.PS[id]);
                 dat.R[id] = dat.R[id] + RF_rho * (rho_new-dat.R[id]);
-                dat.S[id] = std::log(pow(dat.TS[id] / 288.15, Cp) / std::pow(dat.PS[id] / 1e5, R));
+                dat.S[id] = gas_.entropy(dat.TS[id], dat.PS[id]);
             }
         }
 

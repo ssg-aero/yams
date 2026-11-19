@@ -1,8 +1,26 @@
 #pragma once
-
+#include <cmath>
 
 namespace yams
 {
+    /// Perfect gas of the meridional solver (curvaturesolver.h): gas constant R and
+    /// constant cp, gamma = cp / (cp - R) follows, entropy from (Tref, Pref) like
+    /// GridInfo. The blade-to-blade solver uses the same model, so a stream line
+    /// analysed after the meridional run sees the same fluid.
+    template <typename T>
+    struct PerfectGas
+    {
+        T R{287.04};      ///< gas constant, J/(kg K)
+        T cp{1004.5};     ///< specific heat at constant pressure, J/(kg K)
+        T Tref{288.};     ///< entropy origin, K
+        T Pref{1.01325e5};///< entropy origin, Pa
+
+        T gamma() const { return cp / (cp - R); }
+        T rho(T Ts, T Ps) const { return Ps / (R * Ts); }
+        T sound_speed(T Ts) const { return std::sqrt(gamma() * R * Ts); }
+        T entropy(T Ts, T Ps) const { return cp * std::log(Ts / Tref) - R * std::log(Ps / Pref); }
+    };
+
     template <typename T>
     class GasBase
     {

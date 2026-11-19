@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <gbs/bscbuild.h>
 #include <string>
+#include <gas/gasModel.h>
 TEST_CASE("tridiagonal.thomas_vec")
 {
         using namespace std;
@@ -111,11 +112,15 @@ TEST_CASE("solver.base_novak")
     // every downstream station is corrected (the last one was not: the residual
     // stalled at 2.9e-4)
     CHECK(solver.periodicityDownStreamResidual().back() < 1e-5);
-    // Peak relative speed: 309.2 m/s with clang on arm64; 307.7 to 310.6 with the
+    // Peak relative speed: 309.1 m/s with clang on arm64; 307.7 to 310.6 with the
     // geometric relaxation between 0.02 and 0.005
     auto W_max = *std::ranges::max_element(dat.W);
-    CHECK(W_max == doctest::Approx(309.2).epsilon(0.01));
+    CHECK(W_max == doctest::Approx(309.1).epsilon(0.01));
     CHECK(*std::ranges::max_element(dat.MW) < 1.);
+    // isentropic flow with the meridional gas model: uniform entropy (it varied by
+    // 0.02 J/(kg K) with gamma, R and cp set independently)
+    auto [s_min, s_max] = std::ranges::minmax_element(dat.S);
+    CHECK(*s_max - *s_min < 1e-8);
 
     // Blade sides, leading to trailing edge included
     auto n_side = solver.trailingEdgeIndex() - solver.leadingEdgeIndex() + 1;
@@ -149,4 +154,22 @@ TEST_CASE("solver.base_novak")
     // yams::plot(solver.mesh(), solver.data().TS,"TS");
 
 
+}
+// The blade-to-blade solver takes the meridional solver's gas model
+TEST_CASE("solver.gas_model")
+{
+    yams::PerfectGas<double> air;
+    CHECK(air.gamma() == doctest::Approx(1004.5 / (1004.5 - 287.04)));
+    CHECK(air.rho(288., 1.01325e5) == doctest::Approx(1.01325e5 / (287.04 * 288.)));
+    CHECK(air.entropy(air.Tref, air.Pref) == 0.);
+    CHECK(air.sound_speed(288.) == doctest::Approx(std::sqrt(air.gamma() * 287.04 * 288.)));
+
+    yams::BladeToBladeCurvatureSolver<double> solver;
+    solver.setGas({.R = 296.8, .cp = 1040.});
+    CHECK(solver.gas().R == 296.8);
+    CHECK(solver.gas().gamma() == doctest::Approx(1040. / (1040. - 296.8)));
+    // gamma is not independent: it sets cp with the current R
+    solver.setGamma(1.4);
+    CHECK(solver.gas().cp == doctest::Approx(1.4 * 296.8 / 0.4));
+    CHECK(solver.gas().gamma() == doctest::Approx(1.4));
 }
