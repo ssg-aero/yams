@@ -120,6 +120,14 @@ namespace yams
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =200;
+        /// Points (i, j at i * nj + j) where, in the last integration of the
+        /// meridional velocity across their station, the radial equilibrium
+        /// stepped from the previous point gave no positive Vm (Vm^2 / 2 <= 0), the
+        /// step holding it at its floor: a stream tube that stagnates or would flow
+        /// back. The point's final Vm is positive but small, an artefact of that
+        /// floor (5 to 19 m/s against 105 to 154 m/s on Turbo Blade Forge's demo at
+        /// 50 and 35 m/s). Sized by curvature_solver; left empty, not filled.
+        std::vector<unsigned char> vm_floor;
         std::function<T(T)> KD = [](T m_rel){return T{};};
     };
 

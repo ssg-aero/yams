@@ -141,6 +141,11 @@ namespace yams::api
         /// limit at some points (Result::sonic_points): the mass flow is beyond
         /// the choke of the channel, the solution is not a valid flow
         Choked,
+        /// stream lines positions within tol_rel_pos, but the radial equilibrium
+        /// gives no positive Vm at some points (Result::floor_points): stream
+        /// tubes stagnate or would flow back (blades far off their inlet flow,
+        /// too much work for the mass flow), the solution is not a valid flow
+        FlowReversal,
     };
 
     inline const char *to_string(Status status)
@@ -152,6 +157,7 @@ namespace yams::api
         case Status::Cancelled: return "cancelled";
         case Status::Diverged: return "diverged";
         case Status::Choked: return "choked";
+        case Status::FlowReversal: return "flow reversal";
         }
         return "unknown";
     }
@@ -177,6 +183,11 @@ namespace yams::api
         /// Grid points where the solver holds Vm at the sonic limit (meridional
         /// Mach number 1): Status::Choked when the run converges with any.
         size_t sonic_points{};
+        /// Grid points where the radial equilibrium gives no positive Vm, the
+        /// integration holding it at its floor in a step (GridInfo::vm_floor; the
+        /// final Vm there is small but positive): Status::FlowReversal when the
+        /// run converges with any.
+        size_t floor_points{};
         std::vector<double> residual_max;   ///< per iteration, relative to the span
         std::vector<double> residual_mean;
         std::vector<RowStations> rows;
@@ -584,12 +595,16 @@ namespace yams::api
         const double R = sc.gi->R;
         res.sonic_points = static_cast<size_t>(std::count_if(g.begin(), g.end(), [R](const auto &gp)
                                   { return gp.Vm >= (1. - 1e-3) * std::sqrt(gp.ga * R * gp.Ts); }));
+        const auto &floor = sc.gi->vm_floor;
+        res.floor_points = static_cast<size_t>(std::count(floor.begin(), floor.end(), 1));
         if (!finite || sc.diverged)
             res.status = Status::Diverged;
         else if (sc.cancelled)
             res.status = Status::Cancelled;
         else if (sc.converged)
-            res.status = res.sonic_points > 0 ? Status::Choked : Status::Converged;
+            res.status = res.floor_points > 0 ? Status::FlowReversal
+                       : res.sonic_points > 0 ? Status::Choked
+                                              : Status::Converged;
         else
             res.status = Status::NotConverged;
         return res;

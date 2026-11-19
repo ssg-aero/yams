@@ -714,3 +714,56 @@ TEST_CASE("meridionalapi.rotor37_high_flow")
     CHECK_FALSE(sc.converged);
     CHECK(sc.log.delta_pos_moy.back() > 1e-2);
 }
+
+namespace
+{
+    // The channel of Turbo Blade Forge's demo flowpath (Flowpath::makeDemo) and
+    // its rotor, whose metal angle (0.5 to -0.5 rad) is far off its inlet flow
+    // at 5000 rpm: the lower the mass flow, the more work for it, until stream
+    // tubes along the shroud stagnate.
+    yams::api::Problem tbf_demo(double vm_mean)
+    {
+        yams::api::Problem pb;
+        pb.hub = Curve2d{{{0., 0.3}, {0.7, 0.32}, {1.4, 0.36}, {2., 0.4}}, {0., 0., 0., 0., 1., 1., 1., 1.}, 3};
+        pb.shroud = Curve2d{{{0., 0.7}, {0.7, 0.66}, {1.4, 0.62}, {2., 0.58}}, {0., 0., 0., 0., 1., 1., 1., 1.}, 3};
+        pb.rows.push_back({
+            .name = "Rotor 1",
+            .z_le = 0.5,
+            .z_te = 1.5,
+            .rpm = 5000.,
+            .blade_count = 12,
+            .metal_angle = [](double m, double) { return 0.5 - m; },
+        });
+        pb.inlet.vm_mean = vm_mean;
+        pb.options.n_stations = 41;
+        pb.options.tol_rel_pos = 1e-4;
+        return pb;
+    }
+}
+
+TEST_CASE("meridionalapi.flow_reversal")
+{
+    // Enough mass flow for the work: a valid flow
+    auto res = yams::api::solve(tbf_demo(80.));
+    CHECK(res.status == yams::api::Status::Converged);
+    CHECK(res.floor_points == 0);
+    CHECK(res.sonic_points == 0);
+
+    // Less: the stream lines settle, but stream tubes along the shroud
+    // stagnate in the rotor and downstream of it (10 points at 50 m/s; 35 m/s,
+    // 26 points, is too close to 30 m/s, which does not converge)
+    res = yams::api::solve(tbf_demo(50.));
+    CHECK(res.status == yams::api::Status::FlowReversal);
+    CHECK(res.floor_points > 0);
+    CHECK(std::string(yams::api::to_string(res.status)) == "flow reversal");
+    // none upstream of the rotor
+    const auto &floor = res.solver_case.gi->vm_floor;
+    const size_t nj = res.solver_case.gi->g->nCols();
+    REQUIRE(floor.size() == res.solver_case.gi->g->size());
+    CHECK(std::count(floor.begin(), floor.begin() + res.rows[0].i_le * nj, 1) == 0);
+
+    // NASA Rotor 37 at its design mass flow: no floor
+    res = yams::api::solve(yams::tests::rotor37(150.));
+    CHECK(res.status == yams::api::Status::Converged);
+    CHECK(res.floor_points == 0);
+}

@@ -101,6 +101,9 @@ namespace yams
                 sqVm_max_q2, 
                 std::fmax(1.0,sqVmq2 + Fjm * dl)
             );
+            // the radial equilibrium gives no positive Vm from the previous point:
+            // the stream tube stagnates (the step holds Vm at its floor)
+            bool floored = sqVmq2 + Fjm * dl <= 0.;
             // auto sqVmq2_1 = std::fmax(0.1,sqVmq2 + Fjm * dl); 
             // auto sqVmq2_1 = sqVmq2 + Fjm * dl;
             g(i, j).Vm = sqrt(2. * sqVmq2_1);
@@ -111,6 +114,7 @@ namespace yams
                 sqVm_max_q2, 
                 std::fmax(1.0,sqVmq2 + Fj * dl)
             ); 
+            floored = floored || sqVmq2 + Fj * dl <= 0.;
             // auto sqVmq2_2 = std::fmax(0.1,sqVmq2 + Fj * dl); 
             // auto sqVmq2_2 = sqVmq2 + Fj * dl; 
             // auto Vm_new = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
@@ -128,6 +132,8 @@ namespace yams
             g(i, j).Vm = 0.5 * (g(i, j).Vm + sqrt(2. * sqVmq2_2));
 
             g(i, j).Vm = std::min(g(i, j).Vm, std::sqrt(g(i, j).ga * gi.R * g(i, j).Ts));
+            if (gi.vm_floor.size() == g.size())
+                gi.vm_floor[i * nj + j] = floored;
 
         }
     }
@@ -136,6 +142,9 @@ namespace yams
     void integrate_RK2_vm_sheet(T vmi, size_t i, GridInfo<T> &gi, _Func F, bool integrate)
     {
         auto &g = *gi.g;
+        // this integration replaces the station's floor flags
+        if (gi.vm_floor.size() == g.size())
+            std::fill_n(gi.vm_floor.begin() + i * g.nCols(), g.nCols(), 0);
 
         if(!integrate)
         {
@@ -957,6 +966,7 @@ namespace yams
         // apply blade info
         apply_blade_info(solver_case);
         // innit values
+        gi.vm_floor.assign(g.size(), 0);
         init_values(solver_case,tol_rel_mf, eps);
         // apply rotation speeds
         apply_rotation_speeds(solver_case);
