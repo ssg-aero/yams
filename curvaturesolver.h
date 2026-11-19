@@ -949,7 +949,7 @@ namespace yams
         // the case's curvature method from the first iteration: make_grid_info
         // computes the double differentiation, which is left as the caller gives it
         if (gi.curvature != CurvatureMethod::DoubleDifferentiation)
-            compute_curvature(g, true, gi.curvature);
+            compute_curvature(g, true, gi.curvature, gi.curvature_blend);
         // apply boundary conditions
         apply_bc(solver_case);
         // compute spans mass flow
@@ -1037,7 +1037,7 @@ namespace yams
                 break;
             }
             // update density
-            if(!gi.rho_cst && delta_pos_moy < 1e-2 )
+            if(!gi.rho_cst && delta_pos_moy < gi.rho_update_residual )
             {
                 detail::par_for(ni,
                         [&](const auto &i){
@@ -1093,7 +1093,7 @@ namespace yams
             solver_case.log.delta_pos_max.push_back(delta_pos_max);
             solver_case.log.delta_pos_moy.push_back(delta_pos_moy);
             // update metrics
-            compute_grid_metrics(g,g_metrics,f_m,f_l,gi.curvature);// TODO run in // 
+            compute_grid_metrics(g,g_metrics,f_m,f_l,gi.curvature,gi.curvature_blend);// TODO run in // 
             // update convergence criteria
             converged = delta_pos_moy < tol_pos;
             count_geom++;

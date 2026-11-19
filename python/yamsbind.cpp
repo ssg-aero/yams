@@ -111,6 +111,8 @@ PYBIND11_MODULE(yams, m)
     .def_readwrite("RF_B", &GridInfo<T>::RF_B)
     .def_readwrite("RF_Mm2_max", &GridInfo<T>::RF_Mm2_max)
     .def_readwrite("curvature", &GridInfo<T>::curvature)
+    .def_readwrite("curvature_blend", &GridInfo<T>::curvature_blend)
+    .def_readwrite("rho_update_residual", &GridInfo<T>::rho_update_residual)
     .def_readwrite("Pref", &GridInfo<T>::Pref)
     .def_readwrite("Tref", &GridInfo<T>::Tref)
     .def_readwrite("tol_newtow_mf_f", &GridInfo<T>::tol_newtow_mf_f)
@@ -129,9 +131,11 @@ PYBIND11_MODULE(yams, m)
     .value("Blended", CurvatureMethod::Blended)
     .value("ThreePoint", CurvatureMethod::ThreePoint);
     m.def("default_relax_constant", &default_relax_constant,
-          "The relaxation constant (GridInfo.RF_B) to use with a curvature method", py::arg("method"));
+          "The relaxation constant (GridInfo.RF_B) to use with a curvature method; blend is the share of ThreePoint in Blended (GridInfo.curvature_blend)",
+          py::arg("method"), py::arg("blend") = 0.5);
     m.def("max_relax_constant", &max_relax_constant,
-          "The largest relaxation constant (GridInfo.RF_B) a curvature method is stable with", py::arg("method"));
+          "The largest relaxation constant (GridInfo.RF_B) a curvature method is stable with; blend is the share of ThreePoint in Blended (GridInfo.curvature_blend)",
+          py::arg("method"), py::arg("blend") = 0.5);
 
     py::enum_<MeridionalBladeMode>(m, "MeridionalBladeMode", py::arithmetic())
     .value("DESIGN_BETA_OUT", MeridionalBladeMode::DESIGN_BETA_OUT)
