@@ -225,6 +225,10 @@ namespace yams::api
         /// Added to the meridional run's downstream far field angle, rad (b2b_kutta
         /// searches the one that satisfies the Kutta condition)
         double outlet_offset{0.};
+        /// The smallest B2BCase::spacing_ratio accepted: below about 1.1 the solver
+        /// diverges or settles on a wrong flow (B2BCase::spacing_ratio). More nodes
+        /// across the passage, or a meridional run with fewer stations, raise it.
+        double min_spacing_ratio{1.1};
     };
 
     /// The grid and conditions of BladeToBladeCurvatureSolver for a blade row along a
@@ -248,7 +252,7 @@ namespace yams::api
         /// at the leading edge, r pitch / (n_pitch - 1). The solver's stream line
         /// relocation does not stand planes much closer than the nodes across (NASA
         /// Rotor 37 at mid span, 55 % speed, uniform planes: 0.7 diverges, 0.9 to 1
-        /// may settle on a wrong flow, 1.1 to 2 agree): fewer stations, or fewer nodes
+        /// may settle on a wrong flow, 1.1 to 2 agree): fewer stations, or more nodes
         /// across, raise it. 1.3 on Rotor 37 with 31 stations and 11 nodes.
         double spacing_ratio{};
         std::vector<double> dr; ///< stream sheet thickness of each plane, radial (BladeToBladeCurvatureSolver::setDr)
@@ -354,18 +358,20 @@ namespace yams::api
                 throw std::invalid_argument("The blade section's sides do not meet at m = " + std::to_string(m_edge) +
                                             ": close the section to a point at both edges.");
 
-        // domain ends: the tube's, halfway to the neighbouring rows' edges
-        auto m_in = std::max(m_le - opt.upstream * chord, tube.stations.front().m);
-        auto m_out = std::min(m_te + opt.downstream * chord, tube.stations.back().m);
+        // domain ends: the tube's, halfway to the neighbouring rows' edges (hard
+        // limits, never crossed), and the extent asked within them
+        auto m_in_max = tube.stations.front().m, m_out_max = tube.stations.back().m;
         for (size_t k = 0; k < tube.rows.size(); k++)
         {
             if (k == row)
                 continue;
             if (tube.rows[k].m_te <= m_le)
-                m_in = std::max(m_in, 0.5 * (tube.rows[k].m_te + m_le));
+                m_in_max = std::max(m_in_max, 0.5 * (tube.rows[k].m_te + m_le));
             if (tube.rows[k].m_le >= m_te)
-                m_out = std::min(m_out, 0.5 * (m_te + tube.rows[k].m_le));
+                m_out_max = std::min(m_out_max, 0.5 * (m_te + tube.rows[k].m_le));
         }
+        const auto m_in = std::max(m_le - opt.upstream * chord, m_in_max);
+        const auto m_out = std::min(m_te + opt.downstream * chord, m_out_max);
         if (!(m_le > tube.stations.front().m) || !(m_te < tube.stations.back().m))
             throw std::invalid_argument("The blade section is not inside the stream tube.");
         if (!(m_in < m_le) || !(m_out > m_te))
@@ -401,12 +407,15 @@ namespace yams::api
                                             " is off the row's edge station at m = " + std::to_string(st[i_edge].m) + ".");
         }
         size_t i_in = i_le, i_out = i_te;
-        while (i_in > 0 && (st[i_in - 1].m >= m_in || i_le - i_in < 2))
+        // the stations within the extent asked, two at least on each side, but never
+        // past the tube's ends or halfway to a neighbouring row
+        while (i_in > 0 && st[i_in - 1].m >= m_in_max && (st[i_in - 1].m >= m_in || i_le - i_in < 2))
             i_in--;
-        while (i_out + 1 < st.size() && (st[i_out + 1].m <= m_out || i_out - i_te < 2))
+        while (i_out + 1 < st.size() && st[i_out + 1].m <= m_out_max && (st[i_out + 1].m <= m_out || i_out - i_te < 2))
             i_out++;
         if (i_le - i_in < 2 || i_out - i_te < 2)
-            throw std::invalid_argument("Less than two meridional stations upstream or downstream of the blade row.");
+            throw std::invalid_argument("Less than two meridional stations upstream or downstream of the blade row "
+                                        "before the tube's end or halfway to a neighbouring row.");
         for (size_t i = i_in; i <= i_out; i++)
         {
             // the edge planes at the section's edges, where its sides meet: a plane
@@ -424,6 +433,11 @@ namespace yams::api
             for (size_t j = 1; j < c.n_planes; j++)
                 dm_min = std::min(dm_min, c.m[j] - c.m[j - 1]);
             c.spacing_ratio = dm_min / (tube.at(c.m[c.j_le]).r * pitch / (opt.n_pitch - 1));
+            if (c.spacing_ratio < opt.min_spacing_ratio)
+                throw std::invalid_argument("The blade-to-blade planes are too close for the nodes across the passage "
+                                            "(spacing ratio " + std::to_string(c.spacing_ratio) + ", under " +
+                                            std::to_string(opt.min_spacing_ratio) + "): more nodes across, or fewer "
+                                            "meridional stations.");
         }
         const auto inlet = tube.at(c.m.front());
         c.Pt = inlet.Pt;
@@ -544,7 +558,8 @@ namespace yams::api
         const auto wa = dat.W[ni * c.j_te], wb = dat.W[ni - 1 + ni * c.j_te];
         o.kutta = (wa - wb) / (0.5 * (wa + wb));
         const auto i_mid = (ni - 1) / 2;
-        const auto mf_passage = c.mass_flow / c.blade_count;
+        // the solver's mass flow: it lowers it when a run gives NaN
+        const auto mf_passage = solver.fullBladePassageMassFlow() / c.blade_count;
         const auto pitch = 2. * std::numbers::pi / c.blade_count;
         for (size_t j = 0; j < nj; j++)
         {
@@ -568,7 +583,9 @@ namespace yams::api
         /// deviation, for a compressor rotor of negative angles)
         double outlet_offset{};
         size_t runs{};       ///< blade-to-blade solutions made
-        bool converged{};    ///< |kutta| <= tol, every solution converged
+        /// the solution converged at the case's mass flow and |kutta| <= tol; else the
+        /// solution is the converged one of smallest |kutta| (or the first, if none)
+        bool converged{};
     };
 
     /**
@@ -580,41 +597,46 @@ namespace yams::api
     inline B2BKutta b2b_kutta(const StreamTube &tube, size_t row, const BladeSection &section, B2BOptions opt = {},
                               double tol = 1e-3, size_t max_runs = 10)
     {
+        constexpr auto deg = std::numbers::pi / 180.;
+        size_t runs = 0;
         auto run = [&](double offset)
         {
             opt.outlet_offset = offset;
-            B2BKutta k{make_b2b_case(tube, row, section, opt), {}, {}, offset, 0, false};
+            B2BKutta k{.case_ = make_b2b_case(tube, row, section, opt), .outlet_offset = offset};
             k.solver = make_b2b_solver(k.case_);
             k.solver.computeW();
             k.output = b2b_output(k.case_, k.solver);
             k.converged = k.solver.converged() &&
                           std::abs(k.solver.fullBladePassageMassFlow() - k.case_.mass_flow) <= 1e-9 * k.case_.mass_flow;
+            runs++;
             return k;
         };
         auto a = run(opt.outlet_offset);
-        size_t runs = 1;
-        if (!a.converged || std::abs(a.output.kutta) <= tol)
+        // the converged solution of smallest residual: what is returned
+        auto best = a;
+        // a second point a degree away, where the Kutta residual should get smaller:
+        // it decreases as the far field angle increases (Rotor 37 at mid span, 55 %
+        // speed: -0.23, -0.35, -0.49 at -1, 0, +1 deg); the secant corrects a wrong guess
+        double step = (a.output.kutta > 0. ? 1. : -1.) * deg;
+        while (a.converged && std::abs(a.output.kutta) > tol && runs < max_runs)
         {
-            a.runs = runs;
-            a.converged = a.converged && std::abs(a.output.kutta) <= tol;
-            return a;
-        }
-        // a second point a degree away, the way the Kutta residual should go
-        auto b = run(a.outlet_offset + (a.output.kutta > 0. ? -1. : 1.) * std::numbers::pi / 180.);
-        runs++;
-        while (b.converged && std::abs(b.output.kutta) > tol && runs < max_runs)
-        {
+            auto b = run(a.outlet_offset + step);
+            if (!b.converged)
+            {
+                // a step too far: half of it from the last converged solution
+                step *= 0.5;
+                continue;
+            }
+            if (std::abs(b.output.kutta) < std::abs(best.output.kutta))
+                best = b;
             const auto dk = b.output.kutta - a.output.kutta;
-            if (dk == 0.)
+            if (std::abs(b.output.kutta) <= tol || dk == 0.)
                 break;
-            auto step = -b.output.kutta * (b.outlet_offset - a.outlet_offset) / dk;
-            step = std::clamp(step, -5. * std::numbers::pi / 180., 5. * std::numbers::pi / 180.);
+            step = std::clamp(-b.output.kutta * (b.outlet_offset - a.outlet_offset) / dk, -5. * deg, 5. * deg);
             a = std::move(b);
-            b = run(a.outlet_offset + step);
-            runs++;
         }
-        b.runs = runs;
-        b.converged = b.converged && std::abs(b.output.kutta) <= tol;
-        return b;
+        best.runs = runs;
+        best.converged = best.converged && std::abs(best.output.kutta) <= tol;
+        return best;
     }
 }
