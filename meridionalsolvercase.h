@@ -120,6 +120,12 @@ namespace yams
         T tol_newtow_mf_f = 1e-5;
         T tol_newtow_mf_u = 1e-6;
         size_t vm_distribution_max_count =200;
+        /// Points (i, j at i * nj + j) where the last integration of the meridional
+        /// velocity across their station found no positive Vm (the radial
+        /// equilibrium gives Vm^2 / 2 under 1 m^2/s^2) and held it at its floor:
+        /// a stream tube that stagnates or would flow back. Sized by
+        /// curvature_solver; left empty, not filled.
+        std::vector<unsigned char> vm_floor;
         std::function<T(T)> KD = [](T m_rel){return T{};};
     };
 
