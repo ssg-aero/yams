@@ -79,10 +79,12 @@ namespace yams::api
             auto it = std::ranges::upper_bound(stations, m, {}, &StreamTubeStation::m);
             const auto &a = *std::prev(it), &c = *it;
             const auto t = (m - a.m) / (c.m - a.m);
-            auto lerp = [t](double x, double y) { return x + t * (y - x); };
-            return {lerp(a.z, c.z), lerp(a.r, c.r), m, lerp(a.b, c.b), lerp(a.phi, c.phi),
-                    lerp(a.Vm, c.Vm), lerp(a.Vu, c.Vu), lerp(a.Pt, c.Pt), lerp(a.Tt, c.Tt),
-                    lerp(a.Ps, c.Ps), lerp(a.Ts, c.Ts), lerp(a.rho, c.rho)};
+            // every field by name: a new field of StreamTubeStation is added here
+            using S = StreamTubeStation;
+            S s;
+            for (auto f : {&S::z, &S::r, &S::m, &S::b, &S::phi, &S::Vm, &S::Vu, &S::Pt, &S::Tt, &S::Ps, &S::Ts, &S::rho})
+                s.*f = a.*f + t * (c.*f - a.*f);
+            return s;
         }
     };
 
@@ -102,9 +104,19 @@ namespace yams::api
      * and its neighbours (the hub or the shroud for the first and the last), so the
      * tubes of all the stream lines share the channel and its mass flow. The
      * positions are linear in the cumulated mass flow along each station.
+     *
+     * The curves' parameter is the arc length of the mean curve (StreamTubeStation::m),
+     * the abscissa BladeToBladeCurvatureSolver computes from it; it differs from the
+     * meridional grid's m, the length of the polyline through the nodes.
+     *
+     * @throw std::invalid_argument for a result that is not a valid flow (any status
+     * but Status::Converged: choked, flow reversal, not converged...)
      */
     inline StreamTube stream_tube(const Problem &pb, const Result &res, size_t j)
     {
+        if (res.status != Status::Converged)
+            throw std::invalid_argument(std::string("The meridional result is not a valid flow (") +
+                                        to_string(res.status) + ").");
         if (!res.solver_case.gi || !res.solver_case.gi->g)
             throw std::invalid_argument("The result holds no meridional grid.");
         const auto &g = *res.solver_case.gi->g;
@@ -155,6 +167,18 @@ namespace yams::api
             st.rho = gp.rho;
             tube.stations.push_back(st);
         }
+        // parameter: the mean curve's own arc length at the nodes (a fixed point,
+        // the polyline length to start with)
+        for (int pass = 0; pass < 3; pass++)
+        {
+            const auto crv = detail::curve_through(p_mean, u);
+            std::vector<double> s{u.front()};
+            for (size_t i = 1; i < n_st; i++)
+                s.push_back(s.back() + gbs::length(crv, u[i - 1], u[i]));
+            u = std::move(s);
+        }
+        for (size_t i = 0; i < n_st; i++)
+            tube.stations[i].m = u[i];
         tube.mean = detail::curve_through(p_mean, u);
         tube.lower = detail::curve_through(p_low, u);
         tube.upper = detail::curve_through(p_up, u);
@@ -173,7 +197,7 @@ namespace yams::api
         for (size_t k = 0; k < pb.rows.size() && k < res.rows.size(); k++)
         {
             const auto &row = pb.rows[k];
-            tube.rows.push_back({row.name, g(res.rows[k].i_le, j).m, g(res.rows[k].i_te, j).m,
+            tube.rows.push_back({row.name, tube.stations[res.rows[k].i_le].m, tube.stations[res.rows[k].i_te].m,
                                  row.rpm * std::numbers::pi / 30., row.blade_count});
         }
         return tube;
@@ -218,7 +242,10 @@ namespace yams::api
         double mass_flow{};     ///< through the tube, all the passages, kg/s
         double omega{};         ///< rad/s
         double Pt{}, Tt{};      ///< absolute, at the first plane
-        double beta_in{};       ///< relative inlet flow angle of the grid, rad
+        /// relative flow angle of the meridional flow at the first plane, rad, which the
+        /// grid's stagnation line follows upstream (its first segment averages it with
+        /// the second plane's)
+        double beta_in{};
         size_t blade_count{};
         Gas gas;
     };
@@ -301,6 +328,11 @@ namespace yams::api
         const auto pitch = 2. * std::numbers::pi / rw.blade_count;
         if (!(sb(m_mid) + pitch > sa(m_mid)))
             throw std::invalid_argument("The blade section is thicker than the pitch.");
+        // the grid takes pointed edges: the sides meet at both
+        for (auto m_edge : {m_le, m_te})
+            if (std::abs(sa(m_edge) - sb(m_edge)) > 1e-3 * pitch)
+                throw std::invalid_argument("The blade section's sides do not meet at m = " + std::to_string(m_edge) +
+                                            ": close the section to a point at both edges.");
 
         // domain ends: the tube's, halfway to the neighbouring rows' edges
         auto m_in = std::max(m_le - opt.upstream * chord, tube.stations.front().m);
@@ -314,8 +346,11 @@ namespace yams::api
             if (tube.rows[k].m_le >= m_te)
                 m_out = std::min(m_out, 0.5 * (m_te + tube.rows[k].m_le));
         }
-        if (!(m_in < m_le) || !(m_out > m_te))
+        if (!(m_le > tube.stations.front().m) || !(m_te < tube.stations.back().m))
             throw std::invalid_argument("The blade section is not inside the stream tube.");
+        if (!(m_in < m_le) || !(m_out > m_te))
+            throw std::invalid_argument("No room for the blade-to-blade domain between the blade and a "
+                                        "neighbouring row: the rows' edges are too close.");
 
         B2BCase c;
         c.stream_line = std::make_shared<Curve2d>(tube.mean);

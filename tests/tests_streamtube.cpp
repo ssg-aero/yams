@@ -99,10 +99,42 @@ TEST_CASE("streamtube.rotor37")
     REQUIRE(tube.rows.size() == 1);
     CHECK(tube.rows[0].omega == doctest::Approx(0.55 * 17188.7 * std::numbers::pi / 30.));
     CHECK(tube.rows[0].blade_count == 36);
-    CHECK(tube.rows[0].m_le == g(r.res.rows[0].i_le, j).m);
-    CHECK(tube.rows[0].m_te == g(r.res.rows[0].i_te, j).m);
+    CHECK(tube.rows[0].m_le == tube.stations[r.res.rows[0].i_le].m);
+    CHECK(tube.rows[0].m_te == tube.stations[r.res.rows[0].i_te].m);
+    // m is the mean curve's arc length, the abscissa the blade-to-blade solver
+    // computes from the parameter, close to the meridional grid's polyline length
+    for (size_t i = 1; i < n_st; i++)
+    {
+        const auto &st = tube.stations[i];
+        CHECK(gbs::length(tube.mean, tube.stations.front().m, st.m) == doctest::Approx(st.m - tube.stations.front().m).epsilon(1e-6));
+        CHECK(st.m == doctest::Approx(g(i, j).m).epsilon(1e-3));
+    }
+
+    // the tubes at the hub and at the shroud, and the channel's flow shared
+    double flow = 0.;
+    for (size_t k = 0; k < n_sl; k++)
+    {
+        const auto t = yams::api::stream_tube(r.pb, r.res, k);
+        flow += t.mass_flow;
+        for (const auto &st : t.stations)
+            CHECK(st.b > 0.);
+    }
+    CHECK(flow == doctest::Approx(g(0, n_sl - 1).q));
+    const auto hub = yams::api::stream_tube(r.pb, r.res, 0);
+    CHECK(hub.lower(hub.stations[2].m)[1] == doctest::Approx(g(2, 0).y));
+    const auto shroud = yams::api::stream_tube(r.pb, r.res, n_sl - 1);
+    CHECK(shroud.upper(shroud.stations[2].m)[1] == doctest::Approx(g(2, n_sl - 1).y));
 
     CHECK_THROWS_AS(yams::api::stream_tube(r.pb, r.res, n_sl), std::invalid_argument);
+}
+
+TEST_CASE("streamtube.invalid_flow")
+{
+    // a choked meridional run is not a flow to analyse along its stream lines
+    auto pb = yams::tests::rotor37(180.);
+    const auto res = yams::api::solve(pb);
+    REQUIRE(res.status == yams::api::Status::Choked);
+    CHECK_THROWS_AS(yams::api::stream_tube(pb, res, 5), std::invalid_argument);
 }
 
 TEST_CASE("streamtube.b2b_rotor37")
@@ -127,7 +159,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     auto solver = yams::api::make_b2b_solver(c);
     solver.computeW();
     REQUIRE(solver.converged());
-    // 696 iterations with clang on arm64
+    // 679 iterations with clang on arm64
     CHECK(solver.iterations() < 1000);
     CHECK(solver.fullBladePassageMassFlow() == doctest::Approx(tube.mass_flow));
 
@@ -173,4 +205,21 @@ TEST_CASE("streamtube.b2b_errors")
     yams::api::BladeSection outside{gbs::interpolate(p1, std::vector<double>{0., 1.}, 1),
                                     gbs::interpolate(p2, std::vector<double>{0., 1.}, 1)};
     CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, outside), std::invalid_argument);
+    // a blunt trailing edge: the grid takes pointed edges
+    {
+        const auto &s2 = sec.side2;
+        auto [u1, u2] = s2.bounds();
+        gbs::points_vector<double, 2> pts;
+        std::vector<double> u;
+        for (size_t k = 0; k < 21; k++)
+        {
+            const auto x = double(k) / 20;
+            auto p = s2(u1 + (u2 - u1) * x);
+            p[1] -= 0.02 * x; // opens up to 0.02 rad at the trailing edge
+            pts.push_back(p);
+            u.push_back(p[0]);
+        }
+        yams::api::BladeSection blunt{sec.side1, gbs::interpolate(pts, u, 3)};
+        CHECK_THROWS_AS(yams::api::make_b2b_case(tube, 0, blunt), std::invalid_argument);
+    }
 }
