@@ -567,14 +567,14 @@ TEST_CASE("meridionalapi.curvature_three_point")
 
 namespace
 {
-    constexpr bool near(double a, double b) { return (a > b ? a - b : b - a) < 1e-12; }
+    constexpr bool close_to(double a, double b) { return (a > b ? a - b : b - a) < 1e-12; }
     using yams::CurvatureMethod;
     // the stability limits and default constants are known at compile time
-    static_assert(near(yams::max_relax_constant(CurvatureMethod::DoubleDifferentiation), 19.2));
-    static_assert(near(yams::max_relax_constant(CurvatureMethod::Blended), 9.6));
-    static_assert(near(yams::max_relax_constant(CurvatureMethod::Blended, 0.2), 15.36));
-    static_assert(near(yams::max_relax_constant(CurvatureMethod::ThreePoint), 4.8));
-    static_assert(near(yams::default_relax_constant(CurvatureMethod::Blended, 0.2), 9.6));
+    static_assert(close_to(yams::max_relax_constant(CurvatureMethod::DoubleDifferentiation), 19.2));
+    static_assert(close_to(yams::max_relax_constant(CurvatureMethod::Blended), 9.6));
+    static_assert(close_to(yams::max_relax_constant(CurvatureMethod::Blended, 0.2), 15.36));
+    static_assert(close_to(yams::max_relax_constant(CurvatureMethod::ThreePoint), 4.8));
+    static_assert(close_to(yams::default_relax_constant(CurvatureMethod::Blended, 0.2), 9.6));
     // the share is deduced from the grid: a float grid takes a double literal
     static_assert(requires(yams::MeridionalGrid<float> &g) {
         yams::compute_curvature(g, true, CurvatureMethod::Blended, 0.2);
