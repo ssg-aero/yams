@@ -222,6 +222,9 @@ namespace yams::api
         /// within 1.1 deg, 0.5 a wrong flow (-8 deg)
         double upstream{1.};
         double downstream{1.};
+        /// Added to the meridional run's downstream far field angle, rad (b2b_kutta
+        /// searches the one that satisfies the Kutta condition)
+        double outlet_offset{0.};
     };
 
     /// The grid and conditions of BladeToBladeCurvatureSolver for a blade row along a
@@ -256,6 +259,10 @@ namespace yams::api
         /// grid's stagnation line follows upstream (its first segment averages it with
         /// the second plane's)
         double beta_in{};
+        /// relative flow angle of the meridional flow at the last plane, rad: the
+        /// downstream far field angle the grid imposes (its last segment's)
+        double beta_out{};
+        std::vector<double> b;  ///< tube thickness normal to the mean stream line at each plane
         size_t blade_count{};
         Gas gas;
     };
@@ -302,11 +309,13 @@ namespace yams::api
      * neighbouring stations' spacing of the edge stations. Upstream, the initial stagnation line
      * follows the meridional relative flow angle back from the leading edge; its first
      * segment sets the inlet flow angle of the blade-to-blade run (the solver shifts
-     * the planes upstream together). Downstream, it leaves the trailing edge along
-     * the mean of the sides over the last 5 % of the chord, r tan(beta) kept, and the solver's periodicity
-     * correction bends it: the meridional angle there comes from the meridional
-     * model of the row (its metal angle in DIRECT mode), and a kink at the trailing
-     * edge makes the solver diverge. Across the passage the nodes are uniform in theta.
+     * the planes upstream together). Downstream, the far field angle is the meridional
+     * run's (B2BCase::beta_out), as in Novak and Hearsey's system, where the meridional
+     * program gives the blade-to-blade one its downstream air angle and the Kutta
+     * condition at the trailing edge checks it (b2b_output): the stagnation line leaves
+     * the trailing edge along the mean of the sides over the last 5 % of the chord and
+     * blends into the meridional angle by the plane before the last. Across the passage
+     * the nodes are uniform in theta.
      *
      * @throw std::invalid_argument on a wrong row, section or option, or where the
      * stream line is nearly radial (|cos phi| < 0.2): the solver's sheet thickness is
@@ -432,19 +441,37 @@ namespace yams::api
         th_stag[c.j_le] = sa(m_le);
         for (size_t j = c.j_le; j-- > 0;)
             th_stag[j] = th_stag[j + 1] - 0.5 * (dth_dm(c.m[j]) + dth_dm(c.m[j + 1])) * (c.m[j + 1] - c.m[j]);
-        // downstream: along the mean of the sides over the last 5 % of the chord, r tan(beta)
-        // kept. Not their tangents at the edge: a round trailing edge's are anything. The
-        // outlet angle depends a little on it (NASA Rotor 37 at mid span, tbf's
-        // tests/test_meridional_b2b.cpp: -38.9 deg over 2 %, -39.6 over 5 %, -40.1 over 10 %,
-        // -31.0 with the tangents over 0.1 %, against the metal angle's -34.8).
+        // downstream: the far field angle is the meridional run's (Novak and Hearsey
+        // 1977: the blade-to-blade program takes the downstream air angle from the
+        // meridional one, and the Kutta condition at the trailing edge tells whether that
+        // angle, hence the meridional deviation, is right). The solver moves the last
+        // plane with the one before: the last segment's angle is kept, it is the
+        // meridional one. From the trailing edge, the stagnation line leaves along the
+        // mean of the sides over the last 5 % of the chord (a round edge's tangents are
+        // anything) and blends linearly into the meridional angle by the plane before the
+        // last: a kink at the trailing edge makes the solver diverge.
         const auto dm_te = 0.05 * chord;
         const auto slope_te = 0.5 * ((sa(m_te) - sa(m_te - dm_te)) + (sb(m_te) - sb(m_te - dm_te))) / dm_te;
-        const auto rtanb_te = slope_te * tube.at(m_te).r * tube.at(m_te).r;
+        const auto r_te = tube.at(m_te).r;
+        const auto m_blend = c.m[c.n_planes - 2];
+        // the far field: the meridional angle, offset
+        auto dth_dm_far = [&](double m)
+        {
+            const auto st = tube.at(m);
+            return std::tan(std::atan2(st.Vu - c.omega * st.r, st.Vm) + opt.outlet_offset) / st.r;
+        };
+        auto dth_dm_down = [&](double m)
+        {
+            const auto r = tube.at(m).r;
+            const auto w = std::clamp((m - m_te) / (m_blend - m_te), 0., 1.);
+            return (1. - w) * slope_te * r_te * r_te / (r * r) + w * dth_dm_far(m);
+        };
         th_stag[c.j_te] = sa(m_te);
         for (size_t j = c.j_te + 1; j < c.n_planes; j++)
+            th_stag[j] = th_stag[j - 1] + 0.5 * (dth_dm_down(c.m[j - 1]) + dth_dm_down(c.m[j])) * (c.m[j] - c.m[j - 1]);
         {
-            auto f = [&](double m) { const auto r = tube.at(m).r; return rtanb_te / (r * r); };
-            th_stag[j] = th_stag[j - 1] + 0.5 * (f(c.m[j - 1]) + f(c.m[j])) * (c.m[j] - c.m[j - 1]);
+            const auto out = tube.at(c.m.back());
+            c.beta_out = std::atan2(out.Vu - c.omega * out.r, out.Vm) + opt.outlet_offset;
         }
 
         for (size_t j = 0; j < c.n_planes; j++)
@@ -463,9 +490,32 @@ namespace yams::api
                 throw std::invalid_argument("The stream line is nearly radial at m = " + std::to_string(m) +
                                             ": the blade-to-blade solver takes a radial sheet thickness.");
             c.dr.push_back(st.b / std::abs(cphi));
+            c.b.push_back(st.b);
         }
         return c;
     }
+
+    /// What a blade-to-blade solution gives back to the meridional run (Novak and
+    /// Hearsey 1977), at each plane of its case
+    struct B2BOutput
+    {
+        /// Kutta condition at the trailing edge: (W_a - W_b) / mean, the relative
+        /// speeds of the trailing edge's nodes on side a (i = 0) and side b (i =
+        /// n_pitch - 1). Zero when the far field angle (the meridional deviation) is
+        /// right; else that angle, hence the meridional deviation, is to be changed
+        /// until it closes (Novak and Hearsey's pump: two more runs).
+        double kutta{};
+        /// relative flow angle on the mid stream line (i = (n_pitch - 1) / 2: the
+        /// solver's nodes stay on stream lines), rad
+        std::vector<double> beta_mean;
+        /// specific mass flow ratio B = (rho Vm)_a / (rho Vm)_m (Novak and Hearsey's eq.
+        /// 7): the passage's mass flow over the whole pitch (blade blockage counted)
+        /// against the mid stream line's. 1 far from the blade
+        std::vector<double> B;
+        /// the planes' outlet angle against the imposed one: the solver kept it when
+        /// they match (rad)
+        double beta_out{};
+    };
 
     /// The blade-to-blade solver of a case, ready for computeW()
     inline BladeToBladeCurvatureSolver<double> make_b2b_solver(const B2BCase &c)
@@ -479,5 +529,92 @@ namespace yams::api
         solver.setTtIn(c.Tt);
         solver.setDr(c.dr);
         return solver;
+    }
+
+    /// The solution's Kutta condition, mid stream line angles and specific mass flow
+    /// ratios (B2BOutput), at the planes of case `c`
+    inline B2BOutput b2b_output(const B2BCase &c, const BladeToBladeCurvatureSolver<double> &solver)
+    {
+        const auto &msh = solver.mesh();
+        const auto &dat = solver.data();
+        const auto [ni, nj] = solver.dimensions();
+        if (nj != c.n_planes)
+            throw std::invalid_argument("The solver is not the case's.");
+        B2BOutput o;
+        const auto wa = dat.W[ni * c.j_te], wb = dat.W[ni - 1 + ni * c.j_te];
+        o.kutta = (wa - wb) / (0.5 * (wa + wb));
+        const auto i_mid = (ni - 1) / 2;
+        const auto mf_passage = c.mass_flow / c.blade_count;
+        const auto pitch = 2. * std::numbers::pi / c.blade_count;
+        for (size_t j = 0; j < nj; j++)
+        {
+            const auto id = i_mid + ni * j;
+            o.beta_mean.push_back(msh.BT[id]);
+            const auto rho_vm_a = mf_passage / (c.b[j] * msh.R[id] * pitch);
+            o.B.push_back(rho_vm_a / (dat.R[id] * dat.Vm[id]));
+        }
+        o.beta_out = msh.BT[i_mid + ni * (nj - 1)];
+        return o;
+    }
+
+    /// A blade-to-blade solution satisfying the Kutta condition (b2b_kutta)
+    struct B2BKutta
+    {
+        B2BCase case_;
+        BladeToBladeCurvatureSolver<double> solver;
+        B2BOutput output;
+        /// the far field angle's offset from the meridional run's that closes the
+        /// Kutta condition, rad: what the meridional deviation lacks (negative: more
+        /// deviation, for a compressor rotor of negative angles)
+        double outlet_offset{};
+        size_t runs{};       ///< blade-to-blade solutions made
+        bool converged{};    ///< |kutta| <= tol, every solution converged
+    };
+
+    /**
+     * @brief The downstream far field angle that satisfies the Kutta condition, and its
+     * solution: secant iterations on B2BOptions::outlet_offset from opt's, until
+     * |B2BOutput::kutta| <= tol, as Novak and Hearsey iterated on the discharge air
+     * angles of their blade-to-blade runs (J. Fluids Eng. 99, 1977, p. 158).
+     */
+    inline B2BKutta b2b_kutta(const StreamTube &tube, size_t row, const BladeSection &section, B2BOptions opt = {},
+                              double tol = 1e-3, size_t max_runs = 10)
+    {
+        auto run = [&](double offset)
+        {
+            opt.outlet_offset = offset;
+            B2BKutta k{make_b2b_case(tube, row, section, opt), {}, {}, offset, 0, false};
+            k.solver = make_b2b_solver(k.case_);
+            k.solver.computeW();
+            k.output = b2b_output(k.case_, k.solver);
+            k.converged = k.solver.converged() &&
+                          std::abs(k.solver.fullBladePassageMassFlow() - k.case_.mass_flow) <= 1e-9 * k.case_.mass_flow;
+            return k;
+        };
+        auto a = run(opt.outlet_offset);
+        size_t runs = 1;
+        if (!a.converged || std::abs(a.output.kutta) <= tol)
+        {
+            a.runs = runs;
+            a.converged = a.converged && std::abs(a.output.kutta) <= tol;
+            return a;
+        }
+        // a second point a degree away, the way the Kutta residual should go
+        auto b = run(a.outlet_offset + (a.output.kutta > 0. ? -1. : 1.) * std::numbers::pi / 180.);
+        runs++;
+        while (b.converged && std::abs(b.output.kutta) > tol && runs < max_runs)
+        {
+            const auto dk = b.output.kutta - a.output.kutta;
+            if (dk == 0.)
+                break;
+            auto step = -b.output.kutta * (b.outlet_offset - a.outlet_offset) / dk;
+            step = std::clamp(step, -5. * std::numbers::pi / 180., 5. * std::numbers::pi / 180.);
+            a = std::move(b);
+            b = run(a.outlet_offset + step);
+            runs++;
+        }
+        b.runs = runs;
+        b.converged = b.converged && std::abs(b.output.kutta) <= tol;
+        return b;
     }
 }

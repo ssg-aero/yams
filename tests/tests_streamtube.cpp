@@ -172,7 +172,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     auto solver = yams::api::make_b2b_solver(c);
     solver.computeW();
     REQUIRE(solver.converged());
-    // 641 iterations with clang on arm64
+    // 831 iterations with clang on arm64
     CHECK(solver.iterations() < 1000);
     CHECK(solver.fullBladePassageMassFlow() == doctest::Approx(tube.mass_flow));
 
@@ -184,17 +184,40 @@ TEST_CASE("streamtube.b2b_rotor37")
     // relocation of the passage's inner nodes
     CHECK(msh.BT[0] == doctest::Approx(c.beta_in).epsilon(0.01));
     CHECK(msh.BT[ni / 2] == doctest::Approx(c.beta_in).epsilon(0.05));
-    // Outlet: the meridional run imposes the metal angle at the trailing edge
-    // (DIRECT mode); the blade-to-blade flow leaves it with a deviation and does
-    // less work (-40.6 deg against -33.0 one chord downstream, Tt rise 24.4 K against
-    // 29.6 with clang on arm64)
+    // Outlet (Novak and Hearsey 1977): the far field angle is the meridional run's, the
+    // metal angle in DIRECT mode, no deviation; the stagnation lines keep it. With no
+    // deviation the Kutta condition fails at the trailing edge, and the outlet flow is
+    // not uniform across the pitch: the inner stream lines turn away from the imposed
+    // angle (-29.1 deg mid passage against -33.0, kutta -0.35 with clang on arm64).
     const auto out = tube.at(c.m.back());
-    const auto beta_merid = std::atan2(out.Vu - c.omega * out.r, out.Vm);
-    const auto id_out = ni / 2 + ni * (nj - 1);
-    CHECK(msh.BT[id_out] < beta_merid - 1. * deg);
-    CHECK(msh.BT[id_out] > beta_merid - 10. * deg);
-    CHECK(dat.TT[id_out] < out.Tt);
-    CHECK(dat.TT[id_out] > out.Tt - 0.25 * (out.Tt - in.Tt));
+    CHECK(c.beta_out == doctest::Approx(std::atan2(out.Vu - c.omega * out.r, out.Vm)));
+    CHECK(msh.BT[ni * (nj - 1)] == doctest::Approx(c.beta_out).epsilon(0.02));
+    const auto o = yams::api::b2b_output(c, solver);
+    CHECK(std::abs(o.kutta) > 0.1);
+    REQUIRE(o.B.size() == nj);
+    REQUIRE(o.beta_mean.size() == nj);
+    CHECK(o.beta_out == msh.BT[ni / 2 + ni * (nj - 1)]);
+    // B is 1 far upstream and dips inside the blade (Novak and Hearsey's Fig. 4)
+    CHECK(std::abs(o.B.front() - 1.) < 0.05);
+    CHECK(*std::ranges::min_element(o.B.begin() + c.j_le, o.B.begin() + c.j_te + 1) < 0.95);
+
+    // The far field angle that closes the Kutta condition: 3.7 deg of deviation past
+    // the metal angle (offset -3.73 deg in 6 solutions with clang on arm64), and an
+    // outlet flow uniform across the pitch within 1.2 deg
+    const auto k = yams::api::b2b_kutta(tube, 0, sec);
+    REQUIRE(k.converged);
+    CHECK(std::abs(k.output.kutta) <= 1e-3);
+    CHECK(k.runs <= 8);
+    CHECK(k.outlet_offset < -1. * deg);
+    CHECK(k.outlet_offset > -8. * deg);
+    CHECK(k.case_.beta_out == doctest::Approx(c.beta_out + k.outlet_offset));
+    {
+        const auto [nik, njk] = k.solver.dimensions();
+        const auto &mk = k.solver.mesh();
+        const auto [lo, hi] = std::ranges::minmax(std::vector<double>(mk.BT.end() - nik, mk.BT.end()));
+        CHECK(hi - lo < 1.5 * deg);
+        CHECK(njk == nj);
+    }
 }
 
 TEST_CASE("streamtube.b2b_errors")
