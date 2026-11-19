@@ -598,7 +598,7 @@ namespace yams
     T BladeToBladeCurvatureSolver<T>::evalMassFlow(size_t id_start)
     {
         auto id_end = id_start + ni - 1;
-        dat.Q[0] = 0.;
+        dat.Q[id_start] = 0.; // origin of this plane (planes run in parallel)
         vector<T> q(ni);
         for (size_t id{id_start}; id <= id_end; id++)
         {
