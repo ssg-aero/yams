@@ -791,10 +791,9 @@ TEST_CASE("meridionalapi.mass_flow")
             CHECK(h(i, j).Pt == doctest::Approx(g(i, j).Pt).epsilon(1e-4));
             CHECK(h(i, j).y == doctest::Approx(g(i, j).y).epsilon(1e-4));
         }
-    // vm_mean 150 m/s is 20.29 kg/s, the inlet's mid span Vm 175 m/s (its total
-    // density sets the mass flow); the same 143 iterations either way, with clang on arm64
+    // vm_mean 150 m/s is 20.29 kg/s; the same 143 iterations either way, with clang on arm64
     CHECK(mf == doctest::Approx(20.29).epsilon(1e-3));
-    CHECK(g(0, g.nCols() / 2).Vm > 170.);
+    CHECK(by_mf.mass_flow_error < 1e-3);
     CHECK(by_mf.iterations <= by_vm.iterations + 5);
 
     // the design point's mass flow, 20.19 kg/s (NASA TP-1659): 139 iterations
@@ -805,4 +804,35 @@ TEST_CASE("meridionalapi.mass_flow")
 
     pb.inlet.mass_flow = 0.;
     CHECK_THROWS_AS(yams::api::solve(pb), std::invalid_argument);
+    pb.inlet.mass_flow = std::numeric_limits<double>::quiet_NaN();
+    CHECK_THROWS_AS(yams::api::solve(pb), std::invalid_argument);
+    pb.inlet.mass_flow = std::numeric_limits<double>::infinity();
+    CHECK_THROWS_AS(yams::api::solve(pb), std::invalid_argument);
+
+    // beyond the rotor's choke (about 21 kg/s): 25 kg/s settles, its stations short
+    // of the mass flow by 7.6 % and Vm at the speed of sound; 30 kg/s makes the
+    // stream lines meet. Neither is a valid flow, and neither throws.
+    pb.inlet.mass_flow = 25.;
+    const auto over = yams::api::solve(pb);
+    CHECK(over.status == yams::api::Status::Choked);
+    CHECK(over.mass_flow_error > 1e-2);
+    pb.inlet.mass_flow = 30.;
+    yams::api::Result far;
+    CHECK_NOTHROW(far = yams::api::solve(pb));
+    CHECK(far.status != yams::api::Status::Converged);
+}
+
+TEST_CASE("meridionalapi.inlet_swirl")
+{
+    // With inlet swirl, the inlet's totals are the given ones
+    auto pb = yams::tests::rotor37(150.);
+    pb.inlet.Vu = [](double) { return 50.; };
+    pb.options.max_geom = 1; // the inlet station is set before the first iteration
+    const auto res = yams::api::solve(pb);
+    const auto &g = *res.solver_case.gi->g;
+    for (size_t j = 0; j < g.nCols(); j++)
+    {
+        CHECK(g(0, j).Tt == doctest::Approx(288.15));
+        CHECK(g(0, j).Pt == doctest::Approx(101325.));
+    }
 }

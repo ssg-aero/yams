@@ -67,8 +67,9 @@ namespace yams::api
     struct Inlet
     {
         /// The mass flow from a mean meridional velocity: vm_mean times the inlet
-        /// station's area and its total density (the inlet is set from its totals
-        /// before any velocity), not its static one: the flow's mean Vm is higher.
+        /// station's area and its density at Vm = 0 (static with the swirl Vu only;
+        /// the total one without swirl), not the flow's static density: its mean Vm
+        /// is higher.
         double vm_mean{30.};
         /// The mass flow itself, kg/s, all the annulus: when set, vm_mean is not used
         /// (a design point is given by its mass flow)
@@ -142,7 +143,8 @@ namespace yams::api
         Cancelled,     ///< stopped by the progress callback
         Diverged,      ///< non finite values in the solution, or stream lines that could no longer be relocated (Result::divergence)
         /// stream lines positions within tol_rel_pos, but Vm held at the sonic
-        /// limit at some points (Result::sonic_points): the mass flow is beyond
+        /// limit at some points (Result::sonic_points), or stations that do not
+        /// carry the mass flow (Result::mass_flow_error): the mass flow is beyond
         /// the choke of the channel, the solution is not a valid flow
         Choked,
         /// stream lines positions within tol_rel_pos, but the radial equilibrium
@@ -192,6 +194,11 @@ namespace yams::api
         /// final Vm there is small but positive): Status::FlowReversal when the
         /// run converges with any.
         size_t floor_points{};
+        /// The largest relative difference between a station's mass flow and the
+        /// inlet's (solver_case.inlet.Mf): above 1e-3 (ten times the solver's
+        /// tolerance), a run that converged is Status::Choked, the stations do not
+        /// carry the mass flow (one given beyond what the channel passes)
+        double mass_flow_error{};
         std::vector<double> residual_max;   ///< per iteration, relative to the span
         std::vector<double> residual_mean;
         std::vector<RowStations> rows;
@@ -523,14 +530,16 @@ namespace yams::api
         sc.station_params.assign(ni, u_grid);
 
         // Boundary conditions, gas and solver settings
-        // INLET_VmMoy_Ts_Ps_Vu sets the inlet totals from its Ts / Ps before the
-        // inlet velocity is computed (Vm = 0): they are the total values, which
-        // the solver keeps. (A static inlet would need its own formulation.)
+        // INLET_VmMoy_Ts_Ps_Vu and INLET_Mf_Ts_Ps_Vu set the inlet totals from its
+        // Ts / Ps and its velocity before Vm is computed (Vm = 0, the swirl Vu only):
+        // Ts and Ps are the given totals less the swirl's dynamic part, so that the
+        // totals the solver keeps are the given ones. (A static inlet would need its
+        // own formulation.)
         if (pb.inlet.mass_flow)
         {
             // the same inlet, its mass flow given (apply_mf keeps it)
             if (!(*pb.inlet.mass_flow > 0.) || !std::isfinite(*pb.inlet.mass_flow))
-                throw std::invalid_argument("The inlet mass flow must be positive.");
+                throw std::invalid_argument("The inlet mass flow must be positive and finite.");
             sc.inlet.mode = MeridionalBC::INLET_Mf_Ts_Ps_Vu;
             sc.inlet.Mf = *pb.inlet.mass_flow;
             // the inlet totals come from its Ts / Ps before any velocity (Vm = 0, as
@@ -541,8 +550,17 @@ namespace yams::api
             sc.inlet.mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu;
             sc.inlet.Vm_moy = pb.inlet.vm_mean;
         }
-        sc.inlet.Ts = pb.inlet.Tt;
-        sc.inlet.Ps = pb.inlet.Pt;
+        pb.gas.validate();
+        {
+            const auto cp = pb.gas.cp, ga = pb.gas.gamma();
+            sc.inlet.Ts = [Tt = pb.inlet.Tt, Vu = pb.inlet.Vu, cp](double l)
+            {
+                const auto vu = Vu(l);
+                return Tt(l) - vu * vu / (2. * cp);
+            };
+            sc.inlet.Ps = [Tt = pb.inlet.Tt, Pt = pb.inlet.Pt, Ts = sc.inlet.Ts, ga](double l)
+            { return Pt(l) * std::pow(Ts(l) / Tt(l), ga / (ga - 1.)); };
+        }
         sc.inlet.Vu = pb.inlet.Vu;
         sc.gi->R = pb.gas.R;
         sc.gi->Tref = pb.gas.Tref;
@@ -616,13 +634,16 @@ namespace yams::api
                                   { return gp.Vm >= (1. - 1e-3) * std::sqrt(gp.ga * R * gp.Ts); }));
         const auto &floor = sc.gi->vm_floor;
         res.floor_points = static_cast<size_t>(std::count(floor.begin(), floor.end(), 1));
+        for (size_t i = 0; i < g.nRows(); i++)
+            res.mass_flow_error = std::max(res.mass_flow_error,
+                                           std::abs(yams::compute_massflow(*sc.gi, i) - sc.inlet.Mf) / sc.inlet.Mf);
         if (!finite || sc.diverged)
             res.status = Status::Diverged;
         else if (sc.cancelled)
             res.status = Status::Cancelled;
         else if (sc.converged)
             res.status = res.floor_points > 0 ? Status::FlowReversal
-                       : res.sonic_points > 0 ? Status::Choked
+                       : res.sonic_points > 0 || !(res.mass_flow_error <= 1e-3) ? Status::Choked
                                               : Status::Converged;
         else
             res.status = Status::NotConverged;

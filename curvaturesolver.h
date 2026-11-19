@@ -539,6 +539,10 @@ namespace yams
             X[j][0] = gp.x;
             X[j][1] = gp.y;
             u[j]    = gp.l / l_tot;
+            // stream lines crossed, coincident or not finite: said here, before the
+            // curve's construction refuses its parameters with its own exception
+            if (j > 0 && !(u[j] > u[j - 1]))
+                throw SolverDivergence("the stream lines cross or coincide on station " + std::to_string(i));
         }
         size_t p = fmax(fmin(3, nj), 1);
         return std::make_tuple( gbs::interpolate(X, u, 1), u );
