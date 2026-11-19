@@ -578,6 +578,11 @@ PYBIND11_MODULE(yams, m)
     .def_property_readonly(
         "geomResidualMax",&BladeToBladeCurvatureSolver<T>::geomResidualMax
     )
+    .def("setCurvature", &BladeToBladeCurvatureSolver<T>::setCurvature,
+         "Stream lines' curvature method (CurvatureMethod) and, for Blended, the share of the three-point second derivative",
+         py::arg("method"), py::arg("blend") = 0.2)
+    .def_property_readonly("curvature", &BladeToBladeCurvatureSolver<T>::curvatureMethod)
+    .def_property_readonly("curvature_blend", &BladeToBladeCurvatureSolver<T>::curvatureBlend)
     .def_property_readonly(
         "iterations",&BladeToBladeCurvatureSolver<T>::iterations,
         "Iterations of the last computeW, mass flow reductions included"

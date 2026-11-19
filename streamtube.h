@@ -229,6 +229,14 @@ namespace yams::api
         /// diverges or settles on a wrong flow (B2BCase::spacing_ratio). More nodes
         /// across the passage, or a meridional run with fewer stations, raise it.
         double min_spacing_ratio{1.1};
+        /// The blade-to-blade stream lines' curvature (BladeToBladeCurvatureSolver::
+        /// setCurvature). DoubleDifferentiation by default, as the solver's: Blended
+        /// sees the zigzag from one plane to the next that it leaves (NASA Rotor 37 at
+        /// 55 % speed: the zigzag of theta divided by 5, in 498 iterations instead of
+        /// 835), but does not converge near choke (solver.base_novak, relative Mach
+        /// 0.98 with the double differentiation), whatever the relaxation
+        CurvatureMethod curvature{CurvatureMethod::DoubleDifferentiation};
+        double curvature_blend{0.2};
     };
 
     /// The grid and conditions of BladeToBladeCurvatureSolver for a blade row along a
@@ -267,6 +275,8 @@ namespace yams::api
         /// downstream far field angle the grid imposes (its last segment's)
         double beta_out{};
         std::vector<double> b;  ///< tube thickness normal to the mean stream line at each plane
+        CurvatureMethod curvature{CurvatureMethod::DoubleDifferentiation}; ///< B2BOptions::curvature
+        double curvature_blend{0.2};
         size_t blade_count{};
         Gas gas;
     };
@@ -378,7 +388,10 @@ namespace yams::api
             throw std::invalid_argument("No room for the blade-to-blade domain between the blade and a "
                                         "neighbouring row: the rows' edges are too close.");
 
+        three_point_share(opt.curvature, opt.curvature_blend); // throws for a wrong blend
         B2BCase c;
+        c.curvature = opt.curvature;
+        c.curvature_blend = opt.curvature_blend;
         c.stream_line = std::make_shared<Curve2d>(tube.mean);
         c.omega = rw.omega;
         c.blade_count = rw.blade_count;
@@ -542,6 +555,7 @@ namespace yams::api
         solver.setPtIn(c.Pt);
         solver.setTtIn(c.Tt);
         solver.setDr(c.dr);
+        solver.setCurvature(c.curvature, c.curvature_blend);
         return solver;
     }
 

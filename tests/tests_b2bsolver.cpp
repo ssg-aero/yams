@@ -185,3 +185,28 @@ TEST_CASE("solver.gas_model")
     yams::GasPerfectGammaConstant<double> g{287.04, 1.4};
     CHECK(g.rho(288., 1.01325e5) == doctest::Approx(1.01325e5 / (287.04 * 288.)));
 }
+
+// The curvature term d(r tan beta)/dm = d(r^2 theta')/dm with the three-point second
+// derivative: exact for theta = a m^2 on planes of any spacing, the end planes included
+// (they take their neighbour's), here at r = 1
+TEST_CASE("solver.three_point_curvature")
+{
+    using T = double;
+    const size_t ni = 5, nj = 9;
+    const T a = 0.7;
+    std::vector<T> m(nj);
+    for (size_t j = 0; j < nj; j++)
+        m[j] = 0.1 + 0.8 * std::pow(T(j) / (nj - 1), 1.5); // not uniform
+    gbs::points_vector<T, 2> pts;
+    for (size_t j = 0; j < nj; j++)
+        for (size_t i = 0; i < ni; i++)
+            pts.push_back({m[j], a * m[j] * m[j] + 0.1 * i});
+    auto stream_line = std::make_shared<gbs::BSCurve<T, 2>>(gbs::build_segment<T, 2>({0., 1.}, {1., 1.}));
+    yams::BladeToBladeCurvatureSolver<T> solver{pts, nj, stream_line, 11, 2, nj - 3};
+    solver.setCurvature(yams::CurvatureMethod::ThreePoint);
+    solver.computeMeshData();
+    const auto &msh = solver.mesh();
+    for (size_t k = 0; k < ni * nj; k++)
+        CHECK(msh.G2[k] == doctest::Approx(2. * a).epsilon(1e-6));
+    CHECK_THROWS_AS(solver.setCurvature(yams::CurvatureMethod::Blended, -0.1), std::invalid_argument);
+}
