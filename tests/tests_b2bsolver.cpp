@@ -121,6 +121,9 @@ TEST_CASE("solver.base_novak")
     // 0.02 J/(kg K) with gamma, R and cp set independently)
     auto [s_min, s_max] = std::ranges::minmax_element(dat.S);
     CHECK(*s_max - *s_min < 1e-8);
+    // total enthalpy: cp Tt on the inlet plane, whatever the construction assumed
+    for (size_t i = 0; i < ni; i++)
+        CHECK(dat.H[i] == doctest::Approx(solver.gas().cp * dat.TT[i]));
 
     // Blade sides, leading to trailing edge included
     auto n_side = solver.trailingEdgeIndex() - solver.leadingEdgeIndex() + 1;
@@ -172,4 +175,13 @@ TEST_CASE("solver.gas_model")
     solver.setGamma(1.4);
     CHECK(solver.gas().cp == doctest::Approx(1.4 * 296.8 / 0.4));
     CHECK(solver.gas().gamma() == doctest::Approx(1.4));
+    // not a gas: refused, the solver keeps its own
+    CHECK_THROWS_AS(solver.setGamma(1.), std::invalid_argument);
+    CHECK_THROWS_AS(solver.setCp(200.), std::invalid_argument);
+    CHECK_THROWS_AS(solver.setGas({.R = 287.04, .cp = 287.04}), std::invalid_argument);
+    CHECK_THROWS_AS(solver.setGasConstant(-1.), std::invalid_argument);
+    CHECK(solver.gas().gamma() == doctest::Approx(1.4));
+    // the density of the older gas model (euler2d's): p / (r T), it was its square root
+    yams::GasPerfectGammaConstant<double> g{287.04, 1.4};
+    CHECK(g.rho(288., 1.01325e5) == doctest::Approx(1.01325e5 / (287.04 * 288.)));
 }

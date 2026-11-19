@@ -207,11 +207,22 @@ namespace yams
         }
         void setRotationSpeed(T rdPerSec) { omg = rdPerSec; }
         /// The fluid of the meridional run (MeridionalProblem::gas)
-        void setGas(const PerfectGas<T> &gas) { gas_ = gas; }
-        void setCp(T cp) { gas_.cp = cp; }
-        void setGasConstant(T RG) { gas_.R = RG; }
+        /// @throw std::invalid_argument for a gas that is not one (PerfectGas::validate);
+        /// the solver keeps its gas then
+        void setGas(const PerfectGas<T> &gas) { gas.validate(); gas_ = gas; }
+        void setCp(T cp) { auto g = gas_; g.cp = cp; setGas(g); }
+        void setGasConstant(T RG) { auto g = gas_; g.R = RG; setGas(g); }
         /// gamma follows from R and cp: sets cp = gamma R / (gamma - 1) with the current R
-        void setGamma(T Gamma) { gas_.cp = Gamma * gas_.R / (Gamma - 1); }
+        /// (so setCp after setGamma changes gamma again)
+        /// @throw std::invalid_argument unless Gamma > 1
+        void setGamma(T Gamma)
+        {
+            if (!(Gamma > 1))
+                throw std::invalid_argument("yams: gamma must be above 1");
+            auto g = gas_;
+            g.cp = Gamma * g.R / (Gamma - 1);
+            setGas(g);
+        }
         void setPtIn(T Pt){for( size_t i {}; i <ni; i++) dat.PT[i]=Pt;}
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
         void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
@@ -272,7 +283,7 @@ namespace yams
         std::fill(dat.TS.begin(), dat.TS.end(), 288.15);
         std::fill(dat.TT.begin(), dat.TT.end(), 288.15);
         std::fill(dat.PT.begin(), dat.PT.end(), 1e5);
-        std::fill(dat.H.begin(), dat.H.end(), 288.15 * gas_.cp);
+        std::fill(dat.H.begin(), dat.H.end(), 288.15 * gas_.cp); // inlet plane: computeFlowData
 
         residual_geom = std::vector(nj, 0.);
 
@@ -411,7 +422,12 @@ namespace yams
         computeVm();
 
         const auto Cp = gas_.cp;
-        const auto ga_ = gas_.gamma() / (gas_.gamma() - 1);
+        const auto ga = gas_.gamma();
+        const auto ga_ = ga / (ga - 1);
+        // the inlet plane's total enthalpy follows its total temperature and the
+        // gas (both set after the construction: setTtIn, setGas)
+        for (size_t i{}; i < ni; i++)
+            dat.H[i] = Cp * dat.TT[i];
         for (int j{0}; j < nj; j++)
         {
             int jOffset = j * ni;

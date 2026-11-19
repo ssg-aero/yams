@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <stdexcept>
 
 namespace yams
 {
@@ -14,6 +15,14 @@ namespace yams
         T cp{1004.5};     ///< specific heat at constant pressure, J/(kg K)
         T Tref{288.};     ///< entropy origin, K
         T Pref{1.01325e5};///< entropy origin, Pa
+
+        /// @throw std::invalid_argument unless R > 0, cp > R (gamma > 1), Tref > 0
+        /// and Pref > 0
+        void validate() const
+        {
+            if (!(R > 0 && cp > R && Tref > 0 && Pref > 0))
+                throw std::invalid_argument("yams: a perfect gas needs R > 0, cp > R (gamma > 1), Tref > 0 and Pref > 0");
+        }
 
         T gamma() const { return cp / (cp - R); }
         T rho(T Ts, T Ps) const { return Ps / (R * Ts); }
@@ -53,7 +62,7 @@ namespace yams
         }
         T rho(T t, T p) override
         {
-            return sqrt(p / (r_ * t));
+            return p / (r_ * t);
         }
         T et(T t, T p , T V) override
         {
