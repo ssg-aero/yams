@@ -159,7 +159,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     auto solver = yams::api::make_b2b_solver(c);
     solver.computeW();
     REQUIRE(solver.converged());
-    // 679 iterations with clang on arm64
+    // 688 iterations with clang on arm64
     CHECK(solver.iterations() < 1000);
     CHECK(solver.fullBladePassageMassFlow() == doctest::Approx(tube.mass_flow));
 
@@ -173,7 +173,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     CHECK(msh.BT[ni / 2] == doctest::Approx(c.beta_in).epsilon(0.05));
     // Outlet: the meridional run imposes the metal angle at the trailing edge
     // (DIRECT mode); the blade-to-blade flow leaves it with a deviation and does
-    // less work (-38.0 deg against -34.8, Tt rise 25.3 K against 29.5 with clang on arm64)
+    // less work (-38.2 deg against -34.8, Tt rise 25.2 K against 29.6 with clang on arm64)
     const auto out = tube.at(c.m.back());
     const auto beta_merid = std::atan2(out.Vu - c.omega * out.r, out.Vm);
     const auto id_out = ni / 2 + ni * (nj - 1);
