@@ -3,8 +3,6 @@
 #include <streamtube.h>
 
 #include <cmath>
-#include <cstdio>
-#include <cstdlib>
 #include <numbers>
 
 namespace
@@ -145,7 +143,10 @@ TEST_CASE("streamtube.b2b_rotor37")
     const auto &tube = r.tube;
     const auto sec = section(r.pb, tube, r.l);
 
-    const auto c = yams::api::make_b2b_case(tube, 0, sec);
+    // Blended curvature (the API's default is the double differentiation)
+    yams::api::B2BOptions blended;
+    blended.curvature = yams::CurvatureMethod::Blended;
+    const auto c = yams::api::make_b2b_case(tube, 0, sec, blended);
     CHECK(c.points.size() == 11 * c.n_planes);
     CHECK(c.j_le > 1);
     CHECK(c.j_te > c.j_le + 1);
@@ -206,7 +207,7 @@ TEST_CASE("streamtube.b2b_rotor37")
     // The far field angle that closes the Kutta condition: 3.8 deg of deviation past
     // the metal angle (offset -3.78 deg in 3 solutions with clang on arm64), and an
     // outlet flow uniform across the pitch within 1.2 deg
-    const auto k = yams::api::b2b_kutta(tube, 0, sec);
+    const auto k = yams::api::b2b_kutta(tube, 0, sec, blended);
     REQUIRE(k.converged);
     CHECK(std::abs(k.output.kutta) <= 1e-3);
     CHECK(k.runs <= 8);

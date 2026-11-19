@@ -9,7 +9,11 @@
 namespace yams
 {
     /// How the stream lines' curvature is computed at a grid point, from the
-    /// stream line's points at the stations around it (compute_curvature).
+    /// stream line's points at the stations (meridional solver, compute_curvature)
+    /// or planes (blade-to-blade solver, BladeToBladeCurvatureSolver::setCurvature)
+    /// around it. The descriptions below, and their stability analysis
+    /// (max_relax_constant), are the meridional solver's; the blade-to-blade one
+    /// takes a three-point second derivative of theta along its stream lines.
     enum class CurvatureMethod
     {
         /// The derivative along the stream line of its angle, itself a centred

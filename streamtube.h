@@ -226,11 +226,12 @@ namespace yams::api
         /// searches the one that satisfies the Kutta condition)
         double outlet_offset{0.};
         /// The blade-to-blade stream lines' curvature (BladeToBladeCurvatureSolver::
-        /// setCurvature), as the meridional run's (Options::curvature): Blended by
-        /// default, which sees the zigzag from one plane to the next that the double
-        /// differentiation leaves (NASA Rotor 37 at 55 % speed: the zigzag of theta
-        /// divided by 5, in 498 iterations instead of 835)
-        CurvatureMethod curvature{CurvatureMethod::Blended};
+        /// setCurvature). DoubleDifferentiation by default, as the solver's: Blended
+        /// sees the zigzag from one plane to the next that it leaves (NASA Rotor 37 at
+        /// 55 % speed: the zigzag of theta divided by 5, in 498 iterations instead of
+        /// 835), but does not converge near choke (solver.base_novak, relative Mach
+        /// 0.98 with the double differentiation), whatever the relaxation
+        CurvatureMethod curvature{CurvatureMethod::DoubleDifferentiation};
         double curvature_blend{0.2};
     };
 
@@ -270,7 +271,7 @@ namespace yams::api
         /// downstream far field angle the grid imposes (its last segment's)
         double beta_out{};
         std::vector<double> b;  ///< tube thickness normal to the mean stream line at each plane
-        CurvatureMethod curvature{CurvatureMethod::Blended}; ///< B2BOptions::curvature
+        CurvatureMethod curvature{CurvatureMethod::DoubleDifferentiation}; ///< B2BOptions::curvature
         double curvature_blend{0.2};
         size_t blade_count{};
         Gas gas;

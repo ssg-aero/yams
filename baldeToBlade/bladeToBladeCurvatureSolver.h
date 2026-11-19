@@ -168,8 +168,8 @@ namespace yams
         // (its stencil joins j - 2, j and j + 2), which then stays in a converged
         // solution; the three-point second derivative sees it. DoubleDifferentiation
         // by default, as it always was: on solver.base_novak, near choke (relative
-        // Mach 0.98), Blended raises the peak to 1.18 and the passage chokes;
-        // yams::api::B2BOptions takes Blended (NASA Rotor 37 at 55 % speed).
+        // Mach 0.98), Blended and ThreePoint do not converge whatever the relaxation
+        // (0.01 to 0.004: mass flow reduced, relative Mach above 1.5).
         CurvatureMethod curvature{CurvatureMethod::DoubleDifferentiation};
         T curvature_blend{0.2};
         T RF_per{0.3};
@@ -226,11 +226,11 @@ namespace yams
             setFullBladePassageMassFlow(mf);
         }
         void setRotationSpeed(T rdPerSec) { omg = rdPerSec; }
-        /// The fluid of the meridional run (MeridionalProblem::gas)
-        /// @throw std::invalid_argument for a gas that is not one (PerfectGas::validate);
-        /// the solver keeps its gas then
         /// The curvature method of the stream lines and, for Blended, the share of the
-        /// three-point second derivative (as the meridional solver's GridInfo::curvature)
+        /// three-point second derivative (as the meridional solver's GridInfo::curvature).
+        /// Here ThreePoint is the second derivative of theta along each stream line over
+        /// a plane and its neighbours, d(r tan beta)/dm = 2 r r' theta' + r^2 theta'';
+        /// the meridional stability analysis (max_relax_constant) is not this solver's.
         /// @throw std::invalid_argument for Blended with a share outside [0, 1]
         void setCurvature(CurvatureMethod method, T blend = 0.2)
         {
@@ -240,6 +240,9 @@ namespace yams
         }
         CurvatureMethod curvatureMethod() const { return curvature; }
         T curvatureBlend() const { return curvature_blend; }
+        /// The fluid of the meridional run (MeridionalProblem::gas)
+        /// @throw std::invalid_argument for a gas that is not one (PerfectGas::validate);
+        /// the solver keeps its gas then
         void setGas(const PerfectGas<T> &gas) { gas.validate(); gas_ = gas; }
         void setCp(T cp) { auto g = gas_; g.cp = cp; setGas(g); }
         void setGasConstant(T RG) { auto g = gas_; g.R = RG; setGas(g); }
