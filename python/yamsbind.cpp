@@ -561,6 +561,14 @@ PYBIND11_MODULE(yams, m)
     .def_property_readonly(
         "geomResidualMax",&BladeToBladeCurvatureSolver<T>::geomResidualMax
     )
+    .def_property_readonly(
+        "iterations",&BladeToBladeCurvatureSolver<T>::iterations,
+        "Iterations of the last computeW, mass flow reductions included"
+    )
+    .def_property_readonly(
+        "converged",&BladeToBladeCurvatureSolver<T>::converged,
+        "Whether the last computeW stopped on its tolerances rather than on maxConvergenceIterations"
+    )
     .def("setPtIn",&BladeToBladeCurvatureSolver<T>::setPtIn)
     .def("setTtIn",&BladeToBladeCurvatureSolver<T>::setTtIn)
     .def("setDr",&BladeToBladeCurvatureSolver<T>::setDr)

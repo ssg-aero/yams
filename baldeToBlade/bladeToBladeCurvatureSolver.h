@@ -138,7 +138,11 @@ namespace yams
         bool fix_stag_le{true};
         bool fix_stag_te{true};
         // Blockage
-        size_t max_compressibility_iterations{2000};
+        // Iteration budget of computeW, mass flow reductions included
+        size_t max_compressibility_iterations{5000};
+        // Outcome of the last computeW
+        size_t iterations_{};
+        bool converged_{false};
         T blockage_mass_flow_reduction_factor{0.999};
         vector<T> compressibility_residual;
         vector<T> compressibility_residual_avg;
@@ -148,14 +152,16 @@ namespace yams
         // W newton solve on computation plane
         T eps_newton = 1e-3;
         T tol_rel_mf = 1e-4;
-        T tol_th     = 1e-3;
-        T tol_rho    = 1e-3;
+        // At 1e-3 the peak relative speed still depends on the relaxation (299 m/s
+        // with 0.02, 316 with 0.01 on solver.base_novak); at 1e-4 it is within 0.5 %.
+        // The geometric residual floors at about 3e-5 (fraction of the pitch).
+        T tol_th     = 1e-4;
+        T tol_rho    = 1e-4;
         size_t max_iter_newton{100};
-        // Geometric relaxation of the stream lines. 0.05 diverges on the reference
-        // case (tests_b2bsolver, solver.base_novak); 0.02 and 0.01 converge with the
-        // default geometric tolerance (1e-3). With 1e-4, the trailing edge
-        // periodicity residual stalls at about 3e-4 and the run reaches max_iter.
-        T RF{0.02};
+        // Geometric relaxation of the stream lines, on solver.base_novak: 0.03 and
+        // above diverge; to the 1e-4 tolerances 0.02 takes 4075 iterations, 0.015
+        // 3001, 0.01 2377, 0.0075 2096.
+        T RF{0.01};
         T RF_per{0.3};
         T RF_rho{0.01};
         std::vector<T> residual_geom;
@@ -190,7 +196,12 @@ namespace yams
         T relaxFactorCompressibility() const {return RF_rho;}
         bool fixUpStreamFlowPeriodicity() const {return fix_stag_le;}
         bool fixDownStreamFlowPeriodicity() const {return fix_stag_te;}
-        T maxConvergenceIterations() const {return max_compressibility_iterations;}
+        size_t maxConvergenceIterations() const {return max_compressibility_iterations;}
+        /// Iterations of the last computeW, mass flow reductions included
+        size_t iterations() const {return iterations_;}
+        /// Whether the last computeW stopped on its tolerances, with finite
+        /// residuals, rather than on maxConvergenceIterations
+        bool converged() const {return converged_;}
         const auto & compressibilityResidualAverage() const {return compressibility_residual_avg;}
         const auto & periodicityUpStreamResidual() const {return residual_per_le_max;}
         const auto & periodicityDownStreamResidual() const {return residual_per_te_max;}
@@ -211,7 +222,7 @@ namespace yams
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
         void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
         void setFixDownStreamFlowPeriodicity(bool tog) { fix_stag_te = tog;}
-        void setMaxConvergenceIterations(T m){max_compressibility_iterations=m;}
+        void setMaxConvergenceIterations(size_t m){max_compressibility_iterations=m;}
         void setCompressibilityRelTol( T tol ) {tol_rho=tol;}
         void setGeomRelTol( T tol ) {tol_th=tol;}
         void setMassFlowRelTol( T tol ) {tol_rel_mf=tol;}
@@ -489,8 +500,12 @@ namespace yams
         auto Mf_min = Mf*0.3;
         auto d_Mf   = Mf*0.01;
         T residual_per_le{1}, residual_per_te{1}, residual_rho{1}, residual_geom_{1};
+        // One budget for the whole call: a mass flow reduction does not restart
+        // it, or a case that gives NaN again after each reduction would run up
+        // to 70 times max_compressibility_iterations.
+        size_t i{};
         for (
-            int i{}; 
+            ; 
             i < max_compressibility_iterations && (
                 residual_rho > tol_rho ||
                 residual_per_le>tol_th ||
@@ -527,8 +542,6 @@ namespace yams
 
             if (std::isnan(residual_rho) && Mf >= Mf_min )
             {
-                // break;
-                i = 0;
                 std::fill(dat.W.begin(), dat.W.end(), 10.);
                 // computeFlowData();
                 std::fill(dat.Vm.begin(), dat.Vm.end(), 0.);
@@ -584,6 +597,11 @@ namespace yams
                 computeMeshData();
             }
         }
+        iterations_ = i;
+        // a NaN residual compares false with its tolerance: check it is finite
+        auto within = [](T r, T tol) { return std::isfinite(r) && r <= tol; };
+        converged_ = within(residual_rho, tol_rho) && within(residual_per_le, tol_th) &&
+                     within(residual_per_te, tol_th) && within(residual_geom_, tol_th);
     }
 
     template <typename T>
@@ -735,7 +753,9 @@ namespace yams
     template<typename T>
     auto BladeToBladeCurvatureSolver<T>::applyDeltaStagnationLineDownStream(const vector<T> &DELTA_TH)
     {
-        auto j_end = std::min(DELTA_TH.size()+jTe, nj-1);
+        // DELTA_TH[k] belongs to the plane jTe + 1 + k; the planes past the last
+        // station follow it (the bound excluded the last station).
+        auto j_end = std::min(DELTA_TH.size() + jTe + 1, nj);
         auto delta_th{DELTA_TH.front()};
         for(auto j{jTe+1}; j < j_end; j++)
         {
@@ -788,6 +808,10 @@ namespace yams
     template <typename T>
     auto BladeToBladeCurvatureSolver<T>::fixFlowPeriodicity(const vector<size_t> &j_stations)
     {
+        // no station between the edge and the domain's end (an edge on the first
+        // or last-but-one plane): nothing to shift
+        if (j_stations.empty())
+            return T{};
 
         size_t i_mid = (ni - 1) / 2 + 1;
         auto f_A = [i_mid, ni=this->ni, &VM = dat.Vm, &R = msh.R](size_t j)

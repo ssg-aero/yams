@@ -92,6 +92,9 @@ TEST_CASE("solver.base_novak")
 
     auto start = chrono::steady_clock::now();
     solver.computeW();
+    // converged by the tolerances (1e-4), not stopped by the iteration limit
+    CHECK(solver.converged());
+    CHECK(solver.iterations() < solver.maxConvergenceIterations());
     solver.computeW();
     auto elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
     cout << elapsed << endl;
@@ -105,10 +108,13 @@ TEST_CASE("solver.base_novak")
     CHECK(solver.geomResidualMax().back() < solver.geomRelTol());
     CHECK(solver.periodicityUpStreamResidual().back() < solver.geomRelTol());
     CHECK(solver.periodicityDownStreamResidual().back() < solver.geomRelTol());
-    // Peak relative speed at the default geometric tolerance (1e-3): 299.4 m/s with
-    // clang on arm64 (308 with 1e-4, which the run does not reach)
+    // every downstream station is corrected (the last one was not: the residual
+    // stalled at 2.9e-4)
+    CHECK(solver.periodicityDownStreamResidual().back() < 1e-5);
+    // Peak relative speed: 309.2 m/s with clang on arm64; 307.7 to 310.6 with the
+    // geometric relaxation between 0.02 and 0.005
     auto W_max = *std::ranges::max_element(dat.W);
-    CHECK(W_max == doctest::Approx(299.4).epsilon(0.03));
+    CHECK(W_max == doctest::Approx(309.2).epsilon(0.01));
     CHECK(*std::ranges::max_element(dat.MW) < 1.);
 
     // Blade sides, leading to trailing edge included
