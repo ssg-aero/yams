@@ -214,17 +214,21 @@ namespace yams::api
     struct B2BOptions
     {
         size_t n_pitch{11}; ///< nodes across the passage, sides included (>= 3)
-        /// Spacing of the planes (constant m), relative to the nodes' across the
-        /// passage at the leading edge, r pitch / (n_pitch - 1). The solver's stream
-        /// line relocation does not stand planes much closer than the nodes across:
-        /// on NASA Rotor 37 at mid span (tests_streamtube, 55 % speed) 0.7 diverges,
-        /// 0.9 to 1 may settle on a wrong flow (outlet Tt 12 % low with inlet swirl),
-        /// 1.1 to 2 agree within 1.5 deg of outlet angle and 1 % of outlet Tt.
-        double plane_spacing{1.25};
         /// Extent upstream and downstream of the blade, fractions of its meridional
-        /// chord, cut halfway to a neighbouring row's edge and at the tube's ends
-        double upstream{0.5};
-        double downstream{0.5};
+        /// chord, cut halfway to a neighbouring row's edge and at the tube's ends; the
+        /// planes are the meridional stations within it, two at least on each side.
+        /// The stagnation lines need room to settle: on Rotor 37's real blade (cut in
+        /// turbo_blade_forge, 31 stations), 0.3, 1 and 2 chords give outlet angles
+        /// within 1.1 deg, 0.5 a wrong flow (-8 deg)
+        double upstream{1.};
+        double downstream{1.};
+        /// Added to the meridional run's downstream far field angle, rad (b2b_kutta
+        /// searches the one that satisfies the Kutta condition)
+        double outlet_offset{0.};
+        /// The smallest B2BCase::spacing_ratio accepted: below about 1.1 the solver
+        /// diverges or settles on a wrong flow (B2BCase::spacing_ratio). More nodes
+        /// across the passage, or a meridional run with fewer stations, raise it.
+        double min_spacing_ratio{1.1};
     };
 
     /// The grid and conditions of BladeToBladeCurvatureSolver for a blade row along a
@@ -238,6 +242,19 @@ namespace yams::api
         gbs::points_vector<double, 2> points;
         size_t n_planes{}, j_le{}, j_te{};
         std::vector<double> m;  ///< meridional abscissa of each plane
+        /// The meridional computing station of each plane (StreamTube::stations): the
+        /// planes are the stations, as in Novak and Hearsey's coordinated meridional
+        /// and blade-to-blade programs (J. Fluids Eng. 99, 1977), so that each one's
+        /// blade-to-blade results (flow angle, specific mass flow ratio) belong to a
+        /// meridional station
+        std::vector<size_t> station;
+        /// The smallest spacing of the planes relative to the nodes' across the passage
+        /// at the leading edge, r pitch / (n_pitch - 1). The solver's stream line
+        /// relocation does not stand planes much closer than the nodes across (NASA
+        /// Rotor 37 at mid span, 55 % speed, uniform planes: 0.7 diverges, 0.9 to 1
+        /// may settle on a wrong flow, 1.1 to 2 agree): fewer stations, or more nodes
+        /// across, raise it. 1.3 on Rotor 37 with 31 stations and 11 nodes.
+        double spacing_ratio{};
         std::vector<double> dr; ///< stream sheet thickness of each plane, radial (BladeToBladeCurvatureSolver::setDr)
         double mass_flow{};     ///< through the tube, all the passages, kg/s
         double omega{};         ///< rad/s
@@ -246,6 +263,10 @@ namespace yams::api
         /// grid's stagnation line follows upstream (its first segment averages it with
         /// the second plane's)
         double beta_in{};
+        /// relative flow angle of the meridional flow at the last plane, rad: the
+        /// downstream far field angle the grid imposes (its last segment's)
+        double beta_out{};
+        std::vector<double> b;  ///< tube thickness normal to the mean stream line at each plane
         size_t blade_count{};
         Gas gas;
     };
@@ -285,15 +306,20 @@ namespace yams::api
     /**
      * @brief The blade-to-blade case of row `row` along `tube`.
      *
-     * The planes are at constant m, uniform upstream, along the blade and downstream,
-     * spaced as B2BOptions::plane_spacing asks. Upstream, the initial stagnation line
+     * The planes are the meridional computing stations crossing the tube (B2BCase::
+     * station), the row's leading and trailing edges at its edge stations, as Novak
+     * and Hearsey's blade-to-blade program takes the meridional program's stations.
+     * The edge planes lie at the section's edges, which must be within a fifth of the
+     * neighbouring stations' spacing of the edge stations. Upstream, the initial stagnation line
      * follows the meridional relative flow angle back from the leading edge; its first
      * segment sets the inlet flow angle of the blade-to-blade run (the solver shifts
-     * the planes upstream together). Downstream, it leaves the trailing edge along
-     * the bisector of the sides, r tan(beta) kept, and the solver's periodicity
-     * correction bends it: the meridional angle there comes from the meridional
-     * model of the row (its metal angle in DIRECT mode), and a kink at the trailing
-     * edge makes the solver diverge. Across the passage the nodes are uniform in theta.
+     * the planes upstream together). Downstream, the far field angle is the meridional
+     * run's (B2BCase::beta_out), as in Novak and Hearsey's system, where the meridional
+     * program gives the blade-to-blade one its downstream air angle and the Kutta
+     * condition at the trailing edge checks it (b2b_output): the stagnation line leaves
+     * the trailing edge along the mean of the sides over the last 5 % of the chord and
+     * blends into the meridional angle by the plane before the last. Across the passage
+     * the nodes are uniform in theta.
      *
      * @throw std::invalid_argument on a wrong row, section or option, or where the
      * stream line is nearly radial (|cos phi| < 0.2): the solver's sheet thickness is
@@ -306,8 +332,6 @@ namespace yams::api
             throw std::invalid_argument("No such blade row: " + std::to_string(row) + ".");
         if (opt.n_pitch < 3)
             throw std::invalid_argument("Too few blade-to-blade nodes across the passage.");
-        if (!(opt.plane_spacing > 0.))
-            throw std::invalid_argument("The blade-to-blade plane spacing must be positive.");
         if (!(opt.upstream > 0.) || !(opt.downstream > 0.))
             throw std::invalid_argument("The blade-to-blade domain must extend upstream and downstream of the blade.");
         const auto &rw = tube.rows[row];
@@ -334,18 +358,20 @@ namespace yams::api
                 throw std::invalid_argument("The blade section's sides do not meet at m = " + std::to_string(m_edge) +
                                             ": close the section to a point at both edges.");
 
-        // domain ends: the tube's, halfway to the neighbouring rows' edges
-        auto m_in = std::max(m_le - opt.upstream * chord, tube.stations.front().m);
-        auto m_out = std::min(m_te + opt.downstream * chord, tube.stations.back().m);
+        // domain ends: the tube's, halfway to the neighbouring rows' edges (hard
+        // limits, never crossed), and the extent asked within them
+        auto m_in_max = tube.stations.front().m, m_out_max = tube.stations.back().m;
         for (size_t k = 0; k < tube.rows.size(); k++)
         {
             if (k == row)
                 continue;
             if (tube.rows[k].m_te <= m_le)
-                m_in = std::max(m_in, 0.5 * (tube.rows[k].m_te + m_le));
+                m_in_max = std::max(m_in_max, 0.5 * (tube.rows[k].m_te + m_le));
             if (tube.rows[k].m_le >= m_te)
-                m_out = std::min(m_out, 0.5 * (m_te + tube.rows[k].m_le));
+                m_out_max = std::min(m_out_max, 0.5 * (m_te + tube.rows[k].m_le));
         }
+        const auto m_in = std::max(m_le - opt.upstream * chord, m_in_max);
+        const auto m_out = std::min(m_te + opt.downstream * chord, m_out_max);
         if (!(m_le > tube.stations.front().m) || !(m_te < tube.stations.back().m))
             throw std::invalid_argument("The blade section is not inside the stream tube.");
         if (!(m_in < m_le) || !(m_out > m_te))
@@ -358,22 +384,64 @@ namespace yams::api
         c.blade_count = rw.blade_count;
         c.mass_flow = tube.mass_flow;
         c.gas = tube.gas;
-        const auto inlet = tube.at(m_in);
+
+        // the planes: the meridional stations, the row's edges at its edge stations
+        const auto &st = tube.stations;
+        auto nearest = [&st](double m)
+        {
+            size_t k = 0;
+            for (size_t i = 1; i < st.size(); i++)
+                if (std::abs(st[i].m - m) < std::abs(st[k].m - m))
+                    k = i;
+            return k;
+        };
+        const size_t i_le = nearest(rw.m_le), i_te = nearest(rw.m_te);
+        if (!(i_te > i_le + 1))
+            throw std::invalid_argument("The blade row spans less than two meridional station intervals.");
+        for (auto [m_sec, i_edge] : {std::pair{m_le, i_le}, std::pair{m_te, i_te}})
+        {
+            const auto gap = std::min(i_edge > 0 ? st[i_edge].m - st[i_edge - 1].m : 1e300,
+                                      i_edge + 1 < st.size() ? st[i_edge + 1].m - st[i_edge].m : 1e300);
+            if (std::abs(m_sec - st[i_edge].m) > 0.2 * gap)
+                throw std::invalid_argument("The blade section's edge at m = " + std::to_string(m_sec) +
+                                            " is off the row's edge station at m = " + std::to_string(st[i_edge].m) + ".");
+        }
+        size_t i_in = i_le, i_out = i_te;
+        // the stations within the extent asked, two at least on each side, but never
+        // past the tube's ends or halfway to a neighbouring row
+        while (i_in > 0 && st[i_in - 1].m >= m_in_max && (st[i_in - 1].m >= m_in || i_le - i_in < 2))
+            i_in--;
+        while (i_out + 1 < st.size() && st[i_out + 1].m <= m_out_max && (st[i_out + 1].m <= m_out || i_out - i_te < 2))
+            i_out++;
+        if (i_le - i_in < 2 || i_out - i_te < 2)
+            throw std::invalid_argument("Less than two meridional stations upstream or downstream of the blade row "
+                                        "before the tube's end or halfway to a neighbouring row.");
+        for (size_t i = i_in; i <= i_out; i++)
+        {
+            // the edge planes at the section's edges, where its sides meet: a plane
+            // through a round edge, off the point, starts the stagnation line off
+            // the blade and the solver settles on a wrong flow (Rotor 37's real
+            // blade cut in turbo_blade_forge: outlet angle -7 deg instead of -40)
+            c.m.push_back(i == i_le ? m_le : i == i_te ? m_te : st[i].m);
+            c.station.push_back(i);
+        }
+        c.n_planes = c.m.size();
+        c.j_le = i_le - i_in;
+        c.j_te = i_te - i_in;
+        {
+            double dm_min = 1e300;
+            for (size_t j = 1; j < c.n_planes; j++)
+                dm_min = std::min(dm_min, c.m[j] - c.m[j - 1]);
+            c.spacing_ratio = dm_min / (tube.at(c.m[c.j_le]).r * pitch / (opt.n_pitch - 1));
+            if (c.spacing_ratio < opt.min_spacing_ratio)
+                throw std::invalid_argument("The blade-to-blade planes are too close for the nodes across the passage "
+                                            "(spacing ratio " + std::to_string(c.spacing_ratio) + ", under " +
+                                            std::to_string(opt.min_spacing_ratio) + "): more nodes across, or fewer "
+                                            "meridional stations.");
+        }
+        const auto inlet = tube.at(c.m.front());
         c.Pt = inlet.Pt;
         c.Tt = inlet.Tt;
-
-        const auto dm = opt.plane_spacing * tube.at(m_le).r * pitch / (opt.n_pitch - 1);
-        auto count = [dm](double length, size_t n_min) { return std::max(n_min, size_t(std::lround(length / dm))); };
-        const auto n_up = count(m_le - m_in, 2), n_blade = count(chord, 2) + 1, n_down = count(m_out - m_te, 2);
-        for (size_t k = 0; k < n_up; k++)
-            c.m.push_back(m_in + (m_le - m_in) * k / n_up);
-        for (size_t k = 0; k < n_blade; k++)
-            c.m.push_back(m_le + chord * k / (n_blade - 1));
-        for (size_t k = 1; k <= n_down; k++)
-            c.m.push_back(m_te + (m_out - m_te) * k / n_down);
-        c.n_planes = c.m.size();
-        c.j_le = n_up;
-        c.j_te = n_up + n_blade - 1;
 
         // relative flow angle of the meridional flow, dtheta/dm = tan(beta) / r
         auto dth_dm = [&](double m)
@@ -387,15 +455,37 @@ namespace yams::api
         th_stag[c.j_le] = sa(m_le);
         for (size_t j = c.j_le; j-- > 0;)
             th_stag[j] = th_stag[j + 1] - 0.5 * (dth_dm(c.m[j]) + dth_dm(c.m[j + 1])) * (c.m[j + 1] - c.m[j]);
-        // downstream: along the bisector of the sides at the trailing edge, r tan(beta) kept
-        const auto dm_te = 1e-3 * chord;
+        // downstream: the far field angle is the meridional run's (Novak and Hearsey
+        // 1977: the blade-to-blade program takes the downstream air angle from the
+        // meridional one, and the Kutta condition at the trailing edge tells whether that
+        // angle, hence the meridional deviation, is right). The solver moves the last
+        // plane with the one before: the last segment's angle is kept, it is the
+        // meridional one. From the trailing edge, the stagnation line leaves along the
+        // mean of the sides over the last 5 % of the chord (a round edge's tangents are
+        // anything) and blends linearly into the meridional angle by the plane before the
+        // last: a kink at the trailing edge makes the solver diverge.
+        const auto dm_te = 0.05 * chord;
         const auto slope_te = 0.5 * ((sa(m_te) - sa(m_te - dm_te)) + (sb(m_te) - sb(m_te - dm_te))) / dm_te;
-        const auto rtanb_te = slope_te * tube.at(m_te).r * tube.at(m_te).r;
+        const auto r_te = tube.at(m_te).r;
+        const auto m_blend = c.m[c.n_planes - 2];
+        // the far field: the meridional angle, offset
+        auto dth_dm_far = [&](double m)
+        {
+            const auto st = tube.at(m);
+            return std::tan(std::atan2(st.Vu - c.omega * st.r, st.Vm) + opt.outlet_offset) / st.r;
+        };
+        auto dth_dm_down = [&](double m)
+        {
+            const auto r = tube.at(m).r;
+            const auto w = std::clamp((m - m_te) / (m_blend - m_te), 0., 1.);
+            return (1. - w) * slope_te * r_te * r_te / (r * r) + w * dth_dm_far(m);
+        };
         th_stag[c.j_te] = sa(m_te);
         for (size_t j = c.j_te + 1; j < c.n_planes; j++)
+            th_stag[j] = th_stag[j - 1] + 0.5 * (dth_dm_down(c.m[j - 1]) + dth_dm_down(c.m[j])) * (c.m[j] - c.m[j - 1]);
         {
-            auto f = [&](double m) { const auto r = tube.at(m).r; return rtanb_te / (r * r); };
-            th_stag[j] = th_stag[j - 1] + 0.5 * (f(c.m[j - 1]) + f(c.m[j])) * (c.m[j] - c.m[j - 1]);
+            const auto out = tube.at(c.m.back());
+            c.beta_out = std::atan2(out.Vu - c.omega * out.r, out.Vm) + opt.outlet_offset;
         }
 
         for (size_t j = 0; j < c.n_planes; j++)
@@ -414,9 +504,32 @@ namespace yams::api
                 throw std::invalid_argument("The stream line is nearly radial at m = " + std::to_string(m) +
                                             ": the blade-to-blade solver takes a radial sheet thickness.");
             c.dr.push_back(st.b / std::abs(cphi));
+            c.b.push_back(st.b);
         }
         return c;
     }
+
+    /// What a blade-to-blade solution gives back to the meridional run (Novak and
+    /// Hearsey 1977), at each plane of its case
+    struct B2BOutput
+    {
+        /// Kutta condition at the trailing edge: (W_a - W_b) / mean, the relative
+        /// speeds of the trailing edge's nodes on side a (i = 0) and side b (i =
+        /// n_pitch - 1). Zero when the far field angle (the meridional deviation) is
+        /// right; else that angle, hence the meridional deviation, is to be changed
+        /// until it closes (Novak and Hearsey's pump: two more runs).
+        double kutta{};
+        /// relative flow angle on the mid stream line (i = (n_pitch - 1) / 2: the
+        /// solver's nodes stay on stream lines), rad
+        std::vector<double> beta_mean;
+        /// specific mass flow ratio B = (rho Vm)_a / (rho Vm)_m (Novak and Hearsey's eq.
+        /// 7): the passage's mass flow over the whole pitch (blade blockage counted)
+        /// against the mid stream line's. 1 far from the blade
+        std::vector<double> B;
+        /// the planes' outlet angle against the imposed one: the solver kept it when
+        /// they match (rad)
+        double beta_out{};
+    };
 
     /// The blade-to-blade solver of a case, ready for computeW()
     inline BladeToBladeCurvatureSolver<double> make_b2b_solver(const B2BCase &c)
@@ -430,5 +543,100 @@ namespace yams::api
         solver.setTtIn(c.Tt);
         solver.setDr(c.dr);
         return solver;
+    }
+
+    /// The solution's Kutta condition, mid stream line angles and specific mass flow
+    /// ratios (B2BOutput), at the planes of case `c`
+    inline B2BOutput b2b_output(const B2BCase &c, const BladeToBladeCurvatureSolver<double> &solver)
+    {
+        const auto &msh = solver.mesh();
+        const auto &dat = solver.data();
+        const auto [ni, nj] = solver.dimensions();
+        if (nj != c.n_planes)
+            throw std::invalid_argument("The solver is not the case's.");
+        B2BOutput o;
+        const auto wa = dat.W[ni * c.j_te], wb = dat.W[ni - 1 + ni * c.j_te];
+        o.kutta = (wa - wb) / (0.5 * (wa + wb));
+        const auto i_mid = (ni - 1) / 2;
+        // the solver's mass flow: it lowers it when a run gives NaN
+        const auto mf_passage = solver.fullBladePassageMassFlow() / c.blade_count;
+        const auto pitch = 2. * std::numbers::pi / c.blade_count;
+        for (size_t j = 0; j < nj; j++)
+        {
+            const auto id = i_mid + ni * j;
+            o.beta_mean.push_back(msh.BT[id]);
+            const auto rho_vm_a = mf_passage / (c.b[j] * msh.R[id] * pitch);
+            o.B.push_back(rho_vm_a / (dat.R[id] * dat.Vm[id]));
+        }
+        o.beta_out = msh.BT[i_mid + ni * (nj - 1)];
+        return o;
+    }
+
+    /// A blade-to-blade solution satisfying the Kutta condition (b2b_kutta)
+    struct B2BKutta
+    {
+        B2BCase case_;
+        BladeToBladeCurvatureSolver<double> solver;
+        B2BOutput output;
+        /// the far field angle's offset from the meridional run's that closes the
+        /// Kutta condition, rad: what the meridional deviation lacks (negative: more
+        /// deviation, for a compressor rotor of negative angles)
+        double outlet_offset{};
+        size_t runs{};       ///< blade-to-blade solutions made
+        /// the solution converged at the case's mass flow and |kutta| <= tol; else the
+        /// solution is the converged one of smallest |kutta| (or the first, if none)
+        bool converged{};
+    };
+
+    /**
+     * @brief The downstream far field angle that satisfies the Kutta condition, and its
+     * solution: secant iterations on B2BOptions::outlet_offset from opt's, until
+     * |B2BOutput::kutta| <= tol, as Novak and Hearsey iterated on the discharge air
+     * angles of their blade-to-blade runs (J. Fluids Eng. 99, 1977, p. 158).
+     */
+    inline B2BKutta b2b_kutta(const StreamTube &tube, size_t row, const BladeSection &section, B2BOptions opt = {},
+                              double tol = 1e-3, size_t max_runs = 10)
+    {
+        constexpr auto deg = std::numbers::pi / 180.;
+        size_t runs = 0;
+        auto run = [&](double offset)
+        {
+            opt.outlet_offset = offset;
+            B2BKutta k{.case_ = make_b2b_case(tube, row, section, opt), .outlet_offset = offset};
+            k.solver = make_b2b_solver(k.case_);
+            k.solver.computeW();
+            k.output = b2b_output(k.case_, k.solver);
+            k.converged = k.solver.converged() &&
+                          std::abs(k.solver.fullBladePassageMassFlow() - k.case_.mass_flow) <= 1e-9 * k.case_.mass_flow;
+            runs++;
+            return k;
+        };
+        auto a = run(opt.outlet_offset);
+        // the converged solution of smallest residual: what is returned
+        auto best = a;
+        // a second point a degree away, where the Kutta residual should get smaller:
+        // it decreases as the far field angle increases (Rotor 37 at mid span, 55 %
+        // speed: -0.23, -0.35, -0.49 at -1, 0, +1 deg); the secant corrects a wrong guess
+        double step = (a.output.kutta > 0. ? 1. : -1.) * deg;
+        while (a.converged && std::abs(a.output.kutta) > tol && runs < max_runs)
+        {
+            auto b = run(a.outlet_offset + step);
+            if (!b.converged)
+            {
+                // a step too far: half of it from the last converged solution
+                step *= 0.5;
+                continue;
+            }
+            if (std::abs(b.output.kutta) < std::abs(best.output.kutta))
+                best = b;
+            const auto dk = b.output.kutta - a.output.kutta;
+            if (std::abs(b.output.kutta) <= tol || dk == 0.)
+                break;
+            step = std::clamp(-b.output.kutta * (b.outlet_offset - a.outlet_offset) / dk, -5. * deg, 5. * deg);
+            a = std::move(b);
+        }
+        best.runs = runs;
+        best.converged = best.converged && std::abs(best.output.kutta) <= tol;
+        return best;
     }
 }
