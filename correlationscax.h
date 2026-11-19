@@ -45,7 +45,8 @@ namespace yams
     {
         auto x = b1 / 100;
         auto b = 0.9625 - 0.17 * x - 0.85 * x * x * x;
-        return m10(b1) * pow(sig, b);
+        // NASA SP-36 eq. 269 and 280, Aungier: m = m_sigma=1 / sigma^b
+        return m10(b1) / std::pow(sig, b);
     }
 
     auto d_opt_10(auto sig, auto b1)

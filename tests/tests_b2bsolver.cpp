@@ -4,6 +4,10 @@
 
 #include <baldeToBlade/bladeToBladeCurvatureSolver.h>
 #include <baldeToBlade/gridReader.h>
+#include <baldeToBlade/bladeToBladeCurvatureSolverPost.h>
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
 #include <gbs/bscbuild.h>
 #include <string>
 TEST_CASE("tridiagonal.thomas_vec")
@@ -21,8 +25,7 @@ TEST_CASE("tridiagonal.thomas_vec")
             REQUIRE(std::abs(d[i] - r[i]) <= 1e-9);
 }
 
-// Known failure on master, isolated so the CI catches new regressions: the curve is evaluated at 1.00004, out of [0, 1].
-TEST_CASE("solver.base_novak" * doctest::may_fail())
+TEST_CASE("solver.base_novak")
 {
     using namespace std;
     using T = double;
@@ -92,6 +95,44 @@ TEST_CASE("solver.base_novak" * doctest::may_fail())
     solver.computeW();
     auto elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
     cout << elapsed << endl;
+
+    // Converged at the requested mass flow: no reduction (a NaN reduces it), every
+    // residual below its tolerance.
+    const auto &dat = solver.data();
+    REQUIRE(std::ranges::none_of(dat.W, [](T w) { return std::isnan(w); }));
+    REQUIRE(solver.fullBladePassageMassFlow() == doctest::Approx(92.36282401553996));
+    CHECK(solver.compressibilityResidualAverage().back() < solver.compressibilityRelTol());
+    CHECK(solver.geomResidualMax().back() < solver.geomRelTol());
+    CHECK(solver.periodicityUpStreamResidual().back() < solver.geomRelTol());
+    CHECK(solver.periodicityDownStreamResidual().back() < solver.geomRelTol());
+    // Peak relative speed at the default geometric tolerance (1e-3): 299.4 m/s with
+    // clang on arm64 (308 with 1e-4, which the run does not reach)
+    auto W_max = *std::ranges::max_element(dat.W);
+    CHECK(W_max == doctest::Approx(299.4).epsilon(0.03));
+    CHECK(*std::ranges::max_element(dat.MW) < 1.);
+
+    // Blade sides, leading to trailing edge included
+    auto n_side = solver.trailingEdgeIndex() - solver.leadingEdgeIndex() + 1;
+    auto ps1 = yams::getPsSide1(solver);
+    auto ps2 = yams::getPsSide2(solver);
+    REQUIRE(ps1.size() == n_side);
+    REQUIRE(ps2.size() == n_side);
+    REQUIRE(ps1.back() == dat.PS[solver.trailingEdgeIndex() * ni]);
+    auto xyz = yams::getXYZSide1(solver);
+    REQUIRE(xyz.size() == n_side);
+    {
+        // theta of the side, not the stream line parameter
+        auto id = solver.leadingEdgeIndex() * ni;
+        auto th = solver.mesh().TH[id];
+        auto r = solver.mesh().R[id];
+        CHECK(xyz.front()[0] == doctest::Approx(r * std::cos(th)));
+        CHECK(xyz.front()[1] == doctest::Approx(r * std::sin(th)));
+    }
+    // the nodes stay on the stream line: m within its length
+    auto [m1, m2] = gbs::abs_curv(solver.meridionalStreamLine()).bounds();
+    CHECK(std::ranges::all_of(solver.mesh().M, [m1, m2](T m) { return m >= m1 && m <= m2; }));
+    // a trailing edge plane before the leading edge one is refused, not wrapped around
+    CHECK_THROWS_AS(yams::getValueStreamLine(dat.PS, 0, 3, 2, ni), std::invalid_argument);
     // yams::plot(solver.mesh(), solver.data().W,"Relative Speed");
     #if YAMS_TESTS_PLOT
     yams::plot(solver.mesh(), solver.data().MW,"Relative Mach Number");
