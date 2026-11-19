@@ -138,7 +138,11 @@ namespace yams
         bool fix_stag_le{true};
         bool fix_stag_te{true};
         // Blockage
+        // Iteration budget of computeW, mass flow reductions included
         size_t max_compressibility_iterations{5000};
+        // Outcome of the last computeW
+        size_t iterations_{};
+        bool converged_{false};
         T blockage_mass_flow_reduction_factor{0.999};
         vector<T> compressibility_residual;
         vector<T> compressibility_residual_avg;
@@ -192,7 +196,12 @@ namespace yams
         T relaxFactorCompressibility() const {return RF_rho;}
         bool fixUpStreamFlowPeriodicity() const {return fix_stag_le;}
         bool fixDownStreamFlowPeriodicity() const {return fix_stag_te;}
-        T maxConvergenceIterations() const {return max_compressibility_iterations;}
+        size_t maxConvergenceIterations() const {return max_compressibility_iterations;}
+        /// Iterations of the last computeW, mass flow reductions included
+        size_t iterations() const {return iterations_;}
+        /// Whether the last computeW stopped on its tolerances, with finite
+        /// residuals, rather than on maxConvergenceIterations
+        bool converged() const {return converged_;}
         const auto & compressibilityResidualAverage() const {return compressibility_residual_avg;}
         const auto & periodicityUpStreamResidual() const {return residual_per_le_max;}
         const auto & periodicityDownStreamResidual() const {return residual_per_te_max;}
@@ -213,7 +222,7 @@ namespace yams
         void setTtIn(T Tt){for( size_t i {}; i <ni; i++) dat.TT[i]=Tt;}
         void setFixUpStreamFlowPeriodicity(bool tog) { fix_stag_le = tog;}
         void setFixDownStreamFlowPeriodicity(bool tog) { fix_stag_te = tog;}
-        void setMaxConvergenceIterations(T m){max_compressibility_iterations=m;}
+        void setMaxConvergenceIterations(size_t m){max_compressibility_iterations=m;}
         void setCompressibilityRelTol( T tol ) {tol_rho=tol;}
         void setGeomRelTol( T tol ) {tol_th=tol;}
         void setMassFlowRelTol( T tol ) {tol_rel_mf=tol;}
@@ -491,8 +500,12 @@ namespace yams
         auto Mf_min = Mf*0.3;
         auto d_Mf   = Mf*0.01;
         T residual_per_le{1}, residual_per_te{1}, residual_rho{1}, residual_geom_{1};
+        // One budget for the whole call: a mass flow reduction does not restart
+        // it, or a case that gives NaN again after each reduction would run up
+        // to 70 times max_compressibility_iterations.
+        size_t i{};
         for (
-            int i{}; 
+            ; 
             i < max_compressibility_iterations && (
                 residual_rho > tol_rho ||
                 residual_per_le>tol_th ||
@@ -529,8 +542,6 @@ namespace yams
 
             if (std::isnan(residual_rho) && Mf >= Mf_min )
             {
-                // break;
-                i = 0;
                 std::fill(dat.W.begin(), dat.W.end(), 10.);
                 // computeFlowData();
                 std::fill(dat.Vm.begin(), dat.Vm.end(), 0.);
@@ -586,6 +597,11 @@ namespace yams
                 computeMeshData();
             }
         }
+        iterations_ = i;
+        // a NaN residual compares false with its tolerance: check it is finite
+        auto within = [](T r, T tol) { return std::isfinite(r) && r <= tol; };
+        converged_ = within(residual_rho, tol_rho) && within(residual_per_le, tol_th) &&
+                     within(residual_per_te, tol_th) && within(residual_geom_, tol_th);
     }
 
     template <typename T>
@@ -792,6 +808,10 @@ namespace yams
     template <typename T>
     auto BladeToBladeCurvatureSolver<T>::fixFlowPeriodicity(const vector<size_t> &j_stations)
     {
+        // no station between the edge and the domain's end (an edge on the first
+        // or last-but-one plane): nothing to shift
+        if (j_stations.empty())
+            return T{};
 
         size_t i_mid = (ni - 1) / 2 + 1;
         auto f_A = [i_mid, ni=this->ni, &VM = dat.Vm, &R = msh.R](size_t j)

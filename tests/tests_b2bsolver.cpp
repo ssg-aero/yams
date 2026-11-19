@@ -93,8 +93,8 @@ TEST_CASE("solver.base_novak")
     auto start = chrono::steady_clock::now();
     solver.computeW();
     // converged by the tolerances (1e-4), not stopped by the iteration limit
-    auto n_iterations = solver.compressibilityResidualAverage().size();
-    CHECK(n_iterations < solver.maxConvergenceIterations());
+    CHECK(solver.converged());
+    CHECK(solver.iterations() < solver.maxConvergenceIterations());
     solver.computeW();
     auto elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count() / 1000.;
     cout << elapsed << endl;
