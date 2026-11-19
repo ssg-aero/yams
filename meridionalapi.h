@@ -137,6 +137,10 @@ namespace yams::api
         NotConverged,  ///< max_geom reached
         Cancelled,     ///< stopped by the progress callback
         Diverged,      ///< non finite values in the solution, or stream lines that could no longer be relocated (Result::divergence)
+        /// stream lines positions within tol_rel_pos, but Vm held at the sonic
+        /// limit at some points (Result::sonic_points): the mass flow is beyond
+        /// the choke of the channel, the solution is not a valid flow
+        Choked,
     };
 
     inline const char *to_string(Status status)
@@ -147,6 +151,7 @@ namespace yams::api
         case Status::NotConverged: return "not converged";
         case Status::Cancelled: return "cancelled";
         case Status::Diverged: return "diverged";
+        case Status::Choked: return "choked";
         }
         return "unknown";
     }
@@ -169,6 +174,9 @@ namespace yams::api
         /// converges, in a number of iterations growing as its inverse squared.
         double station_spacing{};
         std::string divergence;             ///< why, when the stream lines could no longer be relocated
+        /// Grid points where the solver holds Vm at the sonic limit (meridional
+        /// Mach number 1): Status::Choked when the run converges with any.
+        size_t sonic_points{};
         std::vector<double> residual_max;   ///< per iteration, relative to the span
         std::vector<double> residual_mean;
         std::vector<RowStations> rows;
@@ -572,12 +580,16 @@ namespace yams::api
         const auto &g = *sc.gi->g;
         bool finite = std::all_of(g.begin(), g.end(), [](const auto &gp)
                                   { return std::isfinite(gp.Vm) && std::isfinite(gp.Ps) && std::isfinite(gp.Ts) && std::isfinite(gp.Vu); });
+        // the solver clips Vm to sqrt(gamma R Ts): a point there is choked
+        const double R = sc.gi->R;
+        res.sonic_points = static_cast<size_t>(std::count_if(g.begin(), g.end(), [R](const auto &gp)
+                                  { return gp.Vm >= (1. - 1e-3) * std::sqrt(gp.ga * R * gp.Ts); }));
         if (!finite || sc.diverged)
             res.status = Status::Diverged;
         else if (sc.cancelled)
             res.status = Status::Cancelled;
         else if (sc.converged)
-            res.status = Status::Converged;
+            res.status = res.sonic_points > 0 ? Status::Choked : Status::Converged;
         else
             res.status = Status::NotConverged;
         return res;

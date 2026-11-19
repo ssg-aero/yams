@@ -6,6 +6,7 @@
 #include <limits>
 #include <stdexcept>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 #include <diffop.h>
 #include <correlationscax.h>
@@ -130,15 +131,16 @@ namespace yams
     /// them, as it always was; the three-point curvature is taken from the station
     /// next to them. Extrapolating it would triple a zigzag from one station to
     /// the next, which the double differentiation does not see.
+    /// @throw std::invalid_argument for Blended with a share outside [0, 1]
     template <typename T>
     inline auto compute_curvature(MeridionalGrid<T> &g, bool interpolate = true,
                                   CurvatureMethod method = CurvatureMethod::DoubleDifferentiation,
-                                  T blend = 0.5)
+                                  std::type_identity_t<T> blend = 0.5)
     {
         size_t nim = g.nRows()-1;
         size_t nj = g.nCols();
         // the weights of the double differentiation and of the three-point curvature
-        const T w3 = method == CurvatureMethod::ThreePoint ? 1. : method == CurvatureMethod::Blended ? blend : 0.;
+        const T w3 = three_point_share(method, blend);
         const T wd = 1. - w3;
         auto kd = [&g, wd](size_t i, size_t j) -> T
         { return wd > 0. ? wd * D1_O2_i(g, i, j, fphi, fm) : T{}; }; // TODO check why Aungier put -DphiDm
@@ -203,7 +205,7 @@ namespace yams
 
     template <typename T>
     inline auto compute_grid_metrics(MeridionalGrid<T> &g, Array2d<Grid2dMetricsPoint<T>> &g_metrics, const auto &f_m, const auto &f_l,
-                                     CurvatureMethod method = CurvatureMethod::DoubleDifferentiation, T blend = 0.5)
+                                     CurvatureMethod method = CurvatureMethod::DoubleDifferentiation, std::type_identity_t<T> blend = 0.5)
     {
         compute_abscissas(g);
         compute_metrics(g,f_m,f_l,g_metrics);

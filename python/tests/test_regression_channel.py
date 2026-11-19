@@ -188,6 +188,9 @@ def test_curvature_methods(channel_case):
     blended = yams.CurvatureMethod.Blended
     assert yams.max_relax_constant(blended, 0.2) == approx(15.36)
     assert yams.default_relax_constant(blended, blend=0.2) == approx(9.6)
+    # a share outside [0, 1] is refused
+    with pytest.raises(ValueError):
+        yams.max_relax_constant(blended, 1.5)
 
     solver_case = channel_case
     gi = solver_case.gi

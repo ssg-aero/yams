@@ -565,6 +565,22 @@ TEST_CASE("meridionalapi.curvature_three_point")
     }
 }
 
+namespace
+{
+    constexpr bool near(double a, double b) { return (a > b ? a - b : b - a) < 1e-12; }
+    using yams::CurvatureMethod;
+    // the stability limits and default constants are known at compile time
+    static_assert(near(yams::max_relax_constant(CurvatureMethod::DoubleDifferentiation), 19.2));
+    static_assert(near(yams::max_relax_constant(CurvatureMethod::Blended), 9.6));
+    static_assert(near(yams::max_relax_constant(CurvatureMethod::Blended, 0.2), 15.36));
+    static_assert(near(yams::max_relax_constant(CurvatureMethod::ThreePoint), 4.8));
+    static_assert(near(yams::default_relax_constant(CurvatureMethod::Blended, 0.2), 9.6));
+    // the share is deduced from the grid: a float grid takes a double literal
+    static_assert(requires(yams::MeridionalGrid<float> &g) {
+        yams::compute_curvature(g, true, CurvatureMethod::Blended, 0.2);
+    });
+}
+
 TEST_CASE("meridionalapi.curvature_ends_and_limits")
 {
     using yams::CurvatureMethod;
@@ -615,10 +631,21 @@ TEST_CASE("meridionalapi.curvature_ends_and_limits")
     CHECK_NOTHROW(yams::api::make_case(pb));
     pb.options.curvature_blend = 0.5;
     CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
-    // a share outside [0, 1] is refused
+    // a share outside [0, 1] is refused, by the API and by the functions it is
+    // given to (GridInfo::curvature_blend reaches them unchecked from Python)
     pb.options.relax_constant.reset();
     pb.options.curvature_blend = 1.5;
     CHECK_THROWS_AS(yams::api::make_case(pb), std::invalid_argument);
+    CHECK_THROWS_AS(yams::max_relax_constant(CurvatureMethod::Blended, 1.5), std::invalid_argument);
+    CHECK_THROWS_AS(yams::max_relax_constant(CurvatureMethod::Blended, std::nan("")), std::invalid_argument);
+    CHECK_THROWS_AS(yams::max_relax_constant(CurvatureMethod::Blended, -0.1), std::invalid_argument);
+    {
+        auto g = yams::make_meridional_grid<double>(zig, ni, nj);
+        CHECK_THROWS_AS(yams::compute_grid_metrics(g, g_metrics, yams::fm, yams::fl, CurvatureMethod::Blended, 1.5),
+                        std::invalid_argument);
+    }
+    // the share is not read for the other methods
+    CHECK_NOTHROW(yams::max_relax_constant(CurvatureMethod::ThreePoint, 1.5));
 
     // Blended with a share of 0 is the double differentiation, of 1 the three-point
     auto curvature = [&](CurvatureMethod m, double blend)
@@ -641,6 +668,7 @@ TEST_CASE("meridionalapi.rotor37")
     auto pb = yams::tests::rotor37();
     const auto res = yams::api::solve(pb);
     REQUIRE(res.status == yams::api::Status::Converged);
+    CHECK(res.sonic_points == 0);
     CHECK(res.solver_case.gi->curvature == CurvatureMethod::Blended);
     CHECK(res.solver_case.gi->RF_B == doctest::Approx(9.6));
     // 143 iterations with clang on arm64
@@ -663,12 +691,15 @@ TEST_CASE("meridionalapi.rotor37")
 
 TEST_CASE("meridionalapi.rotor37_high_flow")
 {
-    // A fifth more mass flow (mean inlet Vm 180 m/s): the flow reaches the
-    // sonic limit at the leading edge. The run converges because its density
-    // follows the flow from the first iteration.
+    // A fifth more mass flow (mean inlet Vm 180 m/s), beyond the choke of the
+    // rotor: the solver holds Vm at the sonic limit at some points. The stream
+    // lines settle because the density follows the flow from the first
+    // iteration, and the run says the flow is choked, not converged.
     auto pb = yams::tests::rotor37(180.);
     const auto res = yams::api::solve(pb);
-    REQUIRE(res.status == yams::api::Status::Converged);
+    REQUIRE(res.status == yams::api::Status::Choked);
+    CHECK(res.sonic_points > 0);
+    CHECK(std::string(yams::api::to_string(res.status)) == "choked");
     CHECK(res.iterations < 200);
 
     // With the density held until the mean displacement is under 1e-2 of the
