@@ -66,7 +66,13 @@ namespace yams::api
     /// line keeps its values when the solver moves it.
     struct Inlet
     {
+        /// The mass flow from a mean meridional velocity: vm_mean times the inlet
+        /// station's area and its total density (the inlet is set from its totals
+        /// before any velocity), not its static one: the flow's mean Vm is higher.
         double vm_mean{30.};
+        /// The mass flow itself, kg/s, all the annulus: when set, vm_mean is not used
+        /// (a design point is given by its mass flow)
+        std::optional<double> mass_flow;
         std::function<double(double)> Tt = [](double) { return 288.15; };
         std::function<double(double)> Pt = [](double) { return 1.01325e5; };
         std::function<double(double)> Vu = [](double) { return 0.; };
@@ -520,8 +526,21 @@ namespace yams::api
         // INLET_VmMoy_Ts_Ps_Vu sets the inlet totals from its Ts / Ps before the
         // inlet velocity is computed (Vm = 0): they are the total values, which
         // the solver keeps. (A static inlet would need its own formulation.)
-        sc.inlet.mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu;
-        sc.inlet.Vm_moy = pb.inlet.vm_mean;
+        if (pb.inlet.mass_flow)
+        {
+            // the same inlet, its mass flow given (apply_mf keeps it)
+            if (!(*pb.inlet.mass_flow > 0.) || !std::isfinite(*pb.inlet.mass_flow))
+                throw std::invalid_argument("The inlet mass flow must be positive.");
+            sc.inlet.mode = MeridionalBC::INLET_Mf_Ts_Ps_Vu;
+            sc.inlet.Mf = *pb.inlet.mass_flow;
+            // the inlet totals come from its Ts / Ps before any velocity (Vm = 0, as
+            // with vm_mean): no first guess of Vm here, it would raise them
+        }
+        else
+        {
+            sc.inlet.mode = MeridionalBC::INLET_VmMoy_Ts_Ps_Vu;
+            sc.inlet.Vm_moy = pb.inlet.vm_mean;
+        }
         sc.inlet.Ts = pb.inlet.Tt;
         sc.inlet.Ps = pb.inlet.Pt;
         sc.inlet.Vu = pb.inlet.Vu;

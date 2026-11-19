@@ -767,3 +767,42 @@ TEST_CASE("meridionalapi.flow_reversal")
     CHECK(res.status == yams::api::Status::Converged);
     CHECK(res.floor_points == 0);
 }
+
+TEST_CASE("meridionalapi.mass_flow")
+{
+    // The inlet given by its mass flow: the run by the mean Vm's mass flow gives back
+    // the same flow (NASA Rotor 37).
+    auto pb = yams::tests::rotor37(150.);
+    const auto by_vm = yams::api::solve(pb);
+    REQUIRE(by_vm.status == yams::api::Status::Converged);
+    const double mf = by_vm.solver_case.inlet.Mf;
+
+    pb.inlet.mass_flow = mf;
+    pb.inlet.vm_mean = 1.; // not used
+    const auto by_mf = yams::api::solve(pb);
+    REQUIRE(by_mf.status == yams::api::Status::Converged);
+    CHECK(by_mf.solver_case.inlet.Mf == doctest::Approx(mf));
+    const auto &g = *by_vm.solver_case.gi->g, &h = *by_mf.solver_case.gi->g;
+    REQUIRE(g.nRows() == h.nRows());
+    for (size_t i = 0; i < g.nRows(); i++)
+        for (size_t j = 0; j < g.nCols(); j++)
+        {
+            CHECK(h(i, j).Vm == doctest::Approx(g(i, j).Vm).epsilon(2e-3));
+            CHECK(h(i, j).Pt == doctest::Approx(g(i, j).Pt).epsilon(1e-4));
+            CHECK(h(i, j).y == doctest::Approx(g(i, j).y).epsilon(1e-4));
+        }
+    // vm_mean 150 m/s is 20.29 kg/s, the inlet's mid span Vm 175 m/s (its total
+    // density sets the mass flow); the same 143 iterations either way, with clang on arm64
+    CHECK(mf == doctest::Approx(20.29).epsilon(1e-3));
+    CHECK(g(0, g.nCols() / 2).Vm > 170.);
+    CHECK(by_mf.iterations <= by_vm.iterations + 5);
+
+    // the design point's mass flow, 20.19 kg/s (NASA TP-1659): 139 iterations
+    pb.inlet.mass_flow = 20.19;
+    const auto design = yams::api::solve(pb);
+    REQUIRE(design.status == yams::api::Status::Converged);
+    CHECK(design.solver_case.inlet.Mf == 20.19);
+
+    pb.inlet.mass_flow = 0.;
+    CHECK_THROWS_AS(yams::api::solve(pb), std::invalid_argument);
+}
