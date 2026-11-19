@@ -1,8 +1,35 @@
 #pragma once
-
+#include <cmath>
+#include <stdexcept>
 
 namespace yams
 {
+    /// Perfect gas of the meridional solver (curvaturesolver.h): gas constant R and
+    /// constant cp, gamma = cp / (cp - R) follows, entropy from (Tref, Pref) like
+    /// GridInfo. The blade-to-blade solver uses the same model, so a stream line
+    /// analysed after the meridional run sees the same fluid.
+    template <typename T>
+    struct PerfectGas
+    {
+        T R{287.04};      ///< gas constant, J/(kg K)
+        T cp{1004.5};     ///< specific heat at constant pressure, J/(kg K)
+        T Tref{288.};     ///< entropy origin, K
+        T Pref{1.01325e5};///< entropy origin, Pa
+
+        /// @throw std::invalid_argument unless R > 0, cp > R (gamma > 1), Tref > 0
+        /// and Pref > 0
+        void validate() const
+        {
+            if (!(R > 0 && cp > R && Tref > 0 && Pref > 0))
+                throw std::invalid_argument("yams: a perfect gas needs R > 0, cp > R (gamma > 1), Tref > 0 and Pref > 0");
+        }
+
+        T gamma() const { return cp / (cp - R); }
+        T rho(T Ts, T Ps) const { return Ps / (R * Ts); }
+        T sound_speed(T Ts) const { return std::sqrt(gamma() * R * Ts); }
+        T entropy(T Ts, T Ps) const { return cp * std::log(Ts / Tref) - R * std::log(Ps / Pref); }
+    };
+
     template <typename T>
     class GasBase
     {
@@ -35,7 +62,7 @@ namespace yams
         }
         T rho(T t, T p) override
         {
-            return sqrt(p / (r_ * t));
+            return p / (r_ * t);
         }
         T et(T t, T p , T V) override
         {

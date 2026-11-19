@@ -21,6 +21,7 @@
  * - blade rows are in DIRECT mode (metal angle imposed, no deviation model).
  */
 #include <curvaturesolver.h>
+#include <gas/gasModel.h>
 #include <gbs/bscurve.h>
 
 #include <algorithm>
@@ -71,12 +72,9 @@ namespace yams::api
         std::function<double(double)> Vu = [](double) { return 0.; };
     };
 
-    /// Perfect gas
-    struct Gas
-    {
-        double R{287.04};
-        double cp{1004.5};
-    };
+    /// Perfect gas: R, cp (gamma follows) and the entropy origin, shared with the
+    /// blade-to-blade solver.
+    using Gas = PerfectGas<double>;
 
     struct Options
     {
@@ -528,6 +526,8 @@ namespace yams::api
         sc.inlet.Ps = pb.inlet.Pt;
         sc.inlet.Vu = pb.inlet.Vu;
         sc.gi->R = pb.gas.R;
+        sc.gi->Tref = pb.gas.Tref;
+        sc.gi->Pref = pb.gas.Pref;
         sc.gi->rho_cst = !opt.compressible;
         sc.gi->RF = opt.relax_factor;
         sc.gi->RF_local = opt.local_relaxation;

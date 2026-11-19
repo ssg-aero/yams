@@ -445,8 +445,25 @@ PYBIND11_MODULE(yams, m)
     .def_readonly("TAU", &BladeToBladeCurvatureSolverMesh<T>::TAU,"Stream tube thickness")
     ;
 
+    py::class_<PerfectGas<T>>(m, "PerfectGas", "Perfect gas shared by the meridional and blade-to-blade solvers")
+    .def(py::init<>())
+    .def(py::init([](T R, T cp, T Tref, T Pref) { PerfectGas<T> g{R, cp, Tref, Pref}; g.validate(); return g; }),
+         py::arg("R") = 287.04, py::arg("cp") = 1004.5, py::arg("Tref") = 288., py::arg("Pref") = 1.01325e5)
+    .def_readwrite("R", &PerfectGas<T>::R, "Gas constant, J/(kg K)")
+    .def_readwrite("cp", &PerfectGas<T>::cp, "Specific heat at constant pressure, J/(kg K)")
+    .def_readwrite("Tref", &PerfectGas<T>::Tref, "Entropy origin, K")
+    .def_readwrite("Pref", &PerfectGas<T>::Pref, "Entropy origin, Pa")
+    .def_property_readonly("gamma", &PerfectGas<T>::gamma)
+    .def("rho", &PerfectGas<T>::rho, py::arg("Ts"), py::arg("Ps"))
+    .def("sound_speed", &PerfectGas<T>::sound_speed, py::arg("Ts"))
+    .def("entropy", &PerfectGas<T>::entropy, py::arg("Ts"), py::arg("Ps"));
+
     py::class_< BladeToBladeCurvatureSolver<T>, std::shared_ptr<BladeToBladeCurvatureSolver<T>> >(m, "BladeToBladeCurvatureSolver")
     .def(py::init<>())
+    // a copy: changing a field of solver.gas must go through setGas (validation)
+    .def_property("gas", [](const BladeToBladeCurvatureSolver<T> &s) { return PerfectGas<T>{s.gas()}; },
+                  &BladeToBladeCurvatureSolver<T>::setGas,
+                  "Gas (PerfectGas, a copy): set the meridional run's, e.g. with the same R and cp")
     .def(
         py::init<
             const gbs::points_vector<T,2> &,
